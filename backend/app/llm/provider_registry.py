@@ -9,6 +9,7 @@ def _register_defaults() -> None:
     if _PROVIDER_CLASSES:
         return
     from app.llm.providers.anthropic_provider import AnthropicProvider
+    from app.llm.providers.groq_provider import GroqProvider
     from app.llm.providers.ollama_provider import OllamaProvider
     from app.llm.providers.openai_provider import OpenAIProvider
     from app.llm.providers.openrouter_provider import OpenRouterProvider
@@ -17,6 +18,7 @@ def _register_defaults() -> None:
     _PROVIDER_CLASSES[LLMProviderType.OPENAI] = OpenAIProvider
     _PROVIDER_CLASSES[LLMProviderType.OLLAMA] = OllamaProvider
     _PROVIDER_CLASSES[LLMProviderType.OPENROUTER] = OpenRouterProvider
+    _PROVIDER_CLASSES[LLMProviderType.GROQ] = GroqProvider
 
 
 def register_provider(provider_type: LLMProviderType, cls: type[BaseLLMProvider]) -> None:
@@ -32,6 +34,12 @@ def get_provider(provider_type: str, api_key: str | None = None) -> BaseLLMProvi
         from app.config import settings as _settings
         if _settings.ollama_api_key:
             api_key = _settings.ollama_api_key
+
+    # For Groq, inject the configured API key if the caller didn't supply one
+    if provider_type == "groq" and api_key is None:
+        from app.config import settings as _settings
+        if _settings.groq_api_key:
+            api_key = _settings.groq_api_key
 
     cache_key = f"{provider_type}:{api_key or 'default'}"
     if cache_key in _instances:
@@ -71,7 +79,7 @@ def get_embedding_provider(api_key: str | None = None) -> BaseLLMProvider:
     provider_type = settings.embedding_provider or settings.default_llm_provider
 
     # Providers without an embeddings endpoint fall back to OpenAI
-    if provider_type in ("anthropic", "openrouter"):
+    if provider_type in ("anthropic", "openrouter", "groq"):
         provider_type = "openai"
 
     return get_provider(provider_type, api_key=api_key)

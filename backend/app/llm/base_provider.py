@@ -9,6 +9,7 @@ class LLMProviderType(str, Enum):
     OPENAI = "openai"
     OLLAMA = "ollama"
     OPENROUTER = "openrouter"
+    GROQ = "groq"
 
 
 @dataclass
