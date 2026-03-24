@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_model: str = "openai/gpt-3.5-turbo"
 
+    # Groq settings (used when default_llm_provider = "groq")
+    groq_api_key: str = ""
+    groq_model: str = "moonshotai/kimi-k2-instruct"
+
     # Embedding provider override (leave empty to auto-derive from default_llm_provider)
     # Set to "ollama" to use Ollama for embeddings while using a different provider for LLM.
     # Valid values: "", "openai", "ollama", "anthropic"
