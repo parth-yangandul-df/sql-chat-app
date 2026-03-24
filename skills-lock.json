@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "chat-ui": {
+      "source": "inferen-sh/skills",
+      "sourceType": "github",
+      "computedHash": "f28ca5f4c57a8c587305d8ac7f090f4f8dd1723b403e126a95677606a4dc9572"
+    },
+    "shadcn-ui": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "computedHash": "119a14a004bd30fa99d386df599bd0db8d057cca146f7ee08349daed48b2ea55"
+    }
+  }
+}
