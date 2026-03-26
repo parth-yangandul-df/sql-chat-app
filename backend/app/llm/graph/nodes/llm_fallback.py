@@ -4,6 +4,7 @@ Called when intent classifier confidence < threshold.
 Mirrors the logic in query_service.execute_nl_query() exactly.
 """
 
+import logging
 import uuid
 from typing import Any
 
@@ -15,12 +16,19 @@ from app.llm.graph.state import GraphState
 from app.llm.router import route
 from app.semantic.context_builder import build_context
 
+logger = logging.getLogger(__name__)
+
 
 async def llm_fallback(state: GraphState) -> dict[str, Any]:
     """Full LLM SQL generation pipeline as a LangGraph node."""
     question = state["question"]
     connection_id = uuid.UUID(state["connection_id"])
     db = state["db"]
+
+    logger.info(
+        "intent=llm_fallback q=%r connector=%s confidence=%.3f",
+        question[:80], state.get("connector_type"), state.get("confidence", 0.0),
+    )
 
     from app.services.connection_service import get_connection
     conn = await get_connection(db, connection_id)

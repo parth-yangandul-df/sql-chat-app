@@ -12,7 +12,11 @@ from app.services.embedding_service import embed_text
 
 logger = logging.getLogger(__name__)
 
-_THRESHOLD = float(os.environ.get("TOOL_CONFIDENCE_THRESHOLD", "0.78"))
+# Default lowered to 0.65 — nomic-embed-text (768-dim) paraphrase similarity
+# sits in the 0.65–0.85 range; 0.78 was too aggressive and caused all queries
+# to fall through to llm_fallback even for clear PRMS intent matches.
+# Override via TOOL_CONFIDENCE_THRESHOLD env var without code changes.
+_THRESHOLD = float(os.environ.get("TOOL_CONFIDENCE_THRESHOLD", "0.65"))
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -36,16 +40,14 @@ async def classify_intent(state: GraphState) -> dict[str, Any]:
     best_score = scores[best_idx]
 
     route_taken = "run_domain_tool" if best_score >= _THRESHOLD else "llm_fallback"
-    if route_taken == "run_domain_tool":
-        logger.info(
-            "intent=classify q=%r domain=%s intent=%s confidence=%.3f route=%s",
-            state["question"][:80], best_entry.domain, best_entry.name, best_score, route_taken,
-        )
-    else:
-        logger.warning(
-            "intent=classify q=%r domain=%s intent=%s confidence=%.3f route=%s (below threshold %.2f)",
-            state["question"][:80], best_entry.domain, best_entry.name, best_score, route_taken, _THRESHOLD,
-        )
+
+    # Always log top-3 scores so threshold can be tuned empirically from Docker logs
+    top3 = sorted(zip(scores, INTENT_CATALOG), key=lambda x: x[0], reverse=True)[:3]
+    top3_str = ", ".join(f"{e.name}:{s:.3f}" for s, e in top3)
+    logger.info(
+        "intent=classify q=%r  top3=[%s]  threshold=%.2f  route=%s",
+        state["question"][:80], top3_str, _THRESHOLD, route_taken,
+    )
 
     return {
         "domain": best_entry.domain,
