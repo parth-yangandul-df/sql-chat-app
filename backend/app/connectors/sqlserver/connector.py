@@ -284,7 +284,7 @@ class SQLServerConnector(BaseConnector):
     async def execute_query(
         self,
         sql: str,
-        params: dict[str, Any] | None = None,
+        params: tuple[Any, ...] | None = None,
         timeout_seconds: int = 30,
         max_rows: int = 1000,
     ) -> QueryResult:
@@ -301,7 +301,7 @@ class SQLServerConnector(BaseConnector):
         start = time.monotonic()
         try:
             result = await asyncio.wait_for(
-                self._run_query(wrapped_sql),
+                self._run_query(wrapped_sql, params),
                 timeout=timeout_seconds,
             )
         except TimeoutError as e:
@@ -323,11 +323,15 @@ class SQLServerConnector(BaseConnector):
         )
 
     async def _run_query(
-        self, sql: str
+        self, sql: str, params: tuple[Any, ...] | None = None
     ) -> tuple[list[Any], list[str], list[str]]:
+        assert self._connection is not None
         cursor = await self._connection.cursor()
         try:
-            await cursor.execute(sql)
+            if params:
+                await cursor.execute(sql, params)
+            else:
+                await cursor.execute(sql)
             rows = await cursor.fetchall()
             if not rows:
                 return [], [], []

@@ -86,7 +86,7 @@ class BaseConnector(ABC):
     async def execute_query(
         self,
         sql: str,
-        params: dict[str, Any] | None = None,
+        params: tuple[Any, ...] | None = None,
         timeout_seconds: int = 30,
         max_rows: int = 1000,
     ) -> QueryResult:
