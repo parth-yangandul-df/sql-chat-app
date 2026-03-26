@@ -89,3 +89,31 @@ def test_route_after_classify_at_threshold():
     from app.llm.graph.nodes.intent_classifier import route_after_classify, _THRESHOLD
     state = _base_state(confidence=_THRESHOLD, domain="resource", intent="active_resources")
     assert route_after_classify(state) == "extract_params"
+
+
+# ── Param Extractor Tests ────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_extract_skill():
+    from app.llm.graph.nodes.param_extractor import extract_params
+    state = _base_state(question="find resources with skill Python")
+    updates = await extract_params(state)
+    assert updates["params"]["skill"] == "Python"
+
+
+@pytest.mark.asyncio
+async def test_extract_date_range():
+    from app.llm.graph.nodes.param_extractor import extract_params
+    state = _base_state(question="show timesheets from 2026-01-01 to 2026-01-31")
+    updates = await extract_params(state)
+    assert updates["params"]["start_date"] == "2026-01-01"
+    assert updates["params"]["end_date"] == "2026-01-31"
+
+
+@pytest.mark.asyncio
+async def test_extract_no_match_returns_empty():
+    from app.llm.graph.nodes.param_extractor import extract_params
+    state = _base_state(question="show active resources")
+    updates = await extract_params(state)
+    assert updates["params"] == {}
