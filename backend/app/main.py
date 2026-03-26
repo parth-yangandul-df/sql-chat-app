@@ -20,9 +20,16 @@ async def lifespan(app: FastAPI):
     await ensure_embedding_dimensions()
 
     # Pre-embed intent catalog so first query does not pay embedding cost
+    # Wrapped in try/except — failure logs warning but does NOT prevent startup
     from app.llm.graph.intent_catalog import ensure_catalog_embedded
 
-    await ensure_catalog_embedded()
+    try:
+        await ensure_catalog_embedded()
+    except Exception:
+        logger.warning(
+            "Intent catalog pre-embedding failed; first query will embed on demand",
+            exc_info=True,
+        )
 
     if settings.auto_setup_sample_db:
         from app.services.setup_service import auto_setup_sample_db
