@@ -18,7 +18,7 @@ async def interpret_result(state: GraphState) -> dict[str, Any]:
         }
 
     question = state["question"]
-    sql = state.get("sql", "")
+    sql: str = state.get("sql") or ""
     provider, llm_config = route(question)
 
     interpreter = ResultInterpreterAgent(provider, llm_config)
