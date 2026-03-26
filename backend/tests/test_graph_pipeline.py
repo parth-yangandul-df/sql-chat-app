@@ -143,3 +143,143 @@ async def test_graph_0_row_routes_to_llm_fallback(mock_db):
         final_state = await g.ainvoke(initial_state)
 
     assert final_state["answer"] == "LLM answered."
+
+
+# ---------------------------------------------------------------------------
+# execute_nl_query() integration tests (Plan 05)
+# ---------------------------------------------------------------------------
+
+EXPECTED_RESPONSE_KEYS = {
+    "id", "question", "generated_sql", "final_sql", "explanation",
+    "columns", "column_types", "rows", "row_count", "execution_time_ms",
+    "truncated", "summary", "highlights", "suggested_followups",
+    "llm_provider", "llm_model", "retry_count",
+}
+
+
+def _make_final_state(mock_query_result) -> dict:
+    """Build a final GraphState-shaped dict as ainvoke() would return."""
+    return {
+        "question": "show active resources",
+        "connection_id": "00000000-0000-0000-0000-000000000001",
+        "connector_type": "sqlserver",
+        "connection_string": "dsn=test",
+        "timeout_seconds": 30,
+        "max_rows": 100,
+        "db": None,
+        "domain": "resource",
+        "intent": "active_resources",
+        "confidence": 0.95,
+        "params": {},
+        "sql": "SELECT * FROM Resource WHERE IsActive = 1",
+        "result": mock_query_result,
+        "generated_sql": None,
+        "retry_count": 0,
+        "explanation": None,
+        "llm_provider": "domain_tool",
+        "llm_model": "active_resources",
+        "answer": "2 active resources found.",
+        "highlights": ["Alice", "Bob"],
+        "suggested_followups": ["Show billing rate for Alice?"],
+        "execution_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "execution_time_ms": 12.5,
+        "error": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_execute_nl_query_response_keys(mock_db, mock_query_result):
+    """execute_nl_query() must return exactly the original 17-key response dict."""
+    import uuid
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    final_state = _make_final_state(mock_query_result)
+    mock_compiled = MagicMock()
+    mock_compiled.ainvoke = AsyncMock(return_value=final_state)
+
+    mock_conn = MagicMock()
+    mock_conn.connector_type = "sqlserver"
+    mock_conn.max_query_timeout_seconds = 30
+    mock_conn.max_rows = 100
+
+    with (
+        patch("app.services.query_service.get_compiled_graph", return_value=mock_compiled),
+        patch("app.services.query_service.get_connection", AsyncMock(return_value=mock_conn)),
+        patch("app.services.query_service.get_decrypted_connection_string", return_value="dsn=test"),
+    ):
+        from app.services.query_service import execute_nl_query
+        result = await execute_nl_query(
+            db=mock_db,
+            connection_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            question="show active resources",
+        )
+
+    assert set(result.keys()) == EXPECTED_RESPONSE_KEYS
+
+
+@pytest.mark.asyncio
+async def test_execute_nl_query_domain_tool_provider(mock_db, mock_query_result):
+    """Domain tool path sets llm_provider='domain_tool' and llm_model=intent_name."""
+    import uuid
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    final_state = _make_final_state(mock_query_result)
+    mock_compiled = MagicMock()
+    mock_compiled.ainvoke = AsyncMock(return_value=final_state)
+
+    mock_conn = MagicMock()
+    mock_conn.connector_type = "sqlserver"
+    mock_conn.max_query_timeout_seconds = 30
+    mock_conn.max_rows = 100
+
+    with (
+        patch("app.services.query_service.get_compiled_graph", return_value=mock_compiled),
+        patch("app.services.query_service.get_connection", AsyncMock(return_value=mock_conn)),
+        patch("app.services.query_service.get_decrypted_connection_string", return_value="dsn=test"),
+    ):
+        from app.services.query_service import execute_nl_query
+        result = await execute_nl_query(
+            db=mock_db,
+            connection_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            question="show active resources",
+        )
+
+    assert result["llm_provider"] == "domain_tool"
+    assert result["llm_model"] == "active_resources"
+    assert result["generated_sql"] is None
+    assert result["explanation"] is None
+
+
+@pytest.mark.asyncio
+async def test_execute_nl_query_error_raises(mock_db, mock_query_result):
+    """execute_nl_query() raises AppError when graph returns error with no result."""
+    import uuid
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from app.core.exceptions import AppError
+
+    error_state = {
+        **_make_final_state(mock_query_result),
+        "result": None,
+        "error": "LLM fallback failed to generate SQL",
+    }
+
+    mock_compiled = MagicMock()
+    mock_compiled.ainvoke = AsyncMock(return_value=error_state)
+
+    mock_conn = MagicMock()
+    mock_conn.connector_type = "sqlserver"
+    mock_conn.max_query_timeout_seconds = 30
+    mock_conn.max_rows = 100
+
+    with (
+        patch("app.services.query_service.get_compiled_graph", return_value=mock_compiled),
+        patch("app.services.query_service.get_connection", AsyncMock(return_value=mock_conn)),
+        patch("app.services.query_service.get_decrypted_connection_string", return_value="dsn=test"),
+    ):
+        from app.services.query_service import execute_nl_query
+        with pytest.raises(AppError):
+            await execute_nl_query(
+                db=mock_db,
+                connection_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                question="show active resources",
+            )
