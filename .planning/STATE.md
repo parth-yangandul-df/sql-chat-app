@@ -3,7 +3,7 @@
 **Current State:** Active development
 **Last Updated:** 2026-03-26
 **Phase Focus:** Phase 5 — LangGraph Domain Tool Pipeline
-**Current Plan:** 05-04 (Plan 3 of 5 complete)
+**Current Plan:** 05-05 (Plan 4 of 5 complete)
 
 ## Project Architecture
 
@@ -51,7 +51,11 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - All 24 SQL templates use bare table names (no `dbo.` prefix)
 - `generate_sql_only()` and `execute_raw_sql()` completely untouched
 
-### Code Style
+### Phase 5 Plan 04 Decisions (2026-03-26)
+- Patch llm_fallback at app.llm.graph.graph.llm_fallback (usage site in graph.py) not app.llm.graph.nodes.llm_fallback.llm_fallback (definition site) — graph.py imports function reference directly, patch must be at consuming module
+- result_interpreter.py uses typed annotation sql: str = state.get("sql") or "" to satisfy type checker for str | None -> str coercion
+
+
 - Python: Ruff, 100 char line length
 - TypeScript: ESLint, strict mode
 - Async everywhere for DB operations and LLM calls
@@ -77,9 +81,9 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 | 05-01 | Feature branch, GraphState, 24-intent catalog, test scaffolding | ✅ Complete (2026-03-26) |
 | 05-02 | Intent classifier + param extractor | ✅ Complete (2026-03-26) |
 | 05-03 | SQLServer bug fix + 4 domain agents + registry | ✅ Complete (2026-03-26) |
-| 05-04 | result_interpreter, llm_fallback, write_history, graph assembly | Not started |
+| 05-04 | result_interpreter, llm_fallback, write_history, graph assembly | ✅ Complete (2026-03-26) |
 | 05-05 | Wire into query_service.py + startup hook + full test suite | Not started |
 
 ## Last Session
-- **Stopped at:** Completed 05-03-PLAN.md
+- **Stopped at:** Completed 05-04-PLAN.md
 - **Resume file:** None

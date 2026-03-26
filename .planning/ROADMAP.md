@@ -37,10 +37,10 @@
   6. `generate_sql_only()` and `execute_raw_sql()` are completely unchanged
 
 **Plans**:
-- [ ] 05-01-PLAN.md — Feature branch, LangGraph deps, GraphState, 24-intent catalog, test scaffolding
-- [ ] 05-02-PLAN.md — Intent classifier node (cosine similarity) + param extractor node
-- [ ] 05-03-PLAN.md — SQLServer connector bug fix + 4 PRMS domain agents + domain registry
-- [ ] 05-04-PLAN.md — result_interpreter, llm_fallback, write_history nodes + graph assembly (with 0-row topology)
+- [x] 05-01-PLAN.md — Feature branch, LangGraph deps, GraphState, 24-intent catalog, test scaffolding
+- [x] 05-02-PLAN.md — Intent classifier node (cosine similarity) + param extractor node
+- [x] 05-03-PLAN.md — SQLServer connector bug fix + 4 PRMS domain agents + domain registry
+- [x] 05-04-PLAN.md — result_interpreter, llm_fallback, write_history nodes + graph assembly (with 0-row topology)
 - [ ] 05-05-PLAN.md — Wire graph into query_service.py + startup hook + full test suite
 
 ---
@@ -50,4 +50,4 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | N/A | Complete | 2026-03-01 |
-| 5. LangGraph Domain Tool Pipeline | 3/5 | In Progress|  |
+| 5. LangGraph Domain Tool Pipeline | 4/5 | In Progress|  |
