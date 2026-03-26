@@ -11,6 +11,9 @@ from app.db.session import engine
 
 logger = logging.getLogger("querywise")
 
+# Ensure app.* loggers (graph nodes, intent classifier, etc.) emit INFO-level logs
+logging.getLogger("app").setLevel(logging.INFO)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
