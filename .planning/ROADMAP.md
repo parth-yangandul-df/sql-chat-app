@@ -1,48 +1,53 @@
 # QueryWise Roadmap
 
-## Phase 1: Foundation
+## Phases
+
+- [x] **Phase 1: Foundation** - Basic FastAPI setup, LLM providers, semantic layer, connection management
+- [ ] **Phase 5: LangGraph Domain Tool Pipeline** - Replace LLM SQL generation with embedding-based intent classification and PRMS domain tools
+
+---
+
+## Phase Details
+
+### Phase 1: Foundation
+**Goal**: Core application infrastructure running end-to-end
 **Status:** Complete
-- Basic FastAPI setup with SQLAlchemy
-- LLM providers (Anthropic, Openai, Ollama)
-- Semantic layer foundation
-- Connection management system
+**Depends on**: Nothing
+**Requirements**: N/A (pre-planning)
+**Success Criteria**:
+  1. FastAPI server starts and serves API requests
+  2. LLM providers (Anthropic, OpenAI, Ollama) are configurable via env vars
+  3. Semantic layer (glossary, metrics, dictionary) stores and retrieves metadata
+  4. Database connections can be created, tested, and used to execute queries
+**Plans**: N/A
 
-## Phase 2: Langfuse Integration (Current)
+---
+
+### Phase 5: LangGraph Domain Tool Pipeline
+**Goal**: Replace `execute_nl_query()` with a LangGraph `StateGraph` that routes NL questions to 24 pre-built PRMS domain SQL tools (via embedding-based intent classification) or falls back to the existing LLM generation chain
 **Status:** In Progress
-**Goal:** Implement end-to-end observability with Langfuse
-**Requirements:** [OBS-01, OBS-02, OBS-03, OBS-04, OBS-05, OBS-06, OBS-07, OBS-08, OBS-09, OBS-10]
-**Plans:** 5 plans
+**Depends on**: Phase 1
+**Requirements**: LG-01, LG-02, LG-03, LG-04, LG-05, LG-06, LG-07, LG-08, LG-09, LG-10, LG-11, LG-12, LG-13, LG-14, LG-15, LG-16
+**Success Criteria**:
+  1. NL questions matching a known PRMS intent route to domain SQL tools without LLM generation
+  2. Low-confidence questions fall back to the existing LLM pipeline transparently
+  3. 0-row domain tool results attempt a fallback intent before escalating to LLM
+  4. SQL Server params bug is fixed — parameterized queries execute correctly
+  5. Embedding unavailability degrades gracefully (app starts, pipeline routes to LLM fallback)
+  6. `generate_sql_only()` and `execute_raw_sql()` are completely unchanged
 
-### Overview
-Integrate Langfuse-based observability into the existing FastAPI backend for comprehensive tracing, token tracking, cost monitoring, and pipeline observability.
+**Plans**:
+- [ ] 05-01-PLAN.md — Feature branch, LangGraph deps, GraphState, 24-intent catalog, test scaffolding
+- [ ] 05-02-PLAN.md — Intent classifier node (cosine similarity) + param extractor node
+- [ ] 05-03-PLAN.md — SQLServer connector bug fix + 4 PRMS domain agents + domain registry
+- [ ] 05-04-PLAN.md — result_interpreter, llm_fallback, write_history nodes + graph assembly (with 0-row topology)
+- [ ] 05-05-PLAN.md — Wire graph into query_service.py + startup hook + full test suite
 
-### Deliverables
-- Langfuse client configuration
-- LLM call wrapping and tracing
-- End-to-end request tracing
-- Pipeline-level spans (intent detection, query generation, stored procedure execution, response formatting)
-- Business metadata enrichment
-- Cost tracking implementation
-- FastAPI middleware for non-LLM observability
-- Optional SQL Server metrics persistence
-- Comprehensive error handling in traces
-- Clean, modular code structure
+---
 
-### Plans
-- [ ] 01-langfuse-integration-01-PLAN.md — Foundation setup with Langfuse SDK and client configuration
-- [ ] 01-langfuse-integration-02-PLAN.md — Tracing utilities and decorators
-- [ ] 01-langfuse-integration-03-PLAN.md — LLM provider observability integration
-- [ ] 01-langfuse-integration-04-PLAN.md — End-to-end request tracing and pipeline spans
-- [ ] 01-langfuse-integration-05-PLAN.md — FastAPI middleware and metrics persistence
+## Progress
 
-## Phase 3: Production Readiness
-**Status:** Planned
-- Performance optimizations
-- Additional database connectors (BigQuery, Databricks)
-- Advanced semantic features
-
-## Phase 4: Enterprise Features
-**Status:** Future
-- Multi-tenant support
-- Advanced analytics
-- Collaboration features
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Foundation | N/A | Complete | 2026-03-01 |
+| 5. LangGraph Domain Tool Pipeline | 0/5 | In Progress | - |
