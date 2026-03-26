@@ -3,7 +3,7 @@
 ## Phases
 
 - [x] **Phase 1: Foundation** - Basic FastAPI setup, LLM providers, semantic layer, connection management
-- [ ] **Phase 5: LangGraph Domain Tool Pipeline** - Replace LLM SQL generation with embedding-based intent classification and PRMS domain tools
+- [x] **Phase 5: LangGraph Domain Tool Pipeline** - Replace LLM SQL generation with embedding-based intent classification and PRMS domain tools (completed 2026-03-26)
 
 ---
 
@@ -50,4 +50,4 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | N/A | Complete | 2026-03-01 |
-| 5. LangGraph Domain Tool Pipeline | 4/5 | In Progress|  |
+| 5. LangGraph Domain Tool Pipeline | 5/5 | Complete   | 2026-03-26 |

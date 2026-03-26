@@ -1,9 +1,24 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_plan: 05-05 (Plan 4 of 5 complete)
+status: unknown
+stopped_at: Completed 05-05-PLAN.md
+last_updated: "2026-03-26T08:15:59.054Z"
+progress:
+  total_phases: 2
+  completed_phases: 1
+  total_plans: 10
+  completed_plans: 5
+---
+
 # QueryWise Project State
 
 **Current State:** Active development
 **Last Updated:** 2026-03-26
-**Phase Focus:** Phase 5 — LangGraph Domain Tool Pipeline
-**Current Plan:** 05-05 (Plan 4 of 5 complete)
+**Phase Focus:** Phase 5 — LangGraph Domain Tool Pipeline ✅ COMPLETE
+**Current Plan:** Phase 5 complete (5/5 plans done)
 
 ## Project Architecture
 
@@ -26,6 +41,8 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - Provider-agnostic LLM interface
 - Context building with semantic search using pgvector
 - LangGraph StateGraph replaces direct `execute_nl_query()` logic
+- [Phase 05]: execute_nl_query() delegates entirely to get_compiled_graph().ainvoke() — old LLM pipeline code removed (180 lines -> 50 lines)
+- [Phase 05]: ensure_catalog_embedded() placed in lifespan between ensure_embedding_dimensions() and auto_setup_sample_db() so embeddings ready before seeded data triggers queries
 
 ### Phase 5 Plan 01 Decisions (2026-03-26)
 - Patched embed_text at usage site (app.llm.graph.intent_catalog) not definition site for correct mock isolation in tests
@@ -82,8 +99,8 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 | 05-02 | Intent classifier + param extractor | ✅ Complete (2026-03-26) |
 | 05-03 | SQLServer bug fix + 4 domain agents + registry | ✅ Complete (2026-03-26) |
 | 05-04 | result_interpreter, llm_fallback, write_history, graph assembly | ✅ Complete (2026-03-26) |
-| 05-05 | Wire into query_service.py + startup hook + full test suite | Not started |
+| 05-05 | Wire into query_service.py + startup hook + full test suite | ✅ Complete (2026-03-26) |
 
 ## Last Session
-- **Stopped at:** Completed 05-04-PLAN.md
+- **Stopped at:** Completed 05-05-PLAN.md
 - **Resume file:** None
