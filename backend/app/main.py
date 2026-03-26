@@ -19,6 +19,11 @@ async def lifespan(app: FastAPI):
 
     await ensure_embedding_dimensions()
 
+    # Pre-embed intent catalog so first query does not pay embedding cost
+    from app.llm.graph.intent_catalog import ensure_catalog_embedded
+
+    await ensure_catalog_embedded()
+
     if settings.auto_setup_sample_db:
         from app.services.setup_service import auto_setup_sample_db
 
