@@ -152,6 +152,15 @@ function QueryResultView({ result }: { result: QueryResult }) {
               <Badge size="sm" variant="light" color="gray">
                 {result.row_count} rows
               </Badge>
+              {result.llm_provider === 'domain_tool' ? (
+                <Badge size="sm" color="green" variant="filled">
+                  domain tool
+                </Badge>
+              ) : (
+                <Badge size="sm" color="violet" variant="light">
+                  LLM generated
+                </Badge>
+              )}
               {result.retry_count > 0 && (
                 <Badge size="sm" color="yellow">
                   {result.retry_count} retries

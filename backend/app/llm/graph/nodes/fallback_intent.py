@@ -5,11 +5,14 @@ Maximum 1 hop — never chains fallback_intent to another fallback_intent.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from app.llm.graph.intent_catalog import INTENT_CATALOG
 from app.llm.graph.domains.registry import DOMAIN_REGISTRY
 from app.llm.graph.state import GraphState
+
+logger = logging.getLogger(__name__)
 
 
 def _get_fallback_intent_name(intent_name: str) -> str | None:
@@ -60,12 +63,16 @@ async def run_fallback_intent(state: GraphState) -> dict[str, Any]:
 def route_after_domain_tool(state: GraphState) -> str:
     """Conditional edge after run_domain_tool."""
     result = state.get("result")
+    row_count = result.row_count if result else 0
+    fallback_name = _get_fallback_intent_name(state.get("intent") or "")
     if result and result.row_count > 0:
+        logger.info("route_after_domain_tool: rows=%d → interpret_result", row_count)
         return "interpret_result"
     # 0 rows — check for fallback_intent
-    fallback_name = _get_fallback_intent_name(state.get("intent") or "")
     if fallback_name:
+        logger.info("route_after_domain_tool: rows=0 fallback_intent=%s → run_fallback_intent", fallback_name)
         return "run_fallback_intent"
+    logger.warning("route_after_domain_tool: rows=0 no fallback_intent → llm_fallback (domain tool returned empty result)")
     return "llm_fallback"
 
 
