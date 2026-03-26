@@ -96,10 +96,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LG-01 | Phase 5 | Pending |
-| LG-02 | Phase 5 | Pending |
-| LG-03 | Phase 5 | Pending |
-| LG-04 | Phase 5 | Pending |
+| LG-01 | Phase 5 | Complete |
+| LG-02 | Phase 5 | Complete |
+| LG-03 | Phase 5 | Complete |
+| LG-04 | Phase 5 | Complete |
 | LG-05 | Phase 5 | Pending |
 | LG-06 | Phase 5 | Pending |
 | LG-07 | Phase 5 | Pending |

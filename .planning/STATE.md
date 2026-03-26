@@ -3,6 +3,7 @@
 **Current State:** Active development
 **Last Updated:** 2026-03-26
 **Phase Focus:** Phase 5 — LangGraph Domain Tool Pipeline
+**Current Plan:** 05-02 (Plan 1 of 5 complete)
 
 ## Project Architecture
 
@@ -25,6 +26,10 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - Provider-agnostic LLM interface
 - Context building with semantic search using pgvector
 - LangGraph StateGraph replaces direct `execute_nl_query()` logic
+
+### Phase 5 Plan 01 Decisions (2026-03-26)
+- Patched embed_text at usage site (app.llm.graph.intent_catalog) not definition site for correct mock isolation in tests
+- Reset _catalog_embedded global in idempotency test for deterministic test ordering
 
 ### Phase 5 Key Decisions
 - Intent catalog is code-only (no DB-backed admin config in this phase)
@@ -60,8 +65,12 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 
 | Plan | Description | Status |
 |------|-------------|--------|
-| 05-01 | Feature branch, GraphState, 24-intent catalog, test scaffolding | Not started |
+| 05-01 | Feature branch, GraphState, 24-intent catalog, test scaffolding | ✅ Complete (2026-03-26) |
 | 05-02 | Intent classifier + param extractor | Not started |
 | 05-03 | SQLServer bug fix + 4 domain agents + registry | Not started |
 | 05-04 | result_interpreter, llm_fallback, write_history, graph assembly | Not started |
 | 05-05 | Wire into query_service.py + startup hook + full test suite | Not started |
+
+## Last Session
+- **Stopped at:** Completed 05-01-PLAN.md
+- **Resume file:** None
