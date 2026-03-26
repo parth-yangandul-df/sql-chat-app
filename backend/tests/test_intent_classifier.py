@@ -44,6 +44,8 @@ async def test_classify_intent_high_confidence():
 
     with patch("app.llm.graph.nodes.intent_classifier.embed_text",
                AsyncMock(return_value=identical_embedding)), \
+         patch("app.llm.graph.nodes.intent_classifier.ensure_catalog_embedded",
+               AsyncMock()), \
          patch("app.llm.graph.nodes.intent_classifier.get_catalog_embeddings",
                return_value=[[1.0, 0.0, 0.0]] + [[0.0, 1.0, 0.0]] * 23):
         state = _base_state()
@@ -60,6 +62,8 @@ async def test_classify_intent_low_confidence_orthogonal():
     from app.llm.graph.nodes.intent_classifier import classify_intent
     with patch("app.llm.graph.nodes.intent_classifier.embed_text",
                AsyncMock(return_value=[0.0, 0.0, 1.0])), \
+         patch("app.llm.graph.nodes.intent_classifier.ensure_catalog_embedded",
+               AsyncMock()), \
          patch("app.llm.graph.nodes.intent_classifier.get_catalog_embeddings",
                return_value=[[1.0, 0.0, 0.0]] * 24):
         state = _base_state()
