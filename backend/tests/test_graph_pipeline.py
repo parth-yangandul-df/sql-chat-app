@@ -120,7 +120,7 @@ async def test_graph_0_row_routes_to_llm_fallback(mock_db):
         # Ensure no fallback_intent on any catalog entry for this test
         patch("app.llm.graph.nodes.fallback_intent._get_fallback_intent_name",
               return_value=None),
-        patch("app.llm.graph.nodes.llm_fallback.llm_fallback",
+        patch("app.llm.graph.graph.llm_fallback",
               AsyncMock(return_value={
                   "sql": "SELECT 1", "result": nonempty_result,
                   "generated_sql": "SELECT 1", "retry_count": 0,
