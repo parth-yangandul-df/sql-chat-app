@@ -3,7 +3,7 @@
 **Current State:** Active development
 **Last Updated:** 2026-03-26
 **Phase Focus:** Phase 5 — LangGraph Domain Tool Pipeline
-**Current Plan:** 05-03 (Plan 2 of 5 complete)
+**Current Plan:** 05-04 (Plan 3 of 5 complete)
 
 ## Project Architecture
 
@@ -35,6 +35,11 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - Patch ensure_catalog_embedded (not just embed_text) in classifier tests — classify_intent calls it when catalog has empty embeddings, using a different import binding than the node-level mock
 - extract_params is async to conform to LangGraph node signature convention, even though no I/O is performed
 
+
+### Phase 5 Plan 03 Decisions (2026-03-26)
+- BaseConnector.execute_query() params changed from dict[str, Any] | None to tuple[Any, ...] | None to align with SQL Server ? positional placeholder style
+- BaseDomainAgent.execute() uses state["intent"] or "" guard to safely pass str to _run_intent() when GraphState.intent is str | None
+- TimesheetAgent uses module-level _VALID constant for consistent IsApproved/IsDeleted/IsRejected filter across all valid-entry intents
 
 - Intent catalog is code-only (no DB-backed admin config in this phase)
 - Routing transparency via Python `logging` only — no user-facing indicator
@@ -71,10 +76,10 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 |------|-------------|--------|
 | 05-01 | Feature branch, GraphState, 24-intent catalog, test scaffolding | ✅ Complete (2026-03-26) |
 | 05-02 | Intent classifier + param extractor | ✅ Complete (2026-03-26) |
-| 05-03 | SQLServer bug fix + 4 domain agents + registry | Not started |
+| 05-03 | SQLServer bug fix + 4 domain agents + registry | ✅ Complete (2026-03-26) |
 | 05-04 | result_interpreter, llm_fallback, write_history, graph assembly | Not started |
 | 05-05 | Wire into query_service.py + startup hook + full test suite | Not started |
 
 ## Last Session
-- **Stopped at:** Completed 05-02-PLAN.md
+- **Stopped at:** Completed 05-03-PLAN.md
 - **Resume file:** None

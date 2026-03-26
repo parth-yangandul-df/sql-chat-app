@@ -102,10 +102,10 @@
 | LG-04 | Phase 5 | Complete |
 | LG-05 | Phase 5 | Complete |
 | LG-06 | Phase 5 | Complete |
-| LG-07 | Phase 5 | Pending |
-| LG-08 | Phase 5 | Pending |
-| LG-09 | Phase 5 | Pending |
-| LG-10 | Phase 5 | Pending |
+| LG-07 | Phase 5 | Complete |
+| LG-08 | Phase 5 | Complete |
+| LG-09 | Phase 5 | Complete |
+| LG-10 | Phase 5 | Complete |
 | LG-11 | Phase 5 | Pending |
 | LG-12 | Phase 5 | Pending |
 | LG-13 | Phase 5 | Pending |

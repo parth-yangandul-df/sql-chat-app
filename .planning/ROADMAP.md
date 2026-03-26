@@ -50,4 +50,4 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | N/A | Complete | 2026-03-01 |
-| 5. LangGraph Domain Tool Pipeline | 1/5 | In Progress|  |
+| 5. LangGraph Domain Tool Pipeline | 3/5 | In Progress|  |
