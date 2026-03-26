@@ -1,0 +1,49 @@
+services:
+  # App metadata database — PostgreSQL 16 with pgvector extension
+  app-db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: saras_metadata
+      POSTGRES_USER: parthy
+      POSTGRES_PASSWORD: "querywise_app"
+    ports:
+      - "5434:5432"
+    volumes:
+      - app_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parthy -d saras_metadata"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: parthyanganduldf/querywise-backend:latest
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://parthy:querywise_app@app-db:5432/saras_metadata"
+      ENVIRONMENT: production
+      PYTHONPATH: /app
+    depends_on:
+      app-db:
+        condition: service_healthy
+    command: bash -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+
+  frontend:
+    image: parthyanganduldf/querywise-frontend:latest
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000
+
+  chatbot-frontend:
+    image: parthyanganduldf/querywise-chatbot-frontend:latest
+    ports:
+      - "5174:5174"
+    environment:
+      VITE_API_URL: http://localhost:8000
+
+volumes:
+  app_db_data:

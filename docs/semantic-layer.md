@@ -1,4 +1,4 @@
-# QueryWise — Semantic Layer: Business Logic Reference
+# Saras — Semantic Layer: Business Logic Reference
 
 **Audience:** Technical leads, senior engineers  
 **Purpose:** Explains how QueryWise translates natural language into accurate SQL using a curated business knowledge layer — without hardcoding any business logic into application code.

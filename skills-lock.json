@@ -6,6 +6,16 @@
       "sourceType": "github",
       "computedHash": "f28ca5f4c57a8c587305d8ac7f090f4f8dd1723b403e126a95677606a4dc9572"
     },
+    "langgraph-architecture": {
+      "source": "existential-birds/beagle",
+      "sourceType": "github",
+      "computedHash": "5cea407b960cb336c9ae197d46c8bbb9458d6737513a9fed5e084bdd33dc4e0c"
+    },
+    "langgraph-docs": {
+      "source": "langchain-ai/deepagents",
+      "sourceType": "github",
+      "computedHash": "bc33fbf2b3d1b0f8a93d2ccc52e1fef3ba193059418bccf9583f0c71780f6985"
+    },
     "shadcn-ui": {
       "source": "google-labs-code/stitch-skills",
       "sourceType": "github",
