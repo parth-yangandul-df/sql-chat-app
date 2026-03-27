@@ -103,9 +103,10 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 
 ## Accumulated Context
 
-### Pending Todos (1)
+### Pending Todos (2)
 
 - **Add result table feature parity between frontend and chatbot-frontend** (`ui`) — `2026-03-27-add-result-table-feature-parity-between-frontend-and-chatbot-frontend.md`
+- **Implement ChatGPT-style threaded chat sessions** (`general`) — `2026-03-27-implement-chatgpt-style-threaded-chat-sessions.md`
 
 ## Last Session
 - **Stopped at:** Completed 05-05-PLAN.md
