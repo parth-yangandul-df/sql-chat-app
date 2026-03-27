@@ -101,6 +101,15 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 | 05-04 | result_interpreter, llm_fallback, write_history, graph assembly | ✅ Complete (2026-03-26) |
 | 05-05 | Wire into query_service.py + startup hook + full test suite | ✅ Complete (2026-03-26) |
 
+## Accumulated Context
+
+### Pending Todos (2)
+
+| File | Title | Area |
+|------|-------|------|
+| 2026-03-24-paginate-metadata-tables-and-add-csv-import.md | Paginate metadata tables and add CSV import | ui |
+| 2026-03-27-harden-global-exception-handling-and-normalize-error-response-shape.md | Harden global exception handling and normalize error response shape | api |
+
 ## Last Session
 - **Stopped at:** Completed 05-05-PLAN.md
 - **Resume file:** None
