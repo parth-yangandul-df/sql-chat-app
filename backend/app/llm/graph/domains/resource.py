@@ -33,7 +33,6 @@ class ResourceAgent(BaseDomainAgent):
               "ORDER BY TotalHours DESC"
            )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
-
         elif intent == "resource_billing_rate":
             sql = (
                 "SELECT r.ResourceId, r.ResourceName, pr.Rate, p.ProjectName "
@@ -43,7 +42,6 @@ class ResourceAgent(BaseDomainAgent):
                 "WHERE r.IsActive = 1"
             )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
-
         elif intent == "resource_availability":
             sql = (
                 "SELECT ResourceId, ResourceName, EmailId FROM Resource "
@@ -51,7 +49,6 @@ class ResourceAgent(BaseDomainAgent):
                 "AND ResourceId NOT IN (SELECT DISTINCT ResourceId FROM ProjectResource WHERE IsActive = 1)"
             )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
-
         elif intent == "resource_project_assignments":
             name = params.get("resource_name", "")
             sql = (
@@ -62,7 +59,6 @@ class ResourceAgent(BaseDomainAgent):
                 "WHERE r.ResourceName LIKE ?"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
-
         elif intent == "resource_timesheet_summary":
             name = params.get("resource_name", "")
             sql = (
@@ -74,7 +70,6 @@ class ResourceAgent(BaseDomainAgent):
                 "ORDER BY ts.[File Date] ASC"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
-
         elif intent == "overallocated_resources":
             sql = (
                 "SELECT r.ResourceId, r.ResourceName, COUNT(pr.ProjectId) AS ProjectCount "
@@ -86,7 +81,6 @@ class ResourceAgent(BaseDomainAgent):
                 "ORDER BY ProjectCount DESC"
             )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
-
         elif intent == "resource_skills_list":
             name = params.get("resource_name", "")
             sql = (

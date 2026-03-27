@@ -1,13 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { queryApi } from '@/api/queryApi'
-import { useConnections } from '@/hooks/useConnections'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useParams, useOutletContext } from 'react-router-dom'
+import { queryApi, type ConversationTurn } from '@/api/queryApi'
+import { useSessionMessages } from '@/hooks/useThreads'
 import { PromptBox } from '@/components/ui/chatgpt-prompt-input'
 import { SpotlightTable } from '@/components/ui/spotlight-table'
 import { MorphLoading } from '@/components/ui/morph-loading'
 import { cn } from '@/lib/utils'
 import type { QueryResult } from '@/types/api'
-import { Bot, User, AlertCircle, ChevronDown, ChevronUp, Copy, Check, Zap } from 'lucide-react'
+import type { ChatLayoutContext } from '@/components/layout/ChatLayout'
+import { Bot, User, AlertCircle, ChevronDown, ChevronUp, Copy, Check, Zap, MessageSquareOff } from 'lucide-react'
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+const CONVERSATION_HISTORY_TURNS = 3 // last N turns (N user + N assistant = 2N messages)
 
 // ── Message types ──────────────────────────────────────────────────────────────
 type ChatMessage =
@@ -66,19 +71,13 @@ function AssistantMessage({
 }) {
   return (
     <div className="flex gap-3 group">
-      {/* Avatar */}
       <div className="shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
         <Bot className="h-4 w-4 text-primary-foreground" />
       </div>
-
-      {/* Content */}
       <div className="flex-1 min-w-0 space-y-3">
-        {/* Summary */}
         {result.summary && (
           <p className="text-sm text-foreground leading-relaxed">{result.summary}</p>
         )}
-
-        {/* Highlights */}
         {result.highlights.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {result.highlights.map((h, i) => (
@@ -91,8 +90,6 @@ function AssistantMessage({
             ))}
           </div>
         )}
-
-        {/* Meta badges */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{result.row_count} rows</span>
           <span>·</span>
@@ -104,8 +101,6 @@ function AssistantMessage({
             </>
           )}
         </div>
-
-        {/* Data table */}
         {result.rows.length > 0 && (
           <SpotlightTable
             columns={result.columns}
@@ -114,11 +109,7 @@ function AssistantMessage({
             rowCount={result.row_count}
           />
         )}
-
-        {/* SQL accordion */}
         {result.final_sql && <SqlBlock sql={result.final_sql} />}
-
-        {/* Suggested followups */}
         {result.suggested_followups.length > 0 && (
           <div className="pt-1">
             <p className="text-xs text-muted-foreground mb-2 font-medium">Continue exploring:</p>
@@ -206,7 +197,6 @@ function WelcomeScreen({ onExample }: { onExample: (q: string) => void }) {
           Ask questions about your data in plain English. I'll generate SQL, execute it, and explain the results.
         </p>
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
         {examples.map((ex, i) => (
           <button
@@ -222,22 +212,128 @@ function WelcomeScreen({ onExample }: { onExample: (q: string) => void }) {
   )
 }
 
+// ── No thread selected state ───────────────────────────────────────────────────
+function NoThreadSelected() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
+      <div className="flex items-center justify-center w-14 h-14 mx-auto bg-muted rounded-2xl">
+        <MessageSquareOff className="h-7 w-7 text-muted-foreground" />
+      </div>
+      <div className="space-y-1">
+        <h2 className="text-base font-medium text-foreground">No chat selected</h2>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          Click "New Chat" in the sidebar to start a conversation, or select an existing thread.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Build conversation history for API ────────────────────────────────────────
+function buildConversationHistory(messages: ChatMessage[]): ConversationTurn[] {
+  const turns: ConversationTurn[] = []
+  for (const msg of messages) {
+    if (msg.role === 'user') {
+      turns.push({ role: 'user', content: msg.content })
+    } else if (msg.role === 'assistant') {
+      // Use summary as assistant content; fall back to noting results were returned
+      const content = msg.result.summary
+        ?? (msg.result.row_count > 0 ? `Returned ${msg.result.row_count} rows.` : 'No results found.')
+      turns.push({ role: 'assistant', content })
+    }
+    // Skip error messages from history
+  }
+  // Last N turns = last N*2 messages
+  const maxMessages = CONVERSATION_HISTORY_TURNS * 2
+  return turns.slice(-maxMessages)
+}
+
+// ── Reconstruct messages from session history ─────────────────────────────────
+function buildMessagesFromHistory(
+  historyItems: Array<{
+    id: string
+    natural_language: string
+    result_summary: string | null
+    execution_status: string
+    error_message: string | null
+    final_sql: string | null
+    generated_sql: string | null
+    row_count: number | null
+    execution_time_ms: number | null
+    retry_count: number
+  }>
+): ChatMessage[] {
+  const messages: ChatMessage[] = []
+  for (const item of historyItems) {
+    messages.push({
+      id: `${item.id}-user`,
+      role: 'user',
+      content: item.natural_language,
+    })
+    if (item.execution_status === 'error' && item.error_message) {
+      messages.push({
+        id: `${item.id}-error`,
+        role: 'error',
+        message: item.error_message,
+      })
+    } else {
+      // Reconstruct a QueryResult shape for display
+      const result: QueryResult = {
+        id: item.id,
+        question: item.natural_language,
+        generated_sql: item.generated_sql ?? '',
+        final_sql: item.final_sql ?? '',
+        explanation: '',
+        columns: [],
+        column_types: [],
+        rows: [],
+        row_count: item.row_count ?? 0,
+        execution_time_ms: item.execution_time_ms ?? 0,
+        truncated: false,
+        summary: item.result_summary,
+        highlights: [],
+        suggested_followups: [],
+        llm_provider: '',
+        llm_model: '',
+        retry_count: item.retry_count,
+      }
+      messages.push({
+        id: `${item.id}-assistant`,
+        role: 'assistant',
+        result,
+      })
+    }
+  }
+  return messages
+}
+
 // ── Main ChatQueryPage ─────────────────────────────────────────────────────────
 export function ChatQueryPage() {
+  const { threadId } = useParams<{ threadId?: string }>()
+  const { connectionId } = useOutletContext<ChatLayoutContext>()
+  const queryClient = useQueryClient()
+
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [connectionId, setConnectionId] = useState<string | null>(null)
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const promptRef = useRef<HTMLTextAreaElement>(null)
 
-  const { data: connections, isLoading: loadingConns } = useConnections()
+  // Load session history on mount / thread change
+  const { data: sessionMessages, isLoading: loadingHistory } = useSessionMessages(threadId)
 
-  // Auto-select first connection
   useEffect(() => {
-    if (!connectionId && connections && connections.length > 0) {
-      setConnectionId(connections[0].id)
+    // Reset when thread changes
+    setMessages([])
+    setHistoryLoaded(false)
+  }, [threadId])
+
+  useEffect(() => {
+    if (sessionMessages && !historyLoaded) {
+      const restored = buildMessagesFromHistory(sessionMessages)
+      setMessages(restored)
+      setHistoryLoaded(true)
     }
-  }, [connections, connectionId])
+  }, [sessionMessages, historyLoaded])
 
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
@@ -249,16 +345,23 @@ export function ChatQueryPage() {
   }, [messages, scrollToBottom])
 
   const mutation = useMutation({
-    mutationFn: ({ question, connId }: { question: string; connId: string }) =>
-      queryApi.execute({ connection_id: connId, question }),
-    onSuccess: (result, { question }) => {
-      const id = `${Date.now()}-assistant`
+    mutationFn: ({ question, connId, history }: { question: string; connId: string; history: ConversationTurn[] }) =>
+      queryApi.execute({
+        connection_id: connId,
+        question,
+        session_id: threadId,
+        conversation_history: history,
+      }),
+    onSuccess: (result) => {
       setMessages((prev) => [
-        ...prev.filter((m) => !(m.role === 'user' && m.content === question && prev.indexOf(m) === prev.length - 1)),
-        ...prev.slice(-1)[0]?.role === 'user' ? [] : [],
-        { id, role: 'assistant', result },
+        ...prev,
+        { id: `${Date.now()}-assistant`, role: 'assistant', result },
       ])
-      setPendingMessage(null)
+      // Invalidate thread list so title + message count update in sidebar
+      if (threadId && connectionId) {
+        queryClient.invalidateQueries({ queryKey: ['threads', connectionId] })
+        queryClient.invalidateQueries({ queryKey: ['session-messages', threadId] })
+      }
     },
     onError: (error: unknown) => {
       const message = error instanceof Error ? error.message : 'An unexpected error occurred'
@@ -266,7 +369,6 @@ export function ChatQueryPage() {
         ...prev,
         { id: `${Date.now()}-error`, role: 'error', message },
       ])
-      setPendingMessage(null)
     },
   })
 
@@ -279,68 +381,52 @@ export function ChatQueryPage() {
         role: 'user',
         content: content.trim(),
       }
-      setMessages((prev) => [...prev, userMsg])
-      setPendingMessage(content.trim())
-      mutation.mutate({ question: content.trim(), connId: connectionId })
+
+      setMessages((prev) => {
+        const next = [...prev, userMsg]
+        const history = buildConversationHistory(prev) // history = messages BEFORE this question
+        mutation.mutate({ question: content.trim(), connId: connectionId, history })
+        return next
+      })
     },
     [connectionId, mutation],
   )
 
-  const handleFollowup = useCallback(
-    (q: string) => {
-      sendMessage(q)
-    },
-    [sendMessage],
-  )
+  const handleFollowup = useCallback((q: string) => sendMessage(q), [sendMessage])
 
   const hasMessages = messages.length > 0
+
+  // No thread selected — show prompt to create one
+  if (!threadId) {
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        <div className="shrink-0 flex items-center px-4 py-2 border-b border-border bg-card/50">
+          <h1 className="text-sm font-semibold text-foreground">Chat</h1>
+        </div>
+        <NoThreadSelected />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Top bar */}
       <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 border-b border-border bg-card/50 backdrop-blur-sm">
-        <h1 className="text-sm font-semibold text-foreground">Chat</h1>
-        <div className="flex items-center gap-2">
-          {loadingConns ? (
-            <div className="h-8 w-44 bg-muted animate-pulse rounded-lg" />
-          ) : (
-            <select
-              value={connectionId ?? ''}
-              onChange={(e) => setConnectionId(e.target.value || null)}
-              className={cn(
-                'h-8 px-3 text-xs rounded-lg border border-input bg-background text-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-ring',
-                'disabled:opacity-50',
-              )}
-            >
-              {(!connections || connections.length === 0) && (
-                <option value="" disabled>No connections — add one first</option>
-              )}
-              {connections?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          )}
-          {connectionId && (
-            <span
-              className={cn(
-                'px-2 py-0.5 text-[10px] font-medium rounded-full',
-                connections?.find((c) => c.id === connectionId)?.is_active
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-              )}
-            >
-              {connections?.find((c) => c.id === connectionId)?.is_active ? 'Active' : 'Inactive'}
-            </span>
-          )}
-        </div>
+        <h1 className="text-sm font-semibold text-foreground truncate">Chat</h1>
+        {connectionId && (
+          <span className="text-xs text-muted-foreground shrink-0">
+            Thread active
+          </span>
+        )}
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {!hasMessages ? (
+        {loadingHistory ? (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-xs text-muted-foreground">Loading conversation...</div>
+          </div>
+        ) : !hasMessages ? (
           <WelcomeScreen onExample={sendMessage} />
         ) : (
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
@@ -359,10 +445,7 @@ export function ChatQueryPage() {
               }
               return <ErrorMessage key={msg.id} message={msg.message} />
             })}
-
-            {mutation.isPending && pendingMessage && (
-              <TypingIndicator />
-            )}
+            {mutation.isPending && <TypingIndicator />}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -371,9 +454,9 @@ export function ChatQueryPage() {
       {/* Input area */}
       <div className="shrink-0 border-t border-border bg-card/50 backdrop-blur-sm px-4 py-3">
         <div className="max-w-3xl mx-auto">
-          {!connectionId && !loadingConns && (
+          {!connectionId && (
             <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 text-center">
-              Add and select a database connection above to start querying.
+              Select a database connection in the sidebar to start querying.
             </p>
           )}
           <PromptBox

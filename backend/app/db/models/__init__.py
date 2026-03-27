@@ -1,3 +1,4 @@
+from app.db.models.chat_session import ChatSession
 from app.db.models.connection import DatabaseConnection
 from app.db.models.dictionary import DictionaryEntry
 from app.db.models.glossary import GlossaryTerm
@@ -8,6 +9,7 @@ from app.db.models.sample_query import SampleQuery
 from app.db.models.schema_cache import CachedColumn, CachedRelationship, CachedTable
 
 __all__ = [
+    "ChatSession",
     "DatabaseConnection",
     "CachedTable",
     "CachedColumn",

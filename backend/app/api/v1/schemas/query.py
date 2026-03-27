@@ -1,13 +1,20 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
+class ConversationTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
 class QueryRequest(BaseModel):
     connection_id: UUID
     question: str = Field(min_length=1, max_length=1000)
+    session_id: UUID | None = None
+    conversation_history: list[ConversationTurn] = Field(default_factory=list, max_length=6)
 
 
 class ExecuteSQLRequest(BaseModel):

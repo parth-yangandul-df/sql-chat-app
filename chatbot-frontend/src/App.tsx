@@ -10,6 +10,7 @@ export default function App() {
       <Route element={<ChatLayout />}>
         <Route index element={<Navigate to="/query" replace />} />
         <Route path="/query" element={<ChatQueryPage />} />
+        <Route path="/query/:threadId" element={<ChatQueryPage />} />
         <Route path="/connections" element={<ConnectionsPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="*" element={<Navigate to="/query" replace />} />

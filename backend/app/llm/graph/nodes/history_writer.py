@@ -23,6 +23,7 @@ async def write_history(state: GraphState) -> dict[str, Any]:
     try:
         execution = QueryExecution(
             connection_id=uuid.UUID(state["connection_id"]),
+            session_id=uuid.UUID(state["session_id"]) if state.get("session_id") else None,
             natural_language=state["question"],
             generated_sql=state.get("generated_sql"),
             final_sql=state.get("sql"),

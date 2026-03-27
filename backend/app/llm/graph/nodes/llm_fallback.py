@@ -37,7 +37,10 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
     provider, llm_config = route(question)
 
     composer = QueryComposerAgent(provider, llm_config)
-    composer_output = await composer.compose(question, context.prompt_context)
+    conversation_history = state.get("conversation_history") or []
+    composer_output = await composer.compose(
+        question, context.prompt_context, conversation_history=conversation_history
+    )
     generated_sql = composer_output.generated_sql
 
     if not generated_sql:

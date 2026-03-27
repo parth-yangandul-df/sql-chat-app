@@ -1,3 +1,29 @@
+export interface ChatSession {
+  id: string
+  connection_id: string
+  title: string
+  created_at: string
+  updated_at: string
+  message_count: number
+}
+
+export interface ChatSessionMessage {
+  id: string
+  connection_id: string
+  session_id: string | null
+  natural_language: string
+  generated_sql: string | null
+  final_sql: string | null
+  execution_status: string
+  error_message: string | null
+  row_count: number | null
+  execution_time_ms: number | null
+  retry_count: number
+  result_summary: string | null
+  is_favorite: boolean
+  created_at: string
+}
+
 export interface Connection {
   id: string
   name: string

@@ -12,7 +12,11 @@ router = APIRouter(prefix="/query", tags=["query"])
 async def execute_query(body: QueryRequest, db: AsyncSession = Depends(get_db)):
     """Submit a natural language question and get SQL + results + interpretation."""
     result = await query_service.execute_nl_query(
-        db, body.connection_id, body.question
+        db,
+        body.connection_id,
+        body.question,
+        session_id=body.session_id,
+        conversation_history=[t.model_dump() for t in body.conversation_history],
     )
     return result
 

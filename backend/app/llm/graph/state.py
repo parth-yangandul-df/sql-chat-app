@@ -19,6 +19,8 @@ class GraphState(TypedDict):
     timeout_seconds: int
     max_rows: int
     db: AsyncSession             # SQLAlchemy async session (not serialized)
+    session_id: str | None       # UUID as str — chat thread identifier
+    conversation_history: list[dict]  # [{role: "user"|"assistant", content: str}, ...]
 
     # ── Classification (set by classify_intent) ──────────────────────────
     domain: str | None           # "resource" | "client" | "project" | "timesheet"

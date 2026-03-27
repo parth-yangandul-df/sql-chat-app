@@ -15,7 +15,7 @@ class ClientAgent(BaseDomainAgent):
 
         if intent == "active_clients":
             sql = (
-                "SELECT c.ClientId, c.ClientName, c.Description, c.CountryId"
+                "SELECT c.ClientId, c.ClientName, c.Description, c.CountryId "
                 "FROM Client c "
                 "JOIN Status st ON c.StatusId = st.StatusId AND st.ReferenceId = 1 "
                 "WHERE st.StatusName = 'Active'"

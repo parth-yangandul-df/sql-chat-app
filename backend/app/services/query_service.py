@@ -1,12 +1,14 @@
 """Query Service — orchestrates the full NL → SQL → results pipeline."""
 
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.base_connector import QueryResult
 from app.connectors.connector_registry import get_or_create_connector
 from app.core.exceptions import AppError, SQLSafetyError
+from app.db.models.chat_session import ChatSession
 from app.db.models.query_history import QueryExecution
 from app.llm.agents.error_handler import ErrorHandlerAgent
 from app.llm.agents.query_composer import QueryComposerAgent
@@ -24,6 +26,8 @@ async def execute_nl_query(
     db: AsyncSession,
     connection_id: uuid.UUID,
     question: str,
+    session_id: uuid.UUID | None = None,
+    conversation_history: list[dict] | None = None,
 ) -> dict:
     """Full pipeline: NL question → LangGraph → domain tool or LLM fallback → results.
 
@@ -41,6 +45,8 @@ async def execute_nl_query(
         "timeout_seconds": conn.max_query_timeout_seconds,
         "max_rows": conn.max_rows,
         "db": db,
+        "session_id": str(session_id) if session_id else None,
+        "conversation_history": conversation_history or [],
         "domain": None,
         "intent": None,
         "confidence": 0.0,
@@ -64,6 +70,17 @@ async def execute_nl_query(
 
     if final_state.get("error") and final_state.get("result") is None:
         raise AppError(final_state["error"], status_code=422)
+
+    # Auto-set session title from first question (if session has default title)
+    if session_id:
+        session = await db.get(ChatSession, session_id)
+        if session and session.title == "New Chat":
+            session.title = question[:100].strip()
+            session.updated_at = datetime.now(timezone.utc)
+            await db.flush()
+        elif session:
+            session.updated_at = datetime.now(timezone.utc)
+            await db.flush()
 
     result: QueryResult = final_state["result"]
 

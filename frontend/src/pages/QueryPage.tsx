@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Stack,
   Title,
@@ -17,8 +17,20 @@ import {
   CopyButton,
   ActionIcon,
   Tooltip,
+  TextInput,
+  UnstyledButton,
 } from '@mantine/core';
-import { IconSend, IconCopy, IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import {
+  IconSend,
+  IconCopy,
+  IconCheck,
+  IconAlertCircle,
+  IconSearch,
+  IconArrowsSort,
+  IconArrowUp,
+  IconArrowDown,
+  IconDownload,
+} from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { queryApi } from '../api/queryApi';
 import { useConnections } from '../hooks/useConnections';
@@ -118,8 +130,67 @@ export function QueryPage() {
   );
 }
 
+function exportCsv(columns: string[], rows: unknown[][]) {
+  const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const header = columns.map(escape).join(',');
+  const body = rows.map((r) => (r as unknown[]).map(escape).join(',')).join('\n');
+  const blob = new Blob([header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `results_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function QueryResultView({ result }: { result: QueryResult }) {
-  const { page, setPage, totalPages, total, paged, pageSize } = usePagination(result.rows);
+  const [q, setQ] = useState('');
+  const [sortCol, setSortCol] = useState<number | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
+
+  const lower = q.toLowerCase();
+
+  function cycleSort(colIdx: number) {
+    if (sortCol !== colIdx) {
+      setSortCol(colIdx);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      setSortCol(null);
+      setSortDir(null);
+    }
+  }
+
+  const sortedRows = useMemo(() => {
+    if (sortCol === null || sortDir === null) return result.rows;
+    return [...result.rows].sort((a, b) => {
+      const av = (a as unknown[])[sortCol];
+      const bv = (b as unknown[])[sortCol];
+      const an = Number(av);
+      const bn = Number(bv);
+      const numeric = !isNaN(an) && !isNaN(bn);
+      const cmp = numeric ? an - bn : String(av ?? '').localeCompare(String(bv ?? ''));
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [result.rows, sortCol, sortDir]);
+
+  // Global filter — applied across ALL rows before pagination
+  const filteredRows = useMemo(() => {
+    if (!lower) return sortedRows;
+    return sortedRows.filter((row) =>
+      (row as unknown[]).some((cell) =>
+        String(cell ?? '').toLowerCase().includes(lower),
+      ),
+    );
+  }, [sortedRows, lower]);
+
+  const { page, setPage, totalPages, total, paged, pageSize } = usePagination(filteredRows);
+
+  // Reset to page 1 whenever the search term changes
+  useEffect(() => {
+    setPage(1);
+  }, [q, setPage]);
 
   return (
     <Stack gap="md">
@@ -191,30 +262,74 @@ function QueryResultView({ result }: { result: QueryResult }) {
 
       {result.rows.length > 0 && (
         <Paper withBorder p="sm">
+          {/* Toolbar: search + match counter + export */}
+          <Group mb="sm" gap="xs" align="center" justify="space-between">
+            <Group gap="xs" align="center">
+              <TextInput
+                leftSection={<IconSearch size={14} />}
+                placeholder="Filter rows..."
+                value={q}
+                onChange={(e) => setQ(e.currentTarget.value)}
+                size="sm"
+                w={280}
+              />
+              {lower && (
+                <Text size="xs" c="dimmed">
+                  {filteredRows.length} of {result.rows.length} rows match
+                </Text>
+              )}
+            </Group>
+            <Button
+              variant="default"
+              size="sm"
+              leftSection={<IconDownload size={14} />}
+              onClick={() => exportCsv(result.columns, result.rows)}
+            >
+              Export CSV
+            </Button>
+          </Group>
+
           <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                {result.columns.map((col) => (
-                  <Table.Th key={col}>{col}</Table.Th>
+                {result.columns.map((col, colIdx) => (
+                  <Table.Th key={col} style={{ whiteSpace: 'nowrap' }}>
+                    <UnstyledButton
+                      onClick={() => cycleSort(colIdx)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <Text size="sm" fw={600}>{col}</Text>
+                      {sortCol === colIdx && sortDir === 'asc' ? (
+                        <IconArrowUp size={14} />
+                      ) : sortCol === colIdx && sortDir === 'desc' ? (
+                        <IconArrowDown size={14} />
+                      ) : (
+                        <IconArrowsSort size={14} style={{ opacity: 0.4 }} />
+                      )}
+                    </UnstyledButton>
+                  </Table.Th>
                 ))}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {paged.map((row, i) => (
-                <Table.Tr key={i}>
-                  {(row as unknown[]).map((cell, j) => (
-                    <Table.Td key={j}>
-                      {cell === null ? (
-                        <Text c="dimmed" fs="italic" size="sm">
-                          null
-                        </Text>
-                      ) : (
-                        String(cell)
-                      )}
-                    </Table.Td>
-                  ))}
-                </Table.Tr>
-              ))}
+              {paged.map((row, i) => {
+                const rowArr = row as unknown[];
+                return (
+                  <Table.Tr key={i} bg={lower ? 'teal.0' : undefined}>
+                    {rowArr.map((cell, j) => (
+                      <Table.Td key={j}>
+                        {cell === null ? (
+                          <Text c="dimmed" fs="italic" size="sm">
+                            null
+                          </Text>
+                        ) : (
+                          String(cell)
+                        )}
+                      </Table.Td>
+                    ))}
+                  </Table.Tr>
+                );
+              })}
             </Table.Tbody>
           </Table>
           <TablePagination

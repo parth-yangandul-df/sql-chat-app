@@ -35,3 +35,8 @@ class SampleQuery(Base):
     connection: Mapped["DatabaseConnection"] = relationship(  # noqa: F821
         back_populates="sample_queries"
     )
+
+
+def node13(state):
+    pass
+

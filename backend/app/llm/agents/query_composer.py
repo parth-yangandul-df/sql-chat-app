@@ -26,17 +26,33 @@ class QueryComposerAgent:
         self,
         question: str,
         assembled_context: str,
+        conversation_history: list[dict] | None = None,
     ) -> ComposerOutput:
-        """Generate SQL from natural language using provided context."""
+        """Generate SQL from natural language using provided context.
+
+        Args:
+            question: The current user question.
+            assembled_context: Semantic context (schema, glossary, etc.).
+            conversation_history: Optional prior turns as [{role, content}, ...].
+                Injected as additional context before the current question so the
+                LLM can resolve pronouns and follow-up references.
+        """
         user_prompt = USER_PROMPT_TEMPLATE.format(
             context=assembled_context,
             question=question,
         )
 
-        messages = [
-            LLMMessage(role="system", content=SYSTEM_PROMPT),
-            LLMMessage(role="user", content=user_prompt),
-        ]
+        messages: list[LLMMessage] = [LLMMessage(role="system", content=SYSTEM_PROMPT)]
+
+        # Prepend prior conversation turns so the LLM has follow-up context
+        if conversation_history:
+            for turn in conversation_history:
+                role = turn.get("role", "user")
+                content = turn.get("content", "")
+                if role in ("user", "assistant") and content:
+                    messages.append(LLMMessage(role=role, content=content))
+
+        messages.append(LLMMessage(role="user", content=user_prompt))
 
         response = await self.provider.complete(messages, self.config)
 
