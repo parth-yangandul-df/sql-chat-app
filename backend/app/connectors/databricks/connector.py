@@ -87,7 +87,8 @@ class DatabricksConnector(BaseConnector):
             return False
 
     async def introspect_schemas(self) -> list[str]:
-        assert self._connection is not None
+        if self._connection is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         catalog = self._catalog
 
         def _get_schemas() -> list[str]:
@@ -103,7 +104,8 @@ class DatabricksConnector(BaseConnector):
         return await asyncio.to_thread(_get_schemas)
 
     async def introspect_tables(self, schema: str = "public") -> list[TableInfo]:
-        assert self._connection is not None
+        if self._connection is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         catalog = self._catalog
 
         def _introspect() -> list[TableInfo]:
@@ -362,7 +364,8 @@ class DatabricksConnector(BaseConnector):
         if issues:
             raise SQLSafetyError("; ".join(issues))
 
-        assert self._connection is not None
+        if self._connection is None:
+            raise ConnectionError("Connector not connected — call connect() first")
 
         # Wrap with LIMIT if not already present
         wrapped_sql = sql.rstrip().rstrip(";")
@@ -424,7 +427,8 @@ class DatabricksConnector(BaseConnector):
     async def get_sample_values(
         self, schema: str, table: str, column: str, limit: int = 20
     ) -> list[Any]:
-        assert self._connection is not None
+        if self._connection is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         catalog = self._catalog
 
         def _sample() -> list[Any]:

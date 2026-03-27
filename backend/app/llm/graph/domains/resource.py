@@ -14,44 +14,39 @@ class ResourceAgent(BaseDomainAgent):
         m = state["max_rows"]
 
         if intent == "active_resources":
-            sql = "SELECT ResourceId, ResourceName, Email, IsActive FROM Resource WHERE IsActive = 1"
+            sql = "SELECT ResourceId, ResourceName, EmailId, IsActive FROM Resource WHERE IsActive = 1"
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
 
         elif intent == "resource_by_skill":
             skill = params.get("skill", "")
             sql = (
-                "SELECT r.ResourceId, r.ResourceName, s.SkillName "
-                "FROM Resource r "
-                "JOIN ResourceSkill rs ON r.ResourceId = rs.ResourceId "
-                "JOIN Skill s ON rs.SkillId = s.SkillId "
-                "WHERE s.SkillName LIKE ? AND r.IsActive = 1"
+                "SELECT Employeeid, ResourceName  FROM Resource WHERE PrimarySkill LIKE ? OR SecondarySkill LIKE ?"
             )
-            result = await connector.execute_query(sql, params=(f"%{skill}%",), timeout_seconds=t, max_rows=m)
-
+            result = await connector.execute_query(sql, params=(f"%{skill}%", f"%{skill}%"), timeout_seconds=t, max_rows=m)
         elif intent == "resource_utilization":
             sql = (
-                "SELECT r.ResourceId, r.ResourceName, "
-                "SUM(ts.Hours) AS TotalHours "
-                "FROM Resource r "
-                "JOIN Timesheet ts ON r.ResourceId = ts.ResourceId "
-                "WHERE ts.IsApproved = 1 AND ts.IsDeleted = 0 AND ts.IsRejected = 0 "
-                "GROUP BY r.ResourceId, r.ResourceName "
-                "ORDER BY TotalHours DESC"
-            )
+              "SELECT DISTINCT r.ResourceId, r.ResourceName, ts.Title, ts.Category, ts.activity, "
+              "SUM(ts.[Effort Hours]) AS TotalHours "
+              "FROM Resource r "
+              "JOIN TS_Timesheet_Report ts ON r.EmployeeId = ts.[Emp ID] "
+              "GROUP BY r.ResourceId, r.ResourceName, ts.Project, ts.Category, ts.activity, ts.Title "
+              "ORDER BY TotalHours DESC"
+           )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
 
         elif intent == "resource_billing_rate":
             sql = (
-                "SELECT r.ResourceId, r.ResourceName, pr.BillingRate "
+                "SELECT r.ResourceId, r.ResourceName, pr.Rate, p.ProjectName "
                 "FROM Resource r "
                 "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
+                "JOIN Project p ON pr.ProjectId = p.ProjectId "
                 "WHERE r.IsActive = 1"
             )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
 
         elif intent == "resource_availability":
             sql = (
-                "SELECT ResourceId, ResourceName, Email FROM Resource "
+                "SELECT ResourceId, ResourceName, EmailId FROM Resource "
                 "WHERE IsActive = 1 "
                 "AND ResourceId NOT IN (SELECT DISTINCT ResourceId FROM ProjectResource WHERE IsActive = 1)"
             )
@@ -60,8 +55,8 @@ class ResourceAgent(BaseDomainAgent):
         elif intent == "resource_project_assignments":
             name = params.get("resource_name", "")
             sql = (
-                "SELECT r.ResourceName, p.ProjectName, pr.StartDate, pr.EndDate "
-                "FROM Resource r "
+                "SELECT r.ResourceName, p.ProjectName, CAST(pr.StartDate AS DATE) AS StartDate, "
+                "CAST(pr.EndDate AS DATE) AS EndDate FROM Resource r "
                 "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
                 "JOIN Project p ON pr.ProjectId = p.ProjectId "
                 "WHERE r.ResourceName LIKE ?"
@@ -71,13 +66,12 @@ class ResourceAgent(BaseDomainAgent):
         elif intent == "resource_timesheet_summary":
             name = params.get("resource_name", "")
             sql = (
-                "SELECT r.ResourceName, SUM(ts.Hours) AS TotalHours, ts.WorkDate "
+                "SELECT r.ResourceName, SUM(ts.[Effort Hours]) AS TotalHours, ts.[File Date], ts.Title "
                 "FROM Resource r "
-                "JOIN Timesheet ts ON r.ResourceId = ts.ResourceId "
-                "WHERE ts.IsApproved = 1 AND ts.IsDeleted = 0 AND ts.IsRejected = 0 "
-                "AND r.ResourceName LIKE ? "
-                "GROUP BY r.ResourceName, ts.WorkDate "
-                "ORDER BY ts.WorkDate DESC"
+                "JOIN TS_Timesheet_Report ts ON r.EmployeeId = ts.[Emp ID] "
+                "WHERE r.ResourceName LIKE ? "
+                "GROUP BY r.ResourceName, ts.[File Date], ts.Title "
+                "ORDER BY ts.[File Date] ASC"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
 
@@ -96,10 +90,10 @@ class ResourceAgent(BaseDomainAgent):
         elif intent == "resource_skills_list":
             name = params.get("resource_name", "")
             sql = (
-                "SELECT r.ResourceName, s.SkillName, rs.ProficiencyLevel "
+                "SELECT DISTINCT r.ResourceName, s.Name, rs.SkillExperience "
                 "FROM Resource r "
-                "JOIN ResourceSkill rs ON r.ResourceId = rs.ResourceId "
-                "JOIN Skill s ON rs.SkillId = s.SkillId "
+                "JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId "
+                "JOIN PA_Skills s ON rs.SkillId = s.SkillId "
                 "WHERE r.ResourceName LIKE ?"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)

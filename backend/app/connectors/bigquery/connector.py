@@ -71,12 +71,14 @@ class BigQueryConnector(BaseConnector):
             return False
 
     async def introspect_schemas(self) -> list[str]:
-        assert self._client is not None
+        if self._client is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         datasets = await asyncio.to_thread(list, self._client.list_datasets())
         return sorted(ds.dataset_id for ds in datasets)
 
     async def introspect_tables(self, schema: str = "public") -> list[TableInfo]:
-        assert self._client is not None
+        if self._client is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         client = self._client
         project = self._project_id
 
@@ -169,7 +171,8 @@ class BigQueryConnector(BaseConnector):
         if issues:
             raise SQLSafetyError("; ".join(issues))
 
-        assert self._client is not None
+        if self._client is None:
+            raise ConnectionError("Connector not connected — call connect() first")
 
         # Wrap with LIMIT if not already present
         wrapped_sql = sql.rstrip().rstrip(";")
@@ -228,7 +231,8 @@ class BigQueryConnector(BaseConnector):
     async def get_sample_values(
         self, schema: str, table: str, column: str, limit: int = 20
     ) -> list[Any]:
-        assert self._client is not None
+        if self._client is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         # BigQuery uses backtick quoting for identifiers
         query = f"""
             SELECT DISTINCT `{column}`

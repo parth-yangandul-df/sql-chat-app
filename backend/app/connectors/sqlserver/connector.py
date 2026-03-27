@@ -119,7 +119,8 @@ class SQLServerConnector(BaseConnector):
 
     async def introspect_schemas(self) -> list[str]:
         """Return user-accessible schemas, excluding system ones."""
-        assert self._connection is not None
+        if self._connection is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         sql = """
             SELECT SCHEMA_NAME
             FROM INFORMATION_SCHEMA.SCHEMATA
@@ -141,7 +142,8 @@ class SQLServerConnector(BaseConnector):
 
     async def introspect_tables(self, schema: str = "dbo") -> list[TableInfo]:
         """Introspect all tables and views in a schema with columns."""
-        assert self._connection is not None
+        if self._connection is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         cursor = await self._connection.cursor()
         try:
             # --- Tables and views ---
@@ -293,7 +295,8 @@ class SQLServerConnector(BaseConnector):
         if issues:
             raise SQLSafetyError("; ".join(issues))
 
-        assert self._connection is not None
+        if self._connection is None:
+            raise ConnectionError("Connector not connected — call connect() first")
 
         # T-SQL uses TOP instead of LIMIT
         wrapped_sql = _inject_top(sql, max_rows + 1)
@@ -325,7 +328,8 @@ class SQLServerConnector(BaseConnector):
     async def _run_query(
         self, sql: str, params: tuple[Any, ...] | None = None
     ) -> tuple[list[Any], list[str], list[str]]:
-        assert self._connection is not None
+        if self._connection is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         cursor = await self._connection.cursor()
         try:
             if params:
@@ -348,7 +352,8 @@ class SQLServerConnector(BaseConnector):
     async def get_sample_values(
         self, schema: str, table: str, column: str, limit: int = 20
     ) -> list[Any]:
-        assert self._connection is not None
+        if self._connection is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         sql = (
             f"SELECT DISTINCT TOP {limit} [{column}] "
             f"FROM [{schema}].[{table}] "

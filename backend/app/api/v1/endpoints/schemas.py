@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas.schema import (
@@ -12,6 +12,7 @@ from app.api.v1.schemas.schema import (
     TableResponse,
 )
 from app.connectors.base_connector import ConnectorType
+from app.core.exceptions import ValidationError as AppValidationError
 from app.db.session import get_db
 from app.services import schema_service
 from app.services.connection_service import get_connection
@@ -49,10 +50,7 @@ async def list_available_tables(
 ):
     conn = await get_connection(db, connection_id)
     if conn.connector_type != ConnectorType.SQLSERVER:
-        raise HTTPException(
-            status_code=400,
-            detail="available-tables is only supported for SQL Server connections.",
-        )
+        raise AppValidationError("available-tables is only supported for SQL Server connections.")
     tables = await schema_service.get_available_tables_for_sqlserver(db, connection_id)
     return [AvailableTableEntry(**t) for t in tables]
 

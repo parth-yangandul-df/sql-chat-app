@@ -21,6 +21,21 @@ _NAME_RE = re.compile(
     r"\b(?:for|by|assigned to|of)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
 )
 
+# Project name: everything after "on project", "for project", "project named/called", "about project"
+# Captures until end-of-string or a question mark; handles hyphens, spaces, mixed case
+_PROJECT_NAME_RE = re.compile(
+    r"\b(?:on project|for project|project named?|project called|about project)\s+"
+    r"([A-Za-z0-9][A-Za-z0-9\-\s]+?)(?:\s*[?]?\s*$)",
+    re.IGNORECASE,
+)
+
+# Client name: "for client X", "by client X", "client named/called X"
+_CLIENT_NAME_RE = re.compile(
+    r"\b(?:for client|by client|client named?|client called)\s+"
+    r"([A-Za-z0-9][A-Za-z0-9\-\s]+?)(?:\s*[?]?\s*$)",
+    re.IGNORECASE,
+)
+
 
 async def extract_params(state: GraphState) -> dict[str, Any]:
     """Extract structured parameters from the question using regex only."""
@@ -39,7 +54,17 @@ async def extract_params(state: GraphState) -> dict[str, Any]:
     if len(dates) >= 2:
         params["end_date"] = dates[1]
 
-    # Resource name
+    # Project name (must run before generic resource name to avoid conflicts)
+    project_match = _PROJECT_NAME_RE.search(question)
+    if project_match:
+        params["project_name"] = project_match.group(1).strip()
+
+    # Client name
+    client_match = _CLIENT_NAME_RE.search(question)
+    if client_match:
+        params["client_name"] = client_match.group(1).strip()
+
+    # Resource name (generic fallback — only set if no project/client match claimed it)
     name_match = _NAME_RE.search(question)
     if name_match:
         params["resource_name"] = name_match.group(1)

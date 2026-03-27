@@ -1,7 +1,7 @@
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -13,7 +13,8 @@ from app.api.v1.schemas.knowledge import (
     KnowledgeDocumentDetail,
     KnowledgeDocumentResponse,
 )
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import AppError, NotFoundError
+from app.core.exceptions import ValidationError as AppValidationError
 from app.db.models.knowledge import KnowledgeDocument
 from app.db.session import get_db
 from app.services.knowledge_service import (
@@ -105,7 +106,7 @@ async def fetch_url_content(body: FetchUrlRequest):
     """Fetch a URL and return its text content (HTML is parsed to plain text)."""
     url = body.url.strip()
     if not url.lower().startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
+        raise AppValidationError("URL must start with http:// or https://")
 
     headers = {
         "User-Agent": "Mozilla/5.0 (compatible; QueryWise/1.0)",
@@ -118,14 +119,14 @@ async def fetch_url_content(body: FetchUrlRequest):
             resp = await client.get(url)
             resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
+        raise AppError(
+            f"Remote server returned {exc.response.status_code}",
             status_code=502,
-            detail=f"Remote server returned {exc.response.status_code}",
         ) from exc
     except httpx.RequestError as exc:
-        raise HTTPException(
+        raise AppError(
+            f"Failed to fetch URL: {exc}",
             status_code=502,
-            detail=f"Failed to fetch URL: {exc}",
         ) from exc
 
     html = resp.text

@@ -1,3 +1,4 @@
+from app.core.exceptions import ValidationError as AppValidationError
 from app.llm.base_provider import BaseLLMProvider, LLMProviderType
 
 _PROVIDER_CLASSES: dict[LLMProviderType, type[BaseLLMProvider]] = {}
@@ -47,15 +48,15 @@ def get_provider(provider_type: str, api_key: str | None = None) -> BaseLLMProvi
 
     try:
         pt = LLMProviderType(provider_type)
-    except ValueError:
-        raise ValueError(
-            f"Unknown provider: {provider_type}. "
+    except ValueError as exc:
+        raise AppValidationError(
+            f"Unknown LLM provider: '{provider_type}'. "
             f"Available: {[t.value for t in LLMProviderType]}"
-        )
+        ) from exc
 
     cls = _PROVIDER_CLASSES.get(pt)
     if cls is None:
-        raise ValueError(f"Provider '{provider_type}' is not registered.")
+        raise AppValidationError(f"Provider '{provider_type}' is not registered.")
 
     instance = cls(api_key=api_key) if api_key else cls()
     _instances[cache_key] = instance

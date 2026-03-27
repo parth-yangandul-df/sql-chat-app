@@ -15,9 +15,9 @@ class ProjectAgent(BaseDomainAgent):
 
         if intent == "active_projects":
             sql = (
-                "SELECT p.ProjectId, p.ProjectName, p.StartDate, p.EndDate, c.ClientName "
+                "SELECT p.ProjectId, p.ProjectName, c.ClientName "
                 "FROM Project p JOIN Client c ON p.ClientId = c.ClientId "
-                "JOIN Status st ON p.StatusId = st.StatusId AND st.ReferenceId = 2 "
+                "JOIN Status st ON p.ProjectStatusId = st.StatusId AND st.ReferenceId = 2 "
                 "WHERE st.StatusName = 'Active'"
             )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
@@ -25,13 +25,15 @@ class ProjectAgent(BaseDomainAgent):
         elif intent == "project_by_client":
             name = params.get("resource_name", params.get("client_name", ""))
             sql = (
-                "SELECT p.ProjectName, p.StartDate, p.EndDate "
+                "SELECT p.ProjectName, p.StartDate, p.EndDate,r.ResourceName as [Project Manager], p.NumberOfResorces, s.StatusName "
                 "FROM Project p JOIN Client c ON p.ClientId = c.ClientId "
+				"JOIN Status s ON s.StatusId = p.ProjectStatusId "
+				"JOIN Resource r ON r.ResourceId = p.ProjectManagerId "
                 "WHERE c.ClientName LIKE ?"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
 
-        elif intent == "project_budget":
+        elif intent == "project_budget": # budget not in db
             name = params.get("resource_name", params.get("project_name", ""))
             sql = (
                 "SELECT p.ProjectName, p.Budget, p.BudgetUtilized "
@@ -40,9 +42,9 @@ class ProjectAgent(BaseDomainAgent):
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
 
         elif intent == "project_resources":
-            name = params.get("resource_name", params.get("project_name", ""))
+            name = params.get("project_name", "")
             sql = (
-                "SELECT p.ProjectName, r.ResourceName, pr.BillingRate, pr.StartDate "
+                "SELECT p.ProjectName, r.ResourceName, pr.StartDate, pr.percentageallocation "
                 "FROM Project p "
                 "JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId "
                 "JOIN Resource r ON pr.ResourceId = r.ResourceId "
@@ -50,16 +52,16 @@ class ProjectAgent(BaseDomainAgent):
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
 
-        elif intent == "project_timeline":
+        elif intent == "project_timeline": 
             name = params.get("resource_name", params.get("project_name", ""))
             sql = (
-                "SELECT ProjectName, StartDate, EndDate, "
+                "SELECT ProjectName, cast(StartDate as Date) as [Start Date], cast(EndDate as date) as [End Date], "
                 "DATEDIFF(day, StartDate, EndDate) AS DurationDays "
                 "FROM Project WHERE ProjectName LIKE ?"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
 
-        elif intent == "overdue_projects":
+        elif intent == "overdue_projects": # ask logic
             sql = (
                 "SELECT p.ProjectId, p.ProjectName, p.EndDate, c.ClientName "
                 "FROM Project p JOIN Client c ON p.ClientId = c.ClientId "

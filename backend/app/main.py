@@ -40,7 +40,14 @@ async def lifespan(app: FastAPI):
     from app.services.setup_service import ensure_embedding_dimensions
 
     logger.info("QueryWise startup: checking embedding dimensions")
-    await ensure_embedding_dimensions()
+    try:
+        await ensure_embedding_dimensions()
+    except Exception:
+        logger.warning(
+            "ensure_embedding_dimensions() failed; "
+            "vector search may be unavailable until DB is reachable",
+            exc_info=True,
+        )
 
     # Pre-embed intent catalog so first query does not pay embedding cost
     # Wrapped in try/except — failure logs warning but does NOT prevent startup

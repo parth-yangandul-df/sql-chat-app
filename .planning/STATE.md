@@ -103,11 +103,9 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 
 ## Accumulated Context
 
-### Pending Todos (1)
+### Pending Todos (0)
 
-| File | Title | Area |
-|------|-------|------|
-| 2026-03-27-harden-global-exception-handling-and-normalize-error-response-shape.md | Harden global exception handling and normalize error response shape | api |
+No pending todos.
 
 ## Last Session
 - **Stopped at:** Completed 05-05-PLAN.md
