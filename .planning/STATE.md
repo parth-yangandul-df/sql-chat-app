@@ -103,11 +103,10 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 
 ## Accumulated Context
 
-### Pending Todos (2)
+### Pending Todos (1)
 
 | File | Title | Area |
 |------|-------|------|
-| 2026-03-24-paginate-metadata-tables-and-add-csv-import.md | Paginate metadata tables and add CSV import | ui |
 | 2026-03-27-harden-global-exception-handling-and-normalize-error-response-shape.md | Harden global exception handling and normalize error response shape | api |
 
 ## Last Session
