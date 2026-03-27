@@ -103,9 +103,9 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 
 ## Accumulated Context
 
-### Pending Todos (0)
+### Pending Todos (1)
 
-No pending todos.
+- **Add result table feature parity between frontend and chatbot-frontend** (`ui`) — `2026-03-27-add-result-table-feature-parity-between-frontend-and-chatbot-frontend.md`
 
 ## Last Session
 - **Stopped at:** Completed 05-05-PLAN.md
