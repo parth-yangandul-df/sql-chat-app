@@ -103,10 +103,11 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 
 ## Accumulated Context
 
-### Pending Todos (2)
+### Pending Todos (3)
 
 - **Add result table feature parity between frontend and chatbot-frontend** (`ui`) — `2026-03-27-add-result-table-feature-parity-between-frontend-and-chatbot-frontend.md`
 - **Implement ChatGPT-style threaded chat sessions** (`general`) — `2026-03-27-implement-chatgpt-style-threaded-chat-sessions.md`
+- **Implement RBAC with JWT auth admin manager user roles** (`auth`) — `2026-03-30-implement-rbac-with-jwt-auth-admin-manager-user-roles.md`
 
 ## Last Session
 - **Stopped at:** Completed 05-05-PLAN.md
