@@ -10,11 +10,20 @@ class ConversationTurn(BaseModel):
     content: str
 
 
+class TurnContext(BaseModel):
+    intent: str
+    domain: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    columns: list[str] = Field(default_factory=list)
+    sql: str = ""
+
+
 class QueryRequest(BaseModel):
     connection_id: UUID
     question: str = Field(min_length=1, max_length=1000)
     session_id: UUID | None = None
     conversation_history: list[ConversationTurn] = Field(default_factory=list, max_length=6)
+    last_turn_context: TurnContext | None = None
 
 
 class ExecuteSQLRequest(BaseModel):
@@ -38,6 +47,7 @@ class QueryResponse(BaseModel):
     suggested_followups: list[str]
     llm_provider: str
     llm_model: str
+    turn_context: TurnContext | None = None
 
 
 class SQLOnlyResponse(BaseModel):
