@@ -6,7 +6,7 @@ import { PureMultimodalInput } from '@/components/ui/multimodal-ai-chat-input'
 import { SpotlightTable } from '@/components/ui/spotlight-table'
 import { MorphLoading } from '@/components/ui/morph-loading'
 import { RecentQuestions, saveRecentQuestion } from '@/components/widget/RecentQuestions'
-import type { QueryResult, ChatSessionMessage } from '@/types/api'
+import type { QueryResult, ChatSessionMessage, TurnContext } from '@/types/api'
 import {
   Bot,
   User,
@@ -286,6 +286,7 @@ export function StandaloneChatPage() {
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
+  const [lastTurnContext, setLastTurnContext] = useState<TurnContext | null>(null)
   const [attachments, setAttachments] = useState<
     { url: string; name: string; contentType: string; size: number }[]
   >([])
@@ -322,6 +323,7 @@ export function StandaloneChatPage() {
       .then((session) => {
         sessionStorage.setItem(SESSION_STORAGE_KEY, session.id)
         setSessionId(session.id)
+        setLastTurnContext(null) // Reset context for fresh session
       })
       .catch(() => {
         setSessionError(
@@ -356,8 +358,10 @@ export function StandaloneChatPage() {
         question,
         session_id: sessionId ?? undefined,
         conversation_history: history,
+        last_turn_context: lastTurnContext ?? undefined,
       }),
     onSuccess: (result) => {
+      setLastTurnContext(result.turn_context)
       setMessages((prev) => [
         ...prev,
         { id: `${Date.now()}-assistant`, role: 'assistant', result },
