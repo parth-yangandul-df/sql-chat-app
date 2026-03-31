@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: unknown
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-03-31T12:28:24.049Z"
+stopped_at: Completed 06-05-PLAN.md
+last_updated: "2026-03-31T12:38:00.784Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 15
-  completed_plans: 7
+  completed_plans: 9
 ---
 
 # QueryWise Project State
@@ -46,6 +46,8 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - [Phase 06-01]: GraphState stores last_turn_context as dict | None (not TurnContext) to avoid importing Pydantic models into graph layer
 - [Phase 06-01]: turn_context in response is None when no intent+domain resolved (LLM fallback path)
 - [Phase 06-context-aware-domain-tools]: 6 broadest entries keep fallback_intent=None: active_resources, benched_resources, active_clients, active_projects, approved_timesheets, my_projects — no broader fallback exists within the domain
+- [Phase 06-05]: lastTurnContext lifted to ChatWidget (not local to ChatPanel) so state survives panel AnimatePresence unmount/remount cycles
+- [Phase 06-05]: turn_context: null added to reconstructed QueryResult in buildMessagesFromHistory — history items from API never carry turn_context (only live pipeline does)
 
 ### Phase 5 Plan 01 Decisions (2026-03-26)
 - Patched embed_text at usage site (app.llm.graph.intent_catalog) not definition site for correct mock isolation in tests
@@ -115,5 +117,5 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - **Build standalone dedicated chatbot page for Angular redirect** (`ui`) — `2026-03-31-build-standalone-dedicated-chatbot-page-for-angular-redirect.md`
 
 ## Last Session
-- **Stopped at:** Completed 06-02-PLAN.md
+- **Stopped at:** Completed 06-05-PLAN.md
 - **Resume file:** None
