@@ -59,7 +59,7 @@
   6. chatbot-frontend ChatPanel and StandaloneChatPage send last_turn_context on every follow-up request
   7. chatbot-frontend ChatPanel sends session_id (currently missing)
 
-**Plans:** 5 plans
+**Plans:** 2/5 plans executed
 
 Plans:
 - [ ] 06-01-PLAN.md — TurnContext schema foundation (backend schemas, GraphState, query_service, endpoint)
@@ -76,4 +76,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundation | N/A | Complete | 2026-03-01 |
 | 5. LangGraph Domain Tool Pipeline | 5/5 | Complete | 2026-03-26 |
-| 6. Context-Aware Domain Tools | 0/TBD | Planning | — |
+| 6. Context-Aware Domain Tools | 2/5 | In Progress|  |
