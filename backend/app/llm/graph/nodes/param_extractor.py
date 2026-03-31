@@ -7,10 +7,18 @@ from typing import Any
 
 from app.llm.graph.state import GraphState
 
-# Skill: "with skill X", "skilled in X", "who knows X", "expertise in X"
-_SKILL_RE = re.compile(
-    r"\b(?:with skill|skilled in|who knows|expertise in)\s+([A-Za-z0-9#+.\-]+)",
+# Skill extraction — two separate patterns to avoid IGNORECASE contaminating group 2.
+# Group 1 (keyword-triggered): "with skill X", "with skills X", "skilled in X",
+#   "who knows X", "expertise in X", "work on X", "using X", "proficient in X",
+#   "experience with/in X" — case-insensitive, captures the word after the trigger.
+_SKILL_KW_RE = re.compile(
+    r"\b(?:with skills?\s+(?:in\s+)?|skilled in|who knows?|expertise in|work(?:ing)? on|using|proficient in|experience (?:with|in))\s*([A-Za-z0-9#+.\-]+)",
     re.IGNORECASE,
+)
+# Group 2 (tech-word before role noun): "Python developers", "Java engineers" —
+#   NOT case-insensitive so generic adjectives like "active" don't match.
+_SKILL_TECH_RE = re.compile(
+    r"\b([A-Z][A-Za-z0-9#+.\-]*)\s+(?:developers?|engineers?)\b",
 )
 
 # ISO date: YYYY-MM-DD
@@ -38,12 +46,29 @@ _CLIENT_NAME_RE = re.compile(
 
 
 async def extract_params(state: GraphState) -> dict[str, Any]:
-    """Extract structured parameters from the question using regex only."""
-    question = state["question"]
-    params: dict[str, Any] = dict(state.get("params") or {})
+    """Extract structured parameters from the question using regex only.
 
-    # Skill
-    skill_match = _SKILL_RE.search(question)
+    Context-aware behavior:
+    - Inherits params from last_turn_context (carry-forward from prior turn)
+    - Newly extracted params overlay inherited ones (new wins on conflict)
+    - Internal refine keys (_refine_mode, _prior_sql, _prior_columns) are stripped
+      from inherited params so they don't cascade across multiple hops
+    - Sets _refine_mode=True + _prior_sql + _prior_columns when the current intent
+      matches the prior turn's intent and there is a prior SQL to refine against
+    """
+    question = state["question"]
+    last_turn_context = state.get("last_turn_context") or {}
+
+    # Start with inherited params from prior turn (carry-forward)
+    params: dict[str, Any] = dict(last_turn_context.get("params") or {})
+    # Remove internal refine-mode keys from inherited params so they don't carry
+    # across multiple hops
+    params.pop("_refine_mode", None)
+    params.pop("_prior_sql", None)
+    params.pop("_prior_columns", None)
+
+    # Skill — keyword-trigger pattern first, then tech-word-before-role pattern
+    skill_match = _SKILL_KW_RE.search(question) or _SKILL_TECH_RE.search(question)
     if skill_match:
         params["skill"] = skill_match.group(1)
 
@@ -68,5 +93,14 @@ async def extract_params(state: GraphState) -> dict[str, Any]:
     name_match = _NAME_RE.search(question)
     if name_match:
         params["resource_name"] = name_match.group(1)
+
+    # Set refine mode if this is a same-intent follow-up with prior SQL available
+    prior_sql = last_turn_context.get("sql", "")
+    prior_intent = last_turn_context.get("intent")
+    current_intent = state.get("intent")
+    if prior_sql and prior_intent and current_intent and prior_intent == current_intent:
+        params["_refine_mode"] = True
+        params["_prior_sql"] = prior_sql
+        params["_prior_columns"] = last_turn_context.get("columns", [])
 
     return {"params": params}
