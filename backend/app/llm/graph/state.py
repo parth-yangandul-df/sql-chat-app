@@ -21,6 +21,12 @@ class GraphState(TypedDict):
     db: AsyncSession             # SQLAlchemy async session (not serialized)
     session_id: str | None       # UUID as str — chat thread identifier
     conversation_history: list[dict]  # [{role: "user"|"assistant", content: str}, ...]
+    last_turn_context: dict | None  # Structured context from prior turn (TurnContext as dict)
+
+    # ── Auth / RBAC (set by query_service from current_user) ─────────────
+    user_id: str | None          # UUID as str — authenticated user's ID; None if unauthenticated
+    user_role: str | None        # "admin" | "manager" | "user"; None if unauthenticated
+    resource_id: int | None      # Only set for "user" role; None for admin/manager/unauthenticated
 
     # ── Classification (set by classify_intent) ──────────────────────────
     domain: str | None           # "resource" | "client" | "project" | "timesheet"

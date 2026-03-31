@@ -153,7 +153,7 @@ EXPECTED_RESPONSE_KEYS = {
     "id", "question", "generated_sql", "final_sql", "explanation",
     "columns", "column_types", "rows", "row_count", "execution_time_ms",
     "truncated", "summary", "highlights", "suggested_followups",
-    "llm_provider", "llm_model", "retry_count",
+    "llm_provider", "llm_model", "retry_count", "turn_context",
 }
 
 

@@ -10,6 +10,7 @@ from app.connectors.connector_registry import get_or_create_connector
 from app.core.exceptions import AppError, SQLSafetyError
 from app.db.models.chat_session import ChatSession
 from app.db.models.query_history import QueryExecution
+from app.db.models.user import User
 from app.llm.agents.error_handler import ErrorHandlerAgent
 from app.llm.agents.query_composer import QueryComposerAgent
 from app.llm.agents.result_interpreter import ResultInterpreterAgent
@@ -28,11 +29,17 @@ async def execute_nl_query(
     question: str,
     session_id: uuid.UUID | None = None,
     conversation_history: list[dict] | None = None,
+    current_user: User | None = None,
+    last_turn_context: dict | None = None,
 ) -> dict:
     """Full pipeline: NL question → LangGraph → domain tool or LLM fallback → results.
 
     Delegates to the compiled LangGraph pipeline. Returns the same response
     dict shape as the original pipeline for API compatibility.
+
+    current_user is optional to preserve backward compatibility with unauthenticated
+    calls. When provided, user_id, user_role, and resource_id are threaded into
+    GraphState for RBAC enforcement within the pipeline.
     """
     conn = await get_connection(db, connection_id)
     connection_string = get_decrypted_connection_string(conn)
@@ -47,10 +54,17 @@ async def execute_nl_query(
         "db": db,
         "session_id": str(session_id) if session_id else None,
         "conversation_history": conversation_history or [],
+        "last_turn_context": last_turn_context,
+        # Auth / RBAC — populated from the authenticated user when available
+        "user_id": str(current_user.id) if current_user else None,
+        "user_role": current_user.role if current_user else None,
+        "resource_id": current_user.resource_id if current_user else None,
+        # Classification defaults
         "domain": None,
         "intent": None,
         "confidence": 0.0,
         "params": {},
+        # Execution defaults
         "sql": None,
         "result": None,
         "generated_sql": None,
@@ -58,11 +72,14 @@ async def execute_nl_query(
         "explanation": None,
         "llm_provider": None,
         "llm_model": None,
+        # Interpretation defaults
         "answer": None,
         "highlights": [],
         "suggested_followups": [],
+        # History defaults
         "execution_id": None,
         "execution_time_ms": None,
+        # Error propagation
         "error": None,
     }
 
@@ -102,6 +119,13 @@ async def execute_nl_query(
         "llm_provider": final_state.get("llm_provider"),
         "llm_model": final_state.get("llm_model"),
         "retry_count": final_state.get("retry_count", 0),
+        "turn_context": {
+            "intent": final_state.get("intent"),
+            "domain": final_state.get("domain"),
+            "params": final_state.get("params") or {},
+            "columns": final_state["result"].columns if final_state.get("result") else [],
+            "sql": final_state.get("sql") or "",
+        } if (final_state.get("intent") and final_state.get("domain")) else None,
     }
 
 
