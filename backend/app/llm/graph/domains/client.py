@@ -15,7 +15,7 @@ class ClientAgent(BaseDomainAgent):
 
         if intent == "active_clients":
             sql = (
-                "SELECT c.ClientId, c.ClientName, c.Description, c.CountryId "
+                "SELECT distinct c.ClientName, c.Description, c.CountryId "
                 "FROM Client c "
                 "JOIN Status st ON c.StatusId = st.StatusId AND st.ReferenceId = 1 "
                 "WHERE st.StatusName = 'Active'"
@@ -55,19 +55,6 @@ class ClientAgent(BaseDomainAgent):
                 "WHERE c.ClientName LIKE ?"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
-
-        elif intent == "top_clients_by_revenue": # baadme
-            sql = (
-                "SELECT TOP 10 c.ClientName, SUM(pr.BillingRate * ts.Hours) AS TotalRevenue "
-                "FROM Client c "
-                "JOIN Project p ON c.ClientId = p.ClientId "
-                "JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId "
-                "JOIN Timesheet ts ON pr.ResourceId = ts.ResourceId AND ts.ProjectId = p.ProjectId "
-                "WHERE ts.IsApproved = 1 AND ts.IsDeleted = 0 AND ts.IsRejected = 0 "
-                "GROUP BY c.ClientName "
-                "ORDER BY TotalRevenue DESC"
-            )
-            result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
 
         else:
             raise ValueError(f"ClientAgent: unknown intent '{intent}'")

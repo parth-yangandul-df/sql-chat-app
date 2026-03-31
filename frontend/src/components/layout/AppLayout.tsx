@@ -1,4 +1,4 @@
-import { AppShell, NavLink, Group, Title, Text } from '@mantine/core';
+import { AppShell, NavLink, Group, Title, Text, ActionIcon, Tooltip } from '@mantine/core';
 import {
   IconMessageQuestion,
   IconDatabase,
@@ -7,9 +7,11 @@ import {
   IconVocabulary,
   IconFileText,
   IconHistory,
+  IconLogout,
 } from '@tabler/icons-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { EmbeddingStatusBanner } from '../common/EmbeddingStatusBanner';
+import { clearToken } from '../../utils/auth';
 
 const NAV_ITEMS = [
   { label: 'Query', path: '/query', icon: IconMessageQuestion },
@@ -25,6 +27,11 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  function handleSignOut() {
+    clearToken();
+    navigate('/login', { replace: true });
+  }
+
   return (
     <AppShell
       header={{ height: 56 }}
@@ -32,13 +39,20 @@ export function AppLayout() {
       padding="md"
     >
       <AppShell.Header>
-        <Group h="100%" px="md">
-          <Title order={3} fw={700}>
-            Saras
-          </Title>
-          <Text size="sm" c="dimmed">
-            Ask questions in plain English
-          </Text>
+        <Group h="100%" px="md" justify="space-between">
+          <Group gap="xs">
+            <Title order={3} fw={700}>
+              Saras
+            </Title>
+            <Text size="sm" c="dimmed">
+              Ask questions in plain English
+            </Text>
+          </Group>
+          <Tooltip label="Sign out" position="left">
+            <ActionIcon variant="subtle" color="gray" onClick={handleSignOut} aria-label="Sign out">
+              <IconLogout size={18} stroke={1.5} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       </AppShell.Header>
 

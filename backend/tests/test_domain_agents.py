@@ -66,7 +66,7 @@ async def test_resource_by_skill_passes_param(monkeypatch):
     state = _state(intent="resource_by_skill", params={"skill": "Python"})
     await agent.execute(state)
     call_kwargs = mock_conn.execute_query.call_args
-    assert call_kwargs.kwargs.get("params") == ("%Python%",)
+    assert call_kwargs.kwargs.get("params") == ("%Python%", "%Python%", "%Python%", "%Python%")
 
 
 @pytest.mark.asyncio

@@ -79,6 +79,20 @@ _INFERRED_RULES: list[InferredRelationship] = [
             "ON Resource.ReportingTo = Manager.ResourceId"
         ),
     ),
+    InferredRelationship(
+        source_table="ProjectResource",
+        source_column="ResourceId",
+        target_table="Resource",
+        target_column="ResourceId",
+        note="Allocation to resource: JOIN Resource ON ProjectResource.ResourceId = Resource.ResourceId",
+    ),
+    InferredRelationship(
+        source_table="ProjectResource",
+        source_column="ProjectId",
+        target_table="Project",
+        target_column="ProjectId",
+        note="Allocation to project: JOIN Project ON ProjectResource.ProjectId = Project.ProjectId",
+    ),
 ]
 
 

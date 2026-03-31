@@ -2,6 +2,10 @@
 
 Called when intent classifier confidence < threshold.
 Mirrors the logic in query_service.execute_nl_query() exactly.
+
+When state["resource_id"] is set (user role), a NON-NEGOTIABLE scope
+constraint is prepended to the prompt context so the LLM cannot generate
+SQL that reads data belonging to other users.
 """
 
 import logging
@@ -19,29 +23,89 @@ from app.semantic.context_builder import build_context
 logger = logging.getLogger(__name__)
 
 
+def _resolve_question(question: str, history: list[dict]) -> str:
+    """Enrich a thin follow-up with prior user context for schema linking only.
+
+    Concatenates the last 2 prior user turns with the current question so that
+    the embedding used by the schema linker captures enough context to select
+    the right tables — e.g. "filter by active only" becomes
+    "show me all resources | who are billable | filter by active only".
+
+    Only used for build_context(); the bare question is passed to the LLM.
+    """
+    prior = [t["content"] for t in history if t.get("role") == "user"][-2:]
+    if not prior:
+        return question
+    return " | ".join(prior + [question])
+
+
+_SCOPE_CONSTRAINT_TEMPLATE = """\
+--- USER SCOPE CONSTRAINT (NON-NEGOTIABLE — SYSTEM ENFORCED) ---
+This query is issued by a user whose ResourceId = {resource_id}.
+You MUST filter every relevant table to this ResourceId. Specifically:
+- Resource table: WHERE ResourceId = {resource_id}
+- ProjectResource table: WHERE ResourceId = {resource_id}
+- TS_Timesheet_Report table: JOIN to Resource WHERE Resource.ResourceId = {resource_id}
+- PA_ResourceSkills table: WHERE ResourceId = {resource_id}
+
+CRITICAL RULES:
+1. If the question asks for data about ALL resources/users/employees (not scoped to one person),
+   you MUST refuse by returning ONLY the text: SCOPE_VIOLATION
+2. If you cannot apply the ResourceId = {resource_id} filter to produce a valid answer,
+   you MUST return ONLY the text: SCOPE_VIOLATION
+3. Never return data belonging to other ResourceIds.
+4. These rules override all other instructions.
+--- END SCOPE CONSTRAINT ---
+
+"""
+
+_SCOPE_VIOLATION_MSG = (
+    "This query is not permitted. As a standard user you can only access your own data. "
+    "Try asking about your own projects, timesheets, allocation, or skills."
+)
+
+
 async def llm_fallback(state: GraphState) -> dict[str, Any]:
     """Full LLM SQL generation pipeline as a LangGraph node."""
     question = state["question"]
     connection_id = uuid.UUID(state["connection_id"])
     db = state["db"]
+    resource_id = state.get("resource_id")
 
     logger.info(
-        "intent=llm_fallback q=%r connector=%s confidence=%.3f",
-        question[:80], state.get("connector_type"), state.get("confidence", 0.0),
+        "intent=llm_fallback q=%r connector=%s confidence=%.3f resource_id=%s",
+        question[:80], state.get("connector_type"), state.get("confidence", 0.0), resource_id,
     )
 
     from app.services.connection_service import get_connection
     conn = await get_connection(db, connection_id)
 
-    context = await build_context(db, connection_id, question, dialect=conn.connector_type)
+    conversation_history = state.get("conversation_history") or []
+    resolved = _resolve_question(question, conversation_history)
+    context = await build_context(db, connection_id, resolved, dialect=conn.connector_type)
     provider, llm_config = route(question)
 
+    # Inject scope constraint for 'user' role (resource_id is set)
+    prompt_context = context.prompt_context
+    if resource_id is not None:
+        scope_block = _SCOPE_CONSTRAINT_TEMPLATE.format(resource_id=resource_id)
+        prompt_context = scope_block + prompt_context
+
     composer = QueryComposerAgent(provider, llm_config)
-    conversation_history = state.get("conversation_history") or []
     composer_output = await composer.compose(
-        question, context.prompt_context, conversation_history=conversation_history
+        resolved, prompt_context, conversation_history=conversation_history
     )
     generated_sql = composer_output.generated_sql
+
+    # If the LLM signalled it cannot scope the query, return a clean refusal
+    if resource_id is not None and generated_sql and "SCOPE_VIOLATION" in generated_sql.upper():
+        return {
+            "error": _SCOPE_VIOLATION_MSG,
+            "llm_provider": provider.provider_type.value,
+            "llm_model": llm_config.model,
+            "generated_sql": None,
+            "retry_count": 0,
+        }
 
     if not generated_sql:
         return {
@@ -69,7 +133,7 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
                 question=question,
                 failed_sql=final_sql,
                 error_message="; ".join(validation.issues),
-                schema_context=context.prompt_context,
+                schema_context=prompt_context,
                 attempt_number=retry_count,
                 previous_attempts=previous_attempts,
             )

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Saras — Platform Architecture</title>
+<title>QueryWise — Platform Architecture</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -172,11 +172,11 @@ code {
   font-size: 12.5px;
 }
 pre code { background: none; color: inherit; padding: 0; }
-.kw { color: #cba6f7; } /* keyword */
-.str { color: #a6e3a1; } /* string */
-.num { color: #fab387; } /* number */
-.cmt { color: #6c7086; font-style: italic; } /* comment */
-.fn { color: #89b4fa; } /* function */
+.kw { color: #cba6f7; }
+.str { color: #a6e3a1; }
+.num { color: #fab387; }
+.cmt { color: #6c7086; font-style: italic; }
+.fn { color: #89b4fa; }
 
 /* ===== ER DIAGRAM ===== */
 .er-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
@@ -212,16 +212,6 @@ pre code { background: none; color: inherit; padding: 0; }
 .deploy-svc .svc-port { font-size: 20px; font-weight: 800; color: #4f46e5; margin: 8px 0 4px; }
 .deploy-svc .svc-desc { font-size: 12px; color: #64748b; }
 
-/* ===== SCORING FORMULA ===== */
-.formula {
-  background: #1e1e2e; color: #cdd6f4; padding: 20px 28px; border-radius: 10px;
-  font-family: monospace; font-size: 16px; text-align: center; margin: 16px 0;
-  letter-spacing: 0.5px;
-}
-.formula .w { color: #89b4fa; font-weight: 700; }
-.formula .op { color: #f38ba8; }
-.formula .var { color: #a6e3a1; }
-
 /* ===== MISC ===== */
 .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
 .tag-sm {
@@ -242,7 +232,7 @@ pre code { background: none; color: inherit; padding: 0; }
 <!-- ===== SIDEBAR ===== -->
 <aside class="sidebar">
   <div class="sidebar-brand">
-    <h1>Saras</h1>
+    <h1>QueryWise</h1>
     <p>Platform Architecture</p>
   </div>
   <nav>
@@ -268,42 +258,42 @@ pre code { background: none; color: inherit; padding: 0; }
 
 <!-- HERO -->
 <header class="hero" id="top">
-  <h1>Saras Platform Architecture</h1>
-  <p>A full-stack application that translates natural language questions into SQL queries using a semantic metadata layer (glossary, metrics, dictionary, knowledge base), multi-agent LLM orchestration, and a pluggable database connector system.</p>
+  <h1>QueryWise Platform Architecture</h1>
+  <p>A full-stack PRMS (Project Resource Management System) intelligence platform that routes natural-language questions through a LangGraph pipeline — using a 24-intent domain tool catalog for fast structured queries and a full semantic-layer LLM fallback for arbitrary questions.</p>
   <div class="badges">
     <span class="badge badge-purple">Python 3.12 &middot; FastAPI</span>
     <span class="badge badge-blue">React 19 &middot; TypeScript</span>
     <span class="badge badge-green">PostgreSQL &middot; BigQuery &middot; Databricks</span>
-    <span class="badge badge-amber">Claude &middot; OpenAI</span>
-    <span class="badge badge-slate">Docker Compose</span>
+    <span class="badge badge-amber">Anthropic &middot; OpenAI &middot; OpenRouter &middot; Groq &middot; Ollama</span>
+    <span class="badge badge-slate">LangGraph &middot; Docker Compose</span>
   </div>
 </header>
 
 <!-- ===== 1. SYSTEM OVERVIEW ===== -->
 <section id="overview">
   <h2>System Overview</h2>
-  <p>The platform is organized into five logical layers. A user's natural language question flows top-down through presentation, API, semantic, LLM, and connector layers before results travel back up.</p>
+  <p>The platform is organized into five logical layers. A user's natural language question flows top-down through presentation, API, semantic, LLM orchestration, and connector layers before results travel back up. The LLM orchestration layer is now a <strong>LangGraph StateGraph</strong> with two tracks: a fast <em>domain tool path</em> for classified PRMS intents, and a full <em>LLM fallback path</em> using the semantic layer for arbitrary questions.</p>
 
   <div class="arch-diagram">
     <div class="layer-stack">
       <div class="layer layer-purple">
         <span class="layer-label">Presentation</span>
-        React 19 SPA &mdash; Mantine UI &mdash; Query Interface &amp; Semantic Layer Management
+        React 19 SPA &mdash; Mantine UI &mdash; Query Interface, Sessions &amp; Semantic Layer Management
       </div>
       <div class="arrow-down"></div>
       <div class="layer layer-blue">
         <span class="layer-label">API</span>
-        FastAPI &mdash; REST /api/v1 &mdash; Pydantic v2 Validation &mdash; Async Handlers
+        FastAPI &mdash; REST /api/v1 &mdash; Pydantic v2 Validation &mdash; Async Handlers &mdash; Sessions
       </div>
       <div class="arrow-down"></div>
       <div class="sub-layers">
         <div class="layer layer-indigo">
-          <span class="layer-label">Semantic</span>
+          <span class="layer-label">Semantic (Fallback)</span>
           Context Builder<br>Schema Linker<br>Knowledge Resolver<br>Prompt Assembler
         </div>
         <div class="layer layer-amber">
           <span class="layer-label">LLM Orchestration</span>
-          4 Agents<br>Complexity Router<br>Retry Loop
+          LangGraph Pipeline<br>24-Intent Catalog<br>Domain Tools &amp; LLM Fallback
         </div>
         <div class="layer layer-teal">
           <span class="layer-label">Connector</span>
@@ -313,7 +303,7 @@ pre code { background: none; color: inherit; padding: 0; }
       <div class="arrow-down"></div>
       <div class="layer layer-green">
         <span class="layer-label">Data</span>
-        App DB (pgvector &mdash; metadata, embeddings, history) &nbsp;|&nbsp; Target DBs (user databases)
+        App DB (pgvector &mdash; metadata, embeddings, sessions, history) &nbsp;|&nbsp; Target DBs (user databases)
       </div>
     </div>
   </div>
@@ -331,9 +321,10 @@ pre code { background: none; color: inherit; padding: 0; }
         <li><strong>Framework:</strong> FastAPI with async/await throughout</li>
         <li><strong>ORM:</strong> SQLAlchemy 2.0 (async) + asyncpg driver</li>
         <li><strong>Migrations:</strong> Alembic with async support</li>
-        <li><strong>Embeddings:</strong> pgvector (Vector(1536), HNSW indexes)</li>
-        <li><strong>Validation:</strong> Pydantic v2 models</li>
+        <li><strong>Embeddings:</strong> pgvector (Vector(N), HNSW indexes)</li>
+        <li><strong>Validation:</strong> Pydantic v2 models + pydantic-settings</li>
         <li><strong>Encryption:</strong> cryptography (Fernet AES-128)</li>
+        <li><strong>Orchestration:</strong> LangGraph StateGraph</li>
         <li><strong>SQL Parsing:</strong> sqlparse for schema validation</li>
       </ul>
     </div>
@@ -352,13 +343,15 @@ pre code { background: none; color: inherit; padding: 0; }
     </div>
     <div class="card card-accent">
       <span class="tag">LLM Providers</span>
-      <h4>Provider-Agnostic Design</h4>
+      <h4>5-Provider Architecture</h4>
       <ul>
-        <li><strong>Anthropic Claude:</strong> Haiku (simple), Sonnet (moderate/complex)</li>
+        <li><strong>Anthropic:</strong> Claude models (default: claude-sonnet-4-20250514)</li>
         <li><strong>OpenAI:</strong> GPT completions + text-embedding-3-small</li>
-        <li><strong>Ollama:</strong> Local inference via REST API (completions + embeddings)</li>
+        <li><strong>Ollama:</strong> Local inference (llama3.1:8b + nomic-embed-text)</li>
+        <li><strong>OpenRouter:</strong> Multi-model gateway (default: gpt-3.5-turbo)</li>
+        <li><strong>Groq:</strong> Fast inference (default: moonshotai/kimi-k2-instruct)</li>
+        <li><strong>Embeddings:</strong> OpenAI or Ollama (auto-derived from provider)</li>
         <li><strong>Temperature:</strong> Always 0.0 (deterministic)</li>
-        <li><strong>Output:</strong> JSON with text fallback extraction</li>
       </ul>
     </div>
     <div class="card card-accent">
@@ -385,7 +378,7 @@ pre code { background: none; color: inherit; padding: 0; }
   <div class="card-grid card-grid-3">
     <div class="card">
       <h4>Header (56px)</h4>
-      <p>"Saras" branding + subtitle</p>
+      <p>"QueryWise" branding + subtitle</p>
     </div>
     <div class="card">
       <h4>Sidebar (220px)</h4>
@@ -399,13 +392,13 @@ pre code { background: none; color: inherit; padding: 0; }
 
   <h3>Pages</h3>
   <div class="card-grid card-grid-3">
-    <div class="card"><h4>QueryPage</h4><p>NL input, connection selector, SQL preview, results table with summary/highlights/follow-ups. Ctrl+Enter shortcut.</p></div>
+    <div class="card"><h4>QueryPage</h4><p>NL input with session/conversation support, connection selector, SQL preview, results table with summary/highlights/follow-ups. Execute-SQL mode. Ctrl+Enter shortcut.</p></div>
     <div class="card"><h4>ConnectionsPage</h4><p>CRUD for database connections. Test, introspect, expandable schema explorer.</p></div>
     <div class="card"><h4>GlossaryPage</h4><p>Business glossary terms. Create/edit modal with SQL expression, related tables/columns.</p></div>
     <div class="card"><h4>MetricsPage</h4><p>Named metric definitions. SQL expression, aggregation type, dimensions.</p></div>
     <div class="card"><h4>DictionaryPage</h4><p>Column value mappings. Cascading connection &rarr; table &rarr; column selection.</p></div>
     <div class="card"><h4>KnowledgePage</h4><p>Import business documentation (paste text or fetch URL). View chunks, delete documents.</p></div>
-    <div class="card"><h4>HistoryPage</h4><p>Query execution log with favorites, expandable SQL/summary, retry badges.</p></div>
+    <div class="card"><h4>HistoryPage</h4><p>Query execution log with favorites, expandable SQL/summary, retry badges, session linking.</p></div>
   </div>
 
   <h3>State Management Pattern</h3>
@@ -445,6 +438,13 @@ pre code { background: none; color: inherit; padding: 0; }
       <tr><td colspan="3" style="background:#f8fafc; font-weight:700; font-size:12px; color:#64748b;">SCHEMA</td></tr>
       <tr><td class="col-method get">GET</td><td><code>/connections/{id}/tables</code></td><td>List cached tables</td></tr>
       <tr><td class="col-method get">GET</td><td><code>/tables/{table_id}</code></td><td>Table detail (columns, relationships)</td></tr>
+      <tr><td colspan="3" style="background:#f8fafc; font-weight:700; font-size:12px; color:#64748b;">SESSIONS (multi-turn chat)</td></tr>
+      <tr><td class="col-method post">POST</td><td><code>/sessions</code></td><td>Create a new chat session</td></tr>
+      <tr><td class="col-method get">GET</td><td><code>/sessions</code></td><td>List sessions (filter by connection_id)</td></tr>
+      <tr><td class="col-method get">GET</td><td><code>/sessions/{id}</code></td><td>Get session detail + message count</td></tr>
+      <tr><td class="col-method get">GET</td><td><code>/sessions/{id}/messages</code></td><td>List all executions in session (ordered)</td></tr>
+      <tr><td class="col-method patch">PATCH</td><td><code>/sessions/{id}/title</code></td><td>Rename session title</td></tr>
+      <tr><td class="col-method delete">DELETE</td><td><code>/sessions/{id}</code></td><td>Delete session + cascade executions</td></tr>
       <tr><td colspan="3" style="background:#f8fafc; font-weight:700; font-size:12px; color:#64748b;">SEMANTIC LAYER</td></tr>
       <tr><td class="col-method get">GET</td><td><code>/connections/{id}/glossary</code></td><td>List glossary terms</td></tr>
       <tr><td class="col-method post">POST</td><td><code>/connections/{id}/glossary</code></td><td>Create term</td></tr>
@@ -459,14 +459,14 @@ pre code { background: none; color: inherit; padding: 0; }
       <tr><td colspan="3" style="background:#f8fafc; font-weight:700; font-size:12px; color:#64748b;">KNOWLEDGE</td></tr>
       <tr><td class="col-method get">GET</td><td><code>/connections/{id}/knowledge</code></td><td>List knowledge documents</td></tr>
       <tr><td class="col-method post">POST</td><td><code>/connections/{id}/knowledge</code></td><td>Import document (title + content + optional source_url)</td></tr>
-      <tr><td class="col-method get">GET</td><td><code>/connections/{id}/knowledge/{doc_id}</code></td><td>Get document with chunks</td></tr>
       <tr><td class="col-method delete">DELETE</td><td><code>/connections/{id}/knowledge/{doc_id}</code></td><td>Delete document + chunks</td></tr>
       <tr><td class="col-method post">POST</td><td><code>/knowledge/fetch-url</code></td><td>Fetch URL &rarr; parse HTML &rarr; return title + content</td></tr>
       <tr><td colspan="3" style="background:#f8fafc; font-weight:700; font-size:12px; color:#64748b;">SAMPLE QUERIES</td></tr>
       <tr><td class="col-method get">GET</td><td><code>/connections/{id}/sample-queries</code></td><td>List sample queries</td></tr>
       <tr><td class="col-method post">POST</td><td><code>/connections/{id}/sample-queries</code></td><td>Create sample query</td></tr>
       <tr><td colspan="3" style="background:#f8fafc; font-weight:700; font-size:12px; color:#64748b;">QUERY</td></tr>
-      <tr><td class="col-method post">POST</td><td><code>/query</code></td><td>Full NL &rarr; SQL &rarr; execute &rarr; interpret pipeline</td></tr>
+      <tr><td class="col-method post">POST</td><td><code>/query</code></td><td>Full NL &rarr; LangGraph pipeline &rarr; execute &rarr; interpret</td></tr>
+      <tr><td class="col-method post">POST</td><td><code>/query/execute-sql</code></td><td>Execute user-provided SQL directly (no LLM)</td></tr>
       <tr><td class="col-method post">POST</td><td><code>/query/sql-only</code></td><td>Generate SQL without executing</td></tr>
       <tr><td colspan="3" style="background:#f8fafc; font-weight:700; font-size:12px; color:#64748b;">HISTORY</td></tr>
       <tr><td class="col-method get">GET</td><td><code>/query-history</code></td><td>List query executions</td></tr>
@@ -479,7 +479,7 @@ pre code { background: none; color: inherit; padding: 0; }
 <!-- ===== 5. SEMANTIC LAYER ===== -->
 <section id="semantic">
   <h2>Semantic Layer <span class="badge badge-purple" style="font-size:10px; vertical-align:middle;">Core IP</span></h2>
-  <p>The semantic layer is the product's key differentiator. It selects the most relevant database context for each natural language question using a hybrid strategy: <strong>vector similarity + keyword matching + foreign key graph traversal</strong>. Imported business knowledge (Confluence pages, wiki articles, policy documents) is chunked, embedded, and injected as additional context.</p>
+  <p>The semantic layer is used by the <strong>LLM fallback path</strong> when the intent classifier confidence is below the threshold (0.65). It selects the most relevant database context for the NL question using a hybrid strategy: <strong>vector similarity + keyword matching + foreign key graph traversal</strong>. Imported business knowledge is chunked, embedded, and injected as additional context.</p>
 
   <h3>Context Building Pipeline (8 Steps)</h3>
   <div class="flow">
@@ -510,7 +510,7 @@ pre code { background: none; color: inherit; padding: 0; }
     <div class="flow-step" style="background:#f5f3ff; border-color:#a78bfa;">
       <span class="step-num">5</span>
       <span class="step-title">Score &amp; Prune</span>
-      <div class="step-desc">Weighted scoring formula, keep top 8 tables with all their columns</div>
+      <div class="step-desc">Weighted scoring formula, keep top 8 tables (MAX_CONTEXT_TABLES) with all their columns</div>
     </div>
     <div class="flow-arrow"></div>
     <div class="flow-step">
@@ -533,55 +533,31 @@ pre code { background: none; color: inherit; padding: 0; }
   </div>
 
   <h3>Relevance Scoring Formula</h3>
-  <div class="formula">
-    score = <span class="w">0.5</span> <span class="op">&times;</span> <span class="var">embedding</span> <span class="op">+</span> <span class="w">0.3</span> <span class="op">&times;</span> <span class="var">keyword</span> <span class="op">+</span> <span class="w">0.2</span> <span class="op">&times;</span> <span class="var">fk_proximity</span> <span class="op">+</span> <span class="var">glossary_boost</span>
-  </div>
-
-  <div class="card-grid card-grid-4" style="margin-top:16px;">
-    <div class="card" style="text-align:center; border-top:3px solid #818cf8;">
-      <h4 style="font-size:24px; color:#4f46e5;">50%</h4>
-      <p><strong>Embedding</strong><br>Cosine similarity (0&ndash;1)</p>
-    </div>
-    <div class="card" style="text-align:center; border-top:3px solid #3b82f6;">
-      <h4 style="font-size:24px; color:#1d4ed8;">30%</h4>
-      <p><strong>Keyword</strong><br>Exact/partial name match</p>
-    </div>
-    <div class="card" style="text-align:center; border-top:3px solid #14b8a6;">
-      <h4 style="font-size:24px; color:#0d9488;">20%</h4>
-      <p><strong>FK Proximity</strong><br>Relationship connectivity</p>
-    </div>
-    <div class="card" style="text-align:center; border-top:3px solid #f59e0b;">
-      <h4 style="font-size:24px; color:#d97706;">+0.2</h4>
-      <p><strong>Glossary Boost</strong><br>Optional manual boost</p>
-    </div>
+  <div style="background:#1e1e2e; color:#cdd6f4; padding:20px 28px; border-radius:10px; font-family:monospace; font-size:16px; text-align:center; margin:16px 0;">
+    score = <span style="color:#89b4fa; font-weight:700;">0.5</span> <span style="color:#f38ba8;">&times;</span> <span style="color:#a6e3a1;">embedding</span> <span style="color:#f38ba8;">+</span> <span style="color:#89b4fa; font-weight:700;">0.3</span> <span style="color:#f38ba8;">&times;</span> <span style="color:#a6e3a1;">keyword</span> <span style="color:#f38ba8;">+</span> <span style="color:#89b4fa; font-weight:700;">0.2</span> <span style="color:#f38ba8;">&times;</span> <span style="color:#a6e3a1;">fk_proximity</span> <span style="color:#f38ba8;">+</span> <span style="color:#a6e3a1;">glossary_boost</span>
   </div>
 
   <h3>Semantic Metadata Types</h3>
   <div class="card-grid card-grid-3">
     <div class="card">
       <h4>Business Glossary</h4>
-      <p>Maps business terms to SQL expressions.</p>
-      <p style="color:#475569; font-size:12px;"><code>"NPL"</code> &rarr; <code>exposures WHERE stage = 3</code> (Non-Performing Loans)</p>
+      <p>Maps business terms to SQL expressions. Matched by substring + embedding similarity.</p>
     </div>
     <div class="card">
       <h4>Metric Definitions</h4>
-      <p>Named calculations with aggregation types and dimensions.</p>
-      <p style="color:#475569; font-size:12px;"><code>"Coverage Ratio"</code> &rarr; <code>SUM(ecl_provisions.ecl_lifetime) / SUM(exposures.ead)</code> by stage, facility_type</p>
+      <p>Named calculations with aggregation types and dimensions. Matched by name + embedding.</p>
     </div>
     <div class="card">
       <h4>Data Dictionary</h4>
       <p>Column value mappings so the LLM understands coded values.</p>
-      <p style="color:#475569; font-size:12px;"><code>stage: 1 &rarr; Performing, 2 &rarr; SICR, 3 &rarr; Credit-Impaired</code></p>
     </div>
     <div class="card">
       <h4>Knowledge Base</h4>
-      <p>Imported documentation (Confluence, wikis, HTML pages) chunked and embedded for semantic retrieval.</p>
-      <p style="color:#475569; font-size:12px;">IFRS 9 policy doc &rarr; top 5 relevant chunks injected as <code>=== BUSINESS KNOWLEDGE ===</code></p>
+      <p>Imported documentation (wikis, HTML pages) chunked and embedded for semantic retrieval. Top 5 chunks injected as <code>=== BUSINESS KNOWLEDGE ===</code></p>
     </div>
     <div class="card">
       <h4>Sample Queries</h4>
-      <p>Validated NL&rarr;SQL pairs used as few-shot examples.</p>
-      <p style="color:#475569; font-size:12px;"><code>"total ECL by stage"</code> &rarr; <code>SELECT stage, SUM(ecl_lifetime) FROM ... GROUP BY stage</code></p>
+      <p>Validated NL&rarr;SQL pairs used as few-shot examples. Top 3 by embedding similarity.</p>
     </div>
   </div>
 </section>
@@ -589,40 +565,163 @@ pre code { background: none; color: inherit; padding: 0; }
 <!-- ===== 6. LLM ORCHESTRATION ===== -->
 <section id="llm">
   <h2>LLM Orchestration Layer</h2>
-  <p>A multi-agent system with complexity-based model routing and an error recovery loop. All agents share the same provider-agnostic interface through <code>BaseLLMProvider</code>.</p>
+  <p>The core intelligence pipeline is a <strong>LangGraph StateGraph</strong> compiled as a singleton at startup. It implements two execution tracks: a fast <em>domain tool track</em> for classified PRMS intents (no SQL generation), and a full <em>LLM fallback track</em> with the semantic layer and 4 specialized agents.</p>
 
-  <h3>Complexity Router</h3>
+  <h3>LangGraph Graph Topology</h3>
+<pre><code>classify_intent
+     |
+     ├─ confidence >= 0.65 → extract_params → run_domain_tool
+     │                                         ├─ rows > 0 → interpret_result
+     │                                         └─ 0 rows + fallback_intent? → run_fallback_intent
+     │                                                          ├─ rows > 0 → interpret_result
+     │                                                          └─ 0 rows   → llm_fallback
+     └─ confidence < 0.65  → llm_fallback
+                                    │
+                              interpret_result
+                                    │
+                              write_history → END</code></pre>
+
+  <h3>GraphState — Shared Pipeline State</h3>
+<pre><code><span class="kw">class</span> <span class="fn">GraphState</span>(TypedDict):
+    <span class="cmt"># Inputs</span>
+    question: str
+    connection_id: str          <span class="cmt"># UUID as str</span>
+    session_id: str | None      <span class="cmt"># chat thread identifier</span>
+    conversation_history: list[dict]  <span class="cmt"># [{role, content}, ...]</span>
+
+    <span class="cmt"># Classification</span>
+    domain: str | None          <span class="cmt"># "resource"|"client"|"project"|"timesheet"</span>
+    intent: str | None          <span class="cmt"># e.g. "active_resources"</span>
+    confidence: float
+    params: dict[str, Any]      <span class="cmt"># skill, dates, names (regex extracted)</span>
+
+    <span class="cmt"># Execution</span>
+    sql: str | None
+    result: QueryResult | None
+    generated_sql: str | None   <span class="cmt"># LLM path only</span>
+    retry_count: int
+
+    <span class="cmt"># Interpretation</span>
+    answer: str | None
+    highlights: list[str]
+    suggested_followups: list[str]
+
+    error: str | None</code></pre>
+
+  <h3>Graph Nodes</h3>
+  <div class="card-grid card-grid-2">
+    <div class="card" style="border-left:3px solid #818cf8;">
+      <h4>classify_intent</h4>
+      <p><strong>Method:</strong> Embeds the question, runs cosine similarity against all 24 pre-embedded catalog entries.</p>
+      <p><strong>Output:</strong> <code>domain</code>, <code>intent</code>, <code>confidence</code></p>
+      <p><strong>Threshold:</strong> <code>TOOL_CONFIDENCE_THRESHOLD=0.65</code> (env override). Logs top-3 scores for tuning.</p>
+    </div>
+    <div class="card" style="border-left:3px solid #3b82f6;">
+      <h4>extract_params</h4>
+      <p><strong>Method:</strong> Pure regex extraction — no LLM call. Extracts: <code>skill</code>, <code>start_date</code>, <code>end_date</code>, <code>project_name</code>, <code>client_name</code>, <code>resource_name</code>.</p>
+      <p><strong>Patterns:</strong> ISO dates, Title Case names, project/client keywords.</p>
+    </div>
+    <div class="card" style="border-left:3px solid #10b981;">
+      <h4>run_domain_tool</h4>
+      <p><strong>Method:</strong> Dispatches to one of 4 domain modules (resource, client, project, timesheet) based on <code>intent</code>. Runs a pre-built parameterized SQL query directly against the connector.</p>
+      <p><strong>Output:</strong> <code>sql</code>, <code>result</code>. If 0 rows and <code>fallback_intent</code> set, routes to <code>run_fallback_intent</code>.</p>
+    </div>
+    <div class="card" style="border-left:3px solid #f59e0b;">
+      <h4>llm_fallback</h4>
+      <p><strong>Trigger:</strong> Confidence &lt; threshold, or domain tool 0-row result with no fallback.</p>
+      <p><strong>Method:</strong> Full semantic context build &rarr; LLM SQL generation &rarr; validation &rarr; error-handler retry (max 3) &rarr; connector execution.</p>
+    </div>
+    <div class="card" style="border-left:3px solid #8b5cf6;">
+      <h4>interpret_result</h4>
+      <p><strong>Input:</strong> Question + SQL + result rows</p>
+      <p><strong>Output:</strong> <code>answer</code> (NL summary) + <code>highlights</code> + <code>suggested_followups</code></p>
+      <p><strong>Called for both paths.</strong></p>
+    </div>
+    <div class="card" style="border-left:3px solid #64748b;">
+      <h4>write_history</h4>
+      <p>Persists a <code>QueryExecution</code> record including <code>session_id</code>, SQL, timing, token counts, <code>llm_provider</code>, <code>retry_count</code>, and summary.</p>
+    </div>
+  </div>
+
+  <h3>24-Intent Catalog (PRMS Domain)</h3>
+  <div class="card-grid card-grid-4">
+    <div class="card" style="border-top:3px solid #818cf8;">
+      <h4>Resource (9)</h4>
+      <ul>
+        <li>active_resources</li>
+        <li>resource_by_skill</li>
+        <li>resource_utilization</li>
+        <li>resource_billing_rate</li>
+        <li>resource_availability</li>
+        <li>resource_project_assignments</li>
+        <li>resource_timesheet_summary</li>
+        <li>overallocated_resources</li>
+        <li>resource_skills_list</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top:3px solid #3b82f6;">
+      <h4>Client (5)</h4>
+      <ul>
+        <li>active_clients</li>
+        <li>client_projects</li>
+        <li>client_revenue</li>
+        <li>client_status</li>
+        <li>top_clients_by_revenue</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top:3px solid #10b981;">
+      <h4>Project (6)</h4>
+      <ul>
+        <li>active_projects</li>
+        <li>project_by_client</li>
+        <li>project_budget</li>
+        <li>project_resources</li>
+        <li>project_timeline</li>
+        <li>overdue_projects</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top:3px solid #f59e0b;">
+      <h4>Timesheet (4)</h4>
+      <ul>
+        <li>approved_timesheets</li>
+        <li>timesheet_by_period</li>
+        <li>unapproved_timesheets</li>
+        <li>timesheet_by_project</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">Catalog entries are pre-embedded at startup via <code>ensure_catalog_embedded()</code> so the first query does not pay the embedding cost. Embeddings are stored in-memory on <code>IntentEntry.embedding</code>.</div>
+
+  <h3>Complexity Router (LLM Fallback Path)</h3>
   <table>
     <thead>
-      <tr><th>Tier</th><th>Signal Keywords</th><th>Model</th><th>Max Tokens</th></tr>
+      <tr><th>Tier</th><th>Signal Keywords</th><th>Max Tokens</th></tr>
     </thead>
     <tbody>
       <tr>
         <td><span class="badge badge-green">Simple</span></td>
         <td><code>what is</code>, <code>show me</code>, single entity lookups</td>
-        <td><code>claude-haiku-4-5-20251001</code></td>
-        <td>2,048</td>
+        <td>512</td>
       </tr>
       <tr>
         <td><span class="badge badge-blue">Moderate</span></td>
-        <td><code>group by</code>, <code>join</code>, <code>total</code>, <code>average</code>, <code>per</code>, <code>by</code></td>
-        <td><code>claude-sonnet-4-20250514</code></td>
-        <td>4,096</td>
+        <td><code>group</code>, <code>total</code>, <code>average</code>, <code>join</code>, <code>top N</code>, <code>filter</code></td>
+        <td>768</td>
       </tr>
       <tr>
         <td><span class="badge badge-purple">Complex</span></td>
-        <td><code>trend</code>, <code>compare</code>, <code>window</code>, <code>YoY</code>, <code>cohort</code>, <code>percentile</code>, <code>pivot</code></td>
-        <td><code>claude-sonnet-4-20250514</code></td>
-        <td>4,096</td>
+        <td><code>compare</code>, <code>trend</code>, <code>window</code>, <code>percentile</code>, <code>cohort</code>, <code>year-over-year</code></td>
+        <td>1,024</td>
       </tr>
     </tbody>
   </table>
+  <div class="note">All tiers use the <strong>same model</strong> (configured via <code>DEFAULT_LLM_PROVIDER</code> / <code>DEFAULT_LLM_MODEL</code>). Only <code>max_tokens</code> differs. Temperature is always <code>0.0</code>.</div>
 
-  <h3>Four Specialized Agents</h3>
+  <h3>Four Specialized Agents (LLM Fallback)</h3>
   <div class="card-grid card-grid-2">
     <div class="card" style="border-left:3px solid #818cf8;">
       <h4>QueryComposerAgent</h4>
-      <p><strong>Input:</strong> NL question + assembled context</p>
+      <p><strong>Input:</strong> NL question + assembled context + conversation_history</p>
       <p><strong>Output:</strong> SQL + explanation + confidence (0&ndash;1) + tables_used + assumptions</p>
       <p><strong>Response:</strong> JSON parse with regex fallback for code-fenced SQL</p>
     </div>
@@ -636,25 +735,27 @@ pre code { background: none; color: inherit; padding: 0; }
       <h4>ResultInterpreterAgent</h4>
       <p><strong>Input:</strong> Question + SQL + results preview (max 20 rows)</p>
       <p><strong>Output:</strong> NL summary + key highlights + suggested follow-up questions</p>
-      <p><strong>Style:</strong> Data analyst &mdash; concise, insight-focused</p>
+      <p><strong>Also called for domain tool results.</strong></p>
     </div>
     <div class="card" style="border-left:3px solid #ef4444;">
       <h4>ErrorHandlerAgent</h4>
       <p><strong>Trigger:</strong> Validation failure OR database execution error</p>
       <p><strong>Input:</strong> Failed SQL + error + schema context + previous attempts</p>
       <p><strong>Output:</strong> Corrected SQL + explanation + should_retry flag</p>
-      <p><strong>Max retries:</strong> 3 per phase (validation + execution = up to 6 total)</p>
+      <p><strong>Max retries:</strong> 3</p>
     </div>
   </div>
 
   <h3>Provider Interface</h3>
 <pre><code><span class="kw">class</span> <span class="fn">BaseLLMProvider</span>(ABC):
-    provider_type: LLMProviderType  <span class="cmt"># ANTHROPIC | OPENAI | OLLAMA</span>
+    provider_type: LLMProviderType  <span class="cmt"># ANTHROPIC | OPENAI | OLLAMA | OPENROUTER | GROQ</span>
 
     <span class="kw">async def</span> <span class="fn">complete</span>(messages: list[LLMMessage], config: LLMConfig) -&gt; LLMResponse
     <span class="kw">async def</span> <span class="fn">stream</span>(messages: list[LLMMessage], config: LLMConfig) -&gt; AsyncIterator[str]
-    <span class="kw">async def</span> <span class="fn">generate_embedding</span>(text: str) -&gt; list[float]  <span class="cmt"># configurable dim (1536 OpenAI, 768 Ollama)</span>
+    <span class="kw">async def</span> <span class="fn">generate_embedding</span>(text: str) -&gt; list[float]  <span class="cmt"># OpenAI: 1536-dim, Ollama: 768-dim</span>
     <span class="kw">def</span> <span class="fn">list_models</span>() -&gt; list[str]</code></pre>
+
+  <div class="note"><strong>Embedding resolution:</strong> Providers without embeddings (Anthropic, OpenRouter, Groq) automatically fall back to OpenAI embeddings. Override via <code>EMBEDDING_PROVIDER</code> env variable.</div>
 </section>
 
 <!-- ===== 7. CONNECTOR LAYER ===== -->
@@ -704,96 +805,70 @@ pre code { background: none; color: inherit; padding: 0; }
       <p>ConnectorType enum defined</p>
     </div>
   </div>
-
-  <h3>Connector Implementation Details</h3>
-  <div class="card-grid card-grid-3">
-    <div class="card" style="border-top:3px solid #10b981;">
-      <h4>PostgreSQL</h4>
-      <ul>
-        <li><strong>Driver:</strong> asyncpg (native async)</li>
-        <li><strong>Read-only:</strong> <code>conn.transaction(readonly=True)</code></li>
-        <li><strong>Timeout:</strong> <code>SET LOCAL statement_timeout</code></li>
-        <li><strong>Introspection:</strong> <code>information_schema</code> + <code>pg_catalog</code></li>
-        <li><strong>Row limit:</strong> Auto <code>LIMIT N+1</code> wrapping</li>
-      </ul>
-    </div>
-    <div class="card" style="border-top:3px solid #3b82f6;">
-      <h4>BigQuery</h4>
-      <ul>
-        <li><strong>SDK:</strong> google-cloud-bigquery (sync, wrapped in <code>asyncio.to_thread</code>)</li>
-        <li><strong>Auth:</strong> Service account JSON (encrypted at rest)</li>
-        <li><strong>Read-only:</strong> SQL blocklist (<code>EXPORT DATA</code>, <code>LOAD DATA</code>)</li>
-        <li><strong>Introspection:</strong> <code>INFORMATION_SCHEMA.TABLES/COLUMNS</code></li>
-        <li><strong>Quoting:</strong> Backtick identifiers</li>
-      </ul>
-    </div>
-    <div class="card" style="border-top:3px solid #8b5cf6;">
-      <h4>Databricks</h4>
-      <ul>
-        <li><strong>SDK:</strong> databricks-sql-connector (sync, wrapped in <code>asyncio.to_thread</code>)</li>
-        <li><strong>Auth:</strong> Personal Access Token (PAT)</li>
-        <li><strong>Read-only:</strong> SQL blocklist (<code>COPY INTO</code>, <code>OPTIMIZE</code>, <code>VACUUM</code>)</li>
-        <li><strong>Introspection:</strong> Unity Catalog (<code>information_schema</code>) with Hive metastore fallback (<code>SHOW/DESCRIBE</code>)</li>
-        <li><strong>Namespace:</strong> 3-level (<code>catalog.schema.table</code>)</li>
-      </ul>
-    </div>
-  </div>
-
-  <h3>Plugin Registry</h3>
-<pre><code><span class="cmt"># Built-in connectors registered at import time</span>
-<span class="cmt"># PostgreSQL — always available</span>
-_CONNECTOR_CLASSES[ConnectorType.POSTGRESQL] = PostgreSQLConnector
-
-<span class="cmt"># BigQuery &amp; Databricks — lazy registration (optional deps)</span>
-<span class="kw">try</span>:
-    <span class="kw">from</span> app.connectors.bigquery.connector <span class="kw">import</span> BigQueryConnector
-    _CONNECTOR_CLASSES[ConnectorType.BIGQUERY] = BigQueryConnector
-<span class="kw">except</span> ImportError:
-    <span class="kw">pass</span>  <span class="cmt"># google-cloud-bigquery not installed</span>
-
-<span class="kw">try</span>:
-    <span class="kw">from</span> app.connectors.databricks.connector <span class="kw">import</span> DatabricksConnector
-    _CONNECTOR_CLASSES[ConnectorType.DATABRICKS] = DatabricksConnector
-<span class="kw">except</span> ImportError:
-    <span class="kw">pass</span>  <span class="cmt"># databricks-sql-connector not installed</span>
-
-<span class="cmt"># Get or create a cached connector instance</span>
-connector = <span class="kw">await</span> <span class="fn">get_or_create_connector</span>(
-    connection_id=<span class="str">"uuid-here"</span>,
-    connector_type=<span class="str">"postgresql"</span>,
-    connection_string=<span class="str">"postgresql://..."</span>
-)
-<span class="cmt"># Cached by connection_id, health-checked before reuse</span></code></pre>
 </section>
 
 <!-- ===== 8. QUERY FLOW ===== -->
 <section id="query-flow">
   <h2>Query Flow Pipeline</h2>
-  <p>End-to-end flow when a user submits a natural language question through <code>POST /api/v1/query</code>.</p>
+  <p>End-to-end flow when a user submits a natural language question through <code>POST /api/v1/query</code>. The request carries an optional <code>session_id</code> and <code>conversation_history</code> for multi-turn chat context.</p>
 
+  <h3>Domain Tool Path (Fast Track)</h3>
   <div class="flow">
     <div class="flow-step" style="border-color:#a78bfa; background:#f5f3ff;">
       <span class="step-num">1</span>
-      <span class="step-title">User asks a question</span>
-      <div class="step-desc">"What is the total ECL by stage?"</div>
+      <span class="step-title">User submits NL question</span>
+      <div class="step-desc">"Show me active resources" &mdash; with optional session_id + conversation_history</div>
     </div>
     <div class="flow-arrow"></div>
     <div class="flow-step">
       <span class="step-num">2</span>
-      <span class="step-title">Context Builder</span>
+      <span class="step-title">classify_intent</span>
+      <div class="step-desc">Embed question &rarr; cosine similarity against 24 pre-embedded catalog entries &rarr; gets domain=resource, intent=active_resources, confidence=0.87</div>
+    </div>
+    <div class="flow-arrow"></div>
+    <div class="flow-step">
+      <span class="step-num">3</span>
+      <span class="step-title">extract_params</span>
+      <div class="step-desc">Pure regex extraction. For this query: no skill/date/name params extracted. params={}</div>
+    </div>
+    <div class="flow-arrow"></div>
+    <div class="flow-step" style="border-color:#14b8a6;">
+      <span class="step-num">4</span>
+      <span class="step-title">run_domain_tool</span>
+      <div class="step-desc">Dispatches to resource domain module &rarr; executes pre-built "active_resources" SQL with extracted params directly via connector. Returns rows.</div>
+    </div>
+    <div class="flow-arrow"></div>
+    <div class="flow-step step-success">
+      <span class="step-num">5</span>
+      <span class="step-title">interpret_result &rarr; write_history</span>
+      <div class="step-desc">LLM generates NL summary + highlights + follow-ups. Record saved to query_executions with llm_provider="domain_tool", session_id linked.</div>
+    </div>
+  </div>
+
+  <h3>LLM Fallback Path (Arbitrary Questions)</h3>
+  <div class="flow">
+    <div class="flow-step" style="border-color:#a78bfa; background:#f5f3ff;">
+      <span class="step-num">1</span>
+      <span class="step-title">User submits NL question</span>
+      <div class="step-desc">"What is the revenue trend by client over the last 6 months?" &mdash; confidence=0.41 &lt; 0.65</div>
+    </div>
+    <div class="flow-arrow"></div>
+    <div class="flow-step">
+      <span class="step-num">2</span>
+      <span class="step-title">llm_fallback — Context Builder</span>
       <div class="step-desc">Embed question &rarr; hybrid table search (vector + keyword + FK) &rarr; resolve glossary/metrics/knowledge/dictionary &rarr; find sample queries &rarr; assemble structured prompt</div>
     </div>
     <div class="flow-arrow"></div>
     <div class="flow-step">
       <span class="step-num">3</span>
       <span class="step-title">LLM Router</span>
-      <div class="step-desc">Estimate complexity (simple/moderate/complex) &rarr; select model (Haiku or Sonnet) &rarr; set temperature=0.0</div>
+      <div class="step-desc">Estimate complexity (complex: "trend", "over") &rarr; select configured provider/model with max_tokens=1024, temperature=0.0</div>
     </div>
     <div class="flow-arrow"></div>
     <div class="flow-step" style="border-color:#818cf8;">
       <span class="step-num">4</span>
       <span class="step-title">QueryComposerAgent</span>
-      <div class="step-desc">LLM generates SQL from context + question. Parses JSON response (or fallback regex extraction). Returns SQL + explanation + confidence.</div>
+      <div class="step-desc">LLM generates SQL from context + question + conversation_history. Parses JSON response (or fallback regex extraction). Returns SQL + explanation + confidence.</div>
     </div>
     <div class="flow-arrow"></div>
     <div class="flow-step step-error">
@@ -810,18 +885,10 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
       <div class="step-desc">Read-only transaction + statement timeout + auto LIMIT wrapping. If DB error &rarr; ErrorHandlerAgent retries up to 3x.</div>
     </div>
     <div class="flow-arrow"></div>
-    <div class="flow-branch">Retry loop (max 3) &mdash; ErrorHandlerAgent corrects SQL on DB errors</div>
-    <div class="flow-arrow"></div>
     <div class="flow-step step-success">
       <span class="step-num">7</span>
-      <span class="step-title">ResultInterpreterAgent</span>
-      <div class="step-desc">LLM generates natural language summary, key highlights, and suggested follow-up questions from results (max 20 rows preview).</div>
-    </div>
-    <div class="flow-arrow"></div>
-    <div class="flow-step" style="border-color:#6366f1; background:#eef2ff;">
-      <span class="step-num">8</span>
-      <span class="step-title">Save to History</span>
-      <div class="step-desc">QueryExecution record: question, generated_sql, final_sql, status, timing, tokens, retry_count, summary, is_favorite.</div>
+      <span class="step-title">interpret_result &rarr; write_history</span>
+      <div class="step-desc">LLM generates NL summary, highlights, follow-ups. Record saved with session_id, llm_provider, model, token counts, and retry_count.</div>
     </div>
   </div>
 </section>
@@ -829,7 +896,7 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
 <!-- ===== 9. DATA MODEL ===== -->
 <section id="data-model">
   <h2>Data Model</h2>
-  <p>All models use UUID primary keys, <code>created_at</code>/<code>updated_at</code> timestamps, and pgvector <code>Vector(N)</code> columns for embedding search (N is configurable: 1536 for OpenAI, 768 for Ollama). The app database runs on PostgreSQL 16 with the pgvector extension.</p>
+  <p>All models use UUID primary keys, <code>created_at</code>/<code>updated_at</code> timestamps, and pgvector <code>Vector(N)</code> columns for embedding search. N is configurable via <code>EMBEDDING_DIMENSION</code> (1536 for OpenAI, 768 for Ollama). The app database runs on PostgreSQL 16 with the pgvector extension.</p>
 
   <div class="er-grid">
     <div class="er-table">
@@ -846,93 +913,73 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
     </div>
 
     <div class="er-table">
-      <div class="er-table-head">cached_tables <span class="vec">Vector(1536)</span></div>
+      <div class="er-table-head">chat_sessions <span style="float:right; background:rgba(255,255,255,0.2); padding:1px 8px; border-radius:4px; font-size:10px;">NEW</span></div>
+      <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
+      <div class="er-col"><span><span class="fk">FK</span> connection_id</span><span class="type">UUID</span></div>
+      <div class="er-col"><span>title</span><span class="type">VARCHAR(100)</span></div>
+      <div class="er-col"><span>created_at</span><span class="type">TIMESTAMP</span></div>
+      <div class="er-col"><span>updated_at</span><span class="type">TIMESTAMP</span></div>
+    </div>
+
+    <div class="er-table">
+      <div class="er-table-head">cached_tables <span class="vec">Vector(N)</span></div>
       <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
       <div class="er-col"><span><span class="fk">FK</span> connection_id</span><span class="type">UUID</span></div>
       <div class="er-col"><span>schema_name, table_name</span><span class="type">VARCHAR</span></div>
       <div class="er-col"><span>table_type, comment</span><span class="type">TEXT</span></div>
       <div class="er-col"><span>row_count_estimate</span><span class="type">INTEGER</span></div>
-      <div class="er-col"><span>description_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(1536)</span></div>
+      <div class="er-col"><span>description_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(N)</span></div>
     </div>
 
     <div class="er-table">
-      <div class="er-table-head">cached_columns <span class="vec">Vector(1536)</span></div>
+      <div class="er-table-head">cached_columns <span class="vec">Vector(N)</span></div>
       <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
       <div class="er-col"><span><span class="fk">FK</span> table_id</span><span class="type">UUID</span></div>
       <div class="er-col"><span>column_name, data_type</span><span class="type">VARCHAR</span></div>
       <div class="er-col"><span>is_nullable, is_primary_key</span><span class="type">BOOLEAN</span></div>
       <div class="er-col"><span>comment</span><span class="type">TEXT</span></div>
-      <div class="er-col"><span>description_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(1536)</span></div>
+      <div class="er-col"><span>description_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(N)</span></div>
     </div>
 
     <div class="er-table">
-      <div class="er-table-head">cached_relationships</div>
-      <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span><span class="fk">FK</span> connection_id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span><span class="fk">FK</span> source_table_id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span><span class="fk">FK</span> target_table_id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span>source_column, target_column</span><span class="type">VARCHAR</span></div>
-    </div>
-
-    <div class="er-table">
-      <div class="er-table-head">glossary_terms <span class="vec">Vector(1536)</span></div>
+      <div class="er-table-head">glossary_terms <span class="vec">Vector(N)</span></div>
       <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
       <div class="er-col"><span><span class="fk">FK</span> connection_id</span><span class="type">UUID</span></div>
       <div class="er-col"><span>term, definition</span><span class="type">TEXT</span></div>
       <div class="er-col"><span>sql_expression</span><span class="type">TEXT</span></div>
       <div class="er-col"><span>related_tables, related_columns</span><span class="type">TEXT[]</span></div>
-      <div class="er-col"><span>term_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(1536)</span></div>
+      <div class="er-col"><span>term_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(N)</span></div>
     </div>
 
     <div class="er-table">
-      <div class="er-table-head">metric_definitions <span class="vec">Vector(1536)</span></div>
+      <div class="er-table-head">metric_definitions <span class="vec">Vector(N)</span></div>
       <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
       <div class="er-col"><span><span class="fk">FK</span> connection_id</span><span class="type">UUID</span></div>
       <div class="er-col"><span>metric_name, display_name</span><span class="type">VARCHAR</span></div>
       <div class="er-col"><span>sql_expression</span><span class="type">TEXT</span></div>
       <div class="er-col"><span>aggregation_type</span><span class="type">VARCHAR(50)</span></div>
       <div class="er-col"><span>dimensions</span><span class="type">TEXT[]</span></div>
-      <div class="er-col"><span>metric_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(1536)</span></div>
+      <div class="er-col"><span>metric_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(N)</span></div>
     </div>
 
     <div class="er-table">
-      <div class="er-table-head">dictionary_entries</div>
-      <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span><span class="fk">FK</span> column_id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span>raw_value</span><span class="type">VARCHAR(255)</span></div>
-      <div class="er-col"><span>display_value</span><span class="type">VARCHAR(255)</span></div>
-      <div class="er-col"><span>description</span><span class="type">TEXT</span></div>
-      <div class="er-col"><span>sort_order</span><span class="type">INTEGER</span></div>
-    </div>
-
-    <div class="er-table">
-      <div class="er-table-head">sample_queries <span class="vec">Vector(1536)</span></div>
-      <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span><span class="fk">FK</span> connection_id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span>natural_language, sql_query</span><span class="type">TEXT</span></div>
-      <div class="er-col"><span>tags</span><span class="type">TEXT[]</span></div>
-      <div class="er-col"><span>is_validated</span><span class="type">BOOLEAN</span></div>
-      <div class="er-col"><span>question_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(1536)</span></div>
-    </div>
-
-    <div class="er-table">
-      <div class="er-table-head">knowledge_documents</div>
-      <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span><span class="fk">FK</span> connection_id</span><span class="type">UUID</span></div>
-      <div class="er-col"><span>title</span><span class="type">VARCHAR(500)</span></div>
-      <div class="er-col"><span>source_url</span><span class="type">TEXT</span></div>
-      <div class="er-col"><span>content</span><span class="type">TEXT</span></div>
-      <div class="er-col"><span>chunk_count</span><span class="type">INTEGER</span></div>
-    </div>
-
-    <div class="er-table">
-      <div class="er-table-head">knowledge_chunks <span class="vec">Vector(1536)</span></div>
+      <div class="er-table-head">knowledge_chunks <span class="vec">Vector(N)</span></div>
       <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
       <div class="er-col"><span><span class="fk">FK</span> document_id</span><span class="type">UUID</span></div>
       <div class="er-col"><span>chunk_index</span><span class="type">INTEGER</span></div>
       <div class="er-col"><span>content</span><span class="type">TEXT</span></div>
       <div class="er-col"><span>content_hash</span><span class="type">VARCHAR(64)</span></div>
-      <div class="er-col"><span>chunk_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(1536)</span></div>
+      <div class="er-col"><span>chunk_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(N)</span></div>
+    </div>
+
+    <div class="er-table">
+      <div class="er-table-head">sample_queries <span class="vec">Vector(N)</span></div>
+      <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
+      <div class="er-col"><span><span class="fk">FK</span> connection_id</span><span class="type">UUID</span></div>
+      <div class="er-col"><span>natural_language, sql_query</span><span class="type">TEXT</span></div>
+      <div class="er-col"><span>tags</span><span class="type">TEXT[]</span></div>
+      <div class="er-col"><span>is_validated</span><span class="type">BOOLEAN</span></div>
+      <div class="er-col"><span>question_embedding</span><span class="type" style="color:#f59e0b;">VECTOR(N)</span></div>
     </div>
   </div>
 
@@ -943,6 +990,7 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
         <div>
           <div class="er-col"><span><span class="pk">PK</span> id</span><span class="type">UUID</span></div>
           <div class="er-col"><span><span class="fk">FK</span> connection_id</span><span class="type">UUID</span></div>
+          <div class="er-col"><span><span class="fk">FK</span> session_id</span><span class="type">UUID | NULL</span></div>
           <div class="er-col"><span>natural_language</span><span class="type">TEXT</span></div>
           <div class="er-col"><span>generated_sql</span><span class="type">TEXT</span></div>
           <div class="er-col"><span>final_sql</span><span class="type">TEXT</span></div>
@@ -953,11 +1001,13 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
           <div class="er-col"><span>row_count</span><span class="type">INTEGER</span></div>
           <div class="er-col"><span>execution_time_ms</span><span class="type">FLOAT</span></div>
           <div class="er-col"><span>retry_count</span><span class="type">INTEGER</span></div>
+          <div class="er-col"><span>user_id</span><span class="type">VARCHAR(255)</span></div>
         </div>
         <div>
           <div class="er-col"><span>llm_provider</span><span class="type">VARCHAR(50)</span></div>
           <div class="er-col"><span>llm_model</span><span class="type">VARCHAR(100)</span></div>
           <div class="er-col"><span>llm_input_tokens</span><span class="type">INTEGER</span></div>
+          <div class="er-col"><span>llm_output_tokens</span><span class="type">INTEGER</span></div>
           <div class="er-col"><span>result_summary</span><span class="type">TEXT</span></div>
           <div class="er-col"><span>is_favorite</span><span class="type">BOOLEAN</span></div>
         </div>
@@ -966,7 +1016,7 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
   </div>
 
   <div class="note">
-    <strong>Embedding columns</strong> are present on 6 tables: <code>cached_tables</code>, <code>cached_columns</code>, <code>glossary_terms</code>, <code>metric_definitions</code>, <code>sample_queries</code>, and <code>knowledge_chunks</code>. Dimension is configurable via <code>EMBEDDING_DIMENSION</code> (1536 for OpenAI, 768 for Ollama). HNSW indexes for fast cosine similarity search.
+    <strong>Embedding columns</strong> are present on 6 tables: <code>cached_tables</code>, <code>cached_columns</code>, <code>glossary_terms</code>, <code>metric_definitions</code>, <code>sample_queries</code>, and <code>knowledge_chunks</code>. Dimension N is configurable via <code>EMBEDDING_DIMENSION</code> (1536 for OpenAI, 768 for Ollama). HNSW indexes for fast cosine similarity search. <strong>chat_sessions</strong> is a new table linked to <code>query_executions.session_id</code> for multi-turn conversation tracking.
   </div>
 </section>
 
@@ -984,7 +1034,7 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
     <div class="sec-card">
       <span class="icon">&#x1f6ab;</span>
       <h4>SQL Blocklist</h4>
-      <p>Static regex patterns block DDL, DML, admin commands, injection patterns (<code>pg_sleep</code>, <code>dblink</code>), BigQuery ops (<code>EXPORT DATA</code>, <code>LOAD DATA</code>), and Databricks ops (<code>COPY INTO</code>, <code>OPTIMIZE</code>, <code>VACUUM</code>).</p>
+      <p>Static regex patterns block DDL, DML, admin commands, injection patterns (<code>pg_sleep</code>, <code>dblink</code>), BigQuery ops (<code>EXPORT DATA</code>), and Databricks ops (<code>COPY INTO</code>, <code>OPTIMIZE</code>, <code>VACUUM</code>).</p>
     </div>
     <div class="sec-card">
       <span class="icon">&#x1f511;</span>
@@ -1004,7 +1054,7 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
     <div class="sec-card">
       <span class="icon">&#x1f310;</span>
       <h4>CORS Restriction</h4>
-      <p>FastAPI CORS middleware restricts origins to configured list. Default: <code>http://localhost:5173</code> only.</p>
+      <p>FastAPI CORS middleware restricts origins. Default: <code>http://localhost:5173</code> and <code>http://localhost:5174</code> only.</p>
     </div>
   </div>
 </section>
@@ -1019,13 +1069,13 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
       <div class="svc-name">app-db</div>
       <div class="svc-image">pgvector/pgvector:pg16</div>
       <div class="svc-port">:5432</div>
-      <div class="svc-desc">App metadata, embeddings, glossary, query history. pgvector extension enabled.</div>
+      <div class="svc-desc">App metadata, embeddings, glossary, sessions, query history. pgvector extension enabled.</div>
     </div>
     <div class="deploy-svc" style="border-color:#3b82f6; border-width:2px;">
       <div class="svc-name">sample-db</div>
       <div class="svc-image">postgres:16</div>
       <div class="svc-port">:5433</div>
-      <div class="svc-desc">Sample IFRS 9 banking database. Auto-seeded with counterparties, facilities, exposures, ECL provisions, collateral, staging history.</div>
+      <div class="svc-desc">Sample PRMS database. Auto-seeded with resources, skills, clients, projects, timesheets.</div>
     </div>
     <div class="deploy-svc" style="border-color:#64748b; border-width:2px;">
       <div class="svc-name">ollama</div>
@@ -1037,7 +1087,7 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
       <div class="svc-name">backend</div>
       <div class="svc-image">python:3.12-slim</div>
       <div class="svc-port">:8000</div>
-      <div class="svc-desc">FastAPI + uvicorn with hot reload. Depends on app-db healthy.</div>
+      <div class="svc-desc">FastAPI + uvicorn with hot reload. Depends on app-db healthy. Pre-embeds intent catalog at startup.</div>
     </div>
     <div class="deploy-svc" style="border-color:#f59e0b; border-width:2px;">
       <div class="svc-name">frontend</div>
@@ -1057,7 +1107,7 @@ connector = <span class="kw">await</span> <span class="fn">get_or_create_connect
 
   <h3>Quick Start</h3>
 <pre><code><span class="cmt"># 1. Clone and configure</span>
-git clone &lt;repo-url&gt; Saras && cd Saras
+git clone &lt;repo-url&gt; querywise &amp;&amp; cd querywise
 cp .env.example .env
 <span class="cmt"># Edit .env — add ANTHROPIC_API_KEY and/or OPENAI_API_KEY</span>
 
@@ -1072,24 +1122,30 @@ docker compose up
   <table>
     <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
     <tbody>
-      <tr><td><code>DATABASE_URL</code></td><td><code>postgresql+asyncpg://parthy:admin%40123@host.docker.internal:5432/saras_metadata</code></td><td>App metadata DB</td></tr>
+      <tr><td><code>DATABASE_URL</code></td><td><code>postgresql+asyncpg://querywise:querywise_dev@localhost:5432/querywise</code></td><td>App metadata DB</td></tr>
       <tr><td><code>ENCRYPTION_KEY</code></td><td>dev key</td><td>Fernet key for connection strings</td></tr>
-      <tr><td><code>DEFAULT_LLM_PROVIDER</code></td><td><code>anthropic</code></td><td>LLM provider</td></tr>
-      <tr><td><code>DEFAULT_LLM_MODEL</code></td><td><code>claude-sonnet-4-20250514</code></td><td>Default model</td></tr>
+      <tr><td><code>DEFAULT_LLM_PROVIDER</code></td><td><code>anthropic</code></td><td>LLM provider (anthropic|openai|ollama|openrouter|groq)</td></tr>
+      <tr><td><code>DEFAULT_LLM_MODEL</code></td><td><code>claude-sonnet-4-20250514</code></td><td>Default model name</td></tr>
+      <tr><td><code>EMBEDDING_PROVIDER</code></td><td><code></code></td><td>Override embedding provider (defaults to DEFAULT_LLM_PROVIDER, falls back to openai)</td></tr>
       <tr><td><code>EMBEDDING_MODEL</code></td><td><code>text-embedding-3-small</code></td><td>OpenAI embedding model</td></tr>
       <tr><td><code>ANTHROPIC_API_KEY</code></td><td>&mdash;</td><td>Required for Anthropic</td></tr>
       <tr><td><code>OPENAI_API_KEY</code></td><td>&mdash;</td><td>Required for OpenAI (completions + embeddings)</td></tr>
+      <tr><td><code>OPENROUTER_API_KEY</code></td><td>&mdash;</td><td>Required for OpenRouter</td></tr>
+      <tr><td><code>OPENROUTER_MODEL</code></td><td><code>openai/gpt-3.5-turbo</code></td><td>OpenRouter model</td></tr>
+      <tr><td><code>GROQ_API_KEY</code></td><td>&mdash;</td><td>Required for Groq</td></tr>
+      <tr><td><code>GROQ_MODEL</code></td><td><code>moonshotai/kimi-k2-instruct</code></td><td>Groq model</td></tr>
       <tr><td><code>OLLAMA_BASE_URL</code></td><td><code>http://localhost:11434</code></td><td>Ollama server URL</td></tr>
       <tr><td><code>OLLAMA_MODEL</code></td><td><code>llama3.1:8b</code></td><td>Ollama model for completions</td></tr>
       <tr><td><code>OLLAMA_EMBEDDING_MODEL</code></td><td><code>nomic-embed-text</code></td><td>Ollama model for embeddings (768-dim)</td></tr>
+      <tr><td><code>OLLAMA_LLM_BASE_URL</code></td><td><code></code></td><td>Separate URL for cloud Ollama LLM (falls back to OLLAMA_BASE_URL)</td></tr>
+      <tr><td><code>OLLAMA_API_KEY</code></td><td><code></code></td><td>API key for cloud-hosted Ollama</td></tr>
       <tr><td><code>EMBEDDING_DIMENSION</code></td><td><code>1536</code></td><td>Vector dimension (1536 OpenAI, 768 Ollama)</td></tr>
-      <tr><td><code>AUTO_SETUP_SAMPLE_DB</code></td><td><code>true</code></td><td>Auto-create sample DB connection + seed metadata</td></tr>
-      <tr><td><code>SAMPLE_DB_CONNECTION_STRING</code></td><td><code>postgresql://...sample-db:5432/sampledb</code></td><td>Sample DB for auto-setup</td></tr>
+      <tr><td><code>TOOL_CONFIDENCE_THRESHOLD</code></td><td><code>0.65</code></td><td>Min cosine similarity to route to domain tool</td></tr>
+      <tr><td><code>MAX_CONTEXT_TABLES</code></td><td><code>8</code></td><td>Max tables in LLM context</td></tr>
       <tr><td><code>DEFAULT_QUERY_TIMEOUT_SECONDS</code></td><td><code>30</code></td><td>Max query execution time</td></tr>
       <tr><td><code>DEFAULT_MAX_ROWS</code></td><td><code>1000</code></td><td>Max result rows</td></tr>
-      <tr><td><code>MAX_CONTEXT_TABLES</code></td><td><code>8</code></td><td>Max tables in LLM context</td></tr>
-      <tr><td><code>CORS_ORIGINS</code></td><td><code>["http://localhost:5173"]</code></td><td>Allowed CORS origins</td></tr>
-      <tr><td><code>VITE_API_URL</code></td><td><code>http://localhost:8000</code></td><td>Frontend API target</td></tr>
+      <tr><td><code>AUTO_SETUP_SAMPLE_DB</code></td><td><code>true</code></td><td>Auto-create sample DB connection + seed metadata</td></tr>
+      <tr><td><code>CORS_ORIGINS</code></td><td><code>["http://localhost:5173","http://localhost:5174"]</code></td><td>Allowed CORS origins</td></tr>
     </tbody>
   </table>
 </section>

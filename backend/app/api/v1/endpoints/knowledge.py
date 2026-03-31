@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.deps import get_optional_user, require_role
 from app.api.v1.schemas.knowledge import (
     FetchUrlRequest,
     FetchUrlResponse,
@@ -16,6 +17,7 @@ from app.api.v1.schemas.knowledge import (
 from app.core.exceptions import AppError, NotFoundError
 from app.core.exceptions import ValidationError as AppValidationError
 from app.db.models.knowledge import KnowledgeDocument
+from app.db.models.user import User
 from app.db.session import get_db
 from app.services.knowledge_service import (
     _clean_html,
@@ -33,6 +35,7 @@ router = APIRouter(tags=["knowledge"])
 async def list_knowledge_documents(
     connection_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     result = await db.execute(
         select(KnowledgeDocument)
@@ -51,6 +54,7 @@ async def create_knowledge_document(
     connection_id: uuid.UUID,
     body: KnowledgeDocumentCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     doc = await import_document(
         db,
@@ -70,6 +74,7 @@ async def get_knowledge_document(
     connection_id: uuid.UUID,
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     result = await db.execute(
         select(KnowledgeDocument)
@@ -90,6 +95,7 @@ async def delete_knowledge_document(
     connection_id: uuid.UUID,
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     doc = await db.get(KnowledgeDocument, document_id)
     if not doc or doc.connection_id != connection_id:
@@ -102,7 +108,10 @@ async def delete_knowledge_document(
     "/knowledge/fetch-url",
     response_model=FetchUrlResponse,
 )
-async def fetch_url_content(body: FetchUrlRequest):
+async def fetch_url_content(
+    body: FetchUrlRequest,
+    current_user: User | None = Depends(get_optional_user),
+):
     """Fetch a URL and return its text content (HTML is parsed to plain text)."""
     url = body.url.strip()
     if not url.lower().startswith(("http://", "https://")):

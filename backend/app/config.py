@@ -25,7 +25,13 @@ class Settings(BaseSettings):
 
     # Security
     encryption_key: str = "dev-encryption-key-change-in-production"
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"]
+    cors_origins: list[str] = ["http://localhost:5173","http://localhost:5174","http://localhost:4200","http://localhost:4000"]
+
+    # JWT authentication
+    jwt_secret: str
+    jwt_algorithm: str = "HS256"
+    jwt_expiry_seconds: int = 3600
+
 
     # Query defaults
     default_query_timeout_seconds: int = 30

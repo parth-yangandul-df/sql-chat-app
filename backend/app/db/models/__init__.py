@@ -7,6 +7,7 @@ from app.db.models.metric import MetricDefinition
 from app.db.models.query_history import QueryExecution
 from app.db.models.sample_query import SampleQuery
 from app.db.models.schema_cache import CachedColumn, CachedRelationship, CachedTable
+from app.db.models.user import User
 
 __all__ = [
     "ChatSession",
@@ -21,4 +22,5 @@ __all__ = [
     "QueryExecution",
     "KnowledgeDocument",
     "KnowledgeChunk",
+    "User",
 ]

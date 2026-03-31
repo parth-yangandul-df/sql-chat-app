@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_optional_user, require_role
 from app.api.v1.schemas.schema import (
     AvailableTableEntry,
     ColumnResponse,
@@ -13,6 +14,7 @@ from app.api.v1.schemas.schema import (
 )
 from app.connectors.base_connector import ConnectorType
 from app.core.exceptions import ValidationError as AppValidationError
+from app.db.models.user import User
 from app.db.session import get_db
 from app.services import schema_service
 from app.services.connection_service import get_connection
@@ -28,6 +30,7 @@ router = APIRouter(tags=["schemas"])
 async def introspect_connection(
     connection_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     result = await schema_service.introspect_and_cache(db, connection_id)
     launch_background_embeddings(connection_id)
@@ -47,6 +50,7 @@ async def introspect_connection(
 async def list_available_tables(
     connection_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     conn = await get_connection(db, connection_id)
     if conn.connector_type != ConnectorType.SQLSERVER:
@@ -62,6 +66,7 @@ async def list_available_tables(
 async def list_tables(
     connection_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     tables = await schema_service.get_tables(db, connection_id)
     return [
@@ -86,6 +91,7 @@ async def list_tables(
 async def get_table_detail(
     table_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     table = await schema_service.get_table_detail(db, table_id)
 

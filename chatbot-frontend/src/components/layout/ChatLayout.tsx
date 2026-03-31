@@ -4,7 +4,7 @@ import { Database, History, Bot, Plus, Trash2, MessageSquare } from 'lucide-reac
 import { useEmbeddingStatus } from '@/hooks/useEmbeddingStatus'
 import { useConnections } from '@/hooks/useConnections'
 import { useThreads, useCreateThread, useDeleteThread } from '@/hooks/useThreads'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { ChatSession } from '@/types/api'
 
 // ── Embedding progress banner ──────────────────────────────────────────────────
@@ -92,15 +92,15 @@ function ThreadItem({
       className={cn(
         'w-full flex items-start gap-2 px-3 py-2 rounded-lg text-left transition-colors group relative',
         active
-          ? 'bg-primary/10 text-foreground'
-          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+          ? 'bg-gray-100 text-gray-900'
+          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
       )}
     >
       <MessageSquare className="h-3.5 w-3.5 shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0">
         <p className={cn(
           'text-xs font-medium truncate leading-snug',
-          active ? 'text-foreground' : '',
+          active ? 'text-gray-900' : '',
         )}>
           {session.title}
         </p>
@@ -146,7 +146,7 @@ function ThreadSidebar({
         <button
           onClick={() => { void handleNewChat() }}
           disabled={createThread.isPending}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors disabled:opacity-60"
         >
           <Plus className="h-3.5 w-3.5" />
           New Chat
@@ -195,6 +195,8 @@ export function ChatLayout() {
   const navigate = useNavigate()
   const { threadId } = useParams<{ threadId?: string }>()
   const { data: connections } = useConnections()
+  const createThread = useCreateThread()
+  const autoCreating = useRef(false)
 
   // Active connection persists in localStorage across navigations
   const [connectionId, setConnectionIdState] = useState<string>(() => {
@@ -210,32 +212,43 @@ export function ChatLayout() {
     }
   }, [connections, connectionId])
 
+  // Auto-create thread when landing on /query with no threadId
+  useEffect(() => {
+    if (connectionId && !threadId && location.pathname === '/query' && !autoCreating.current) {
+      autoCreating.current = true
+      createThread.mutateAsync({ connection_id: connectionId })
+        .then((session) => { navigate(`/query/${session.id}`, { replace: true }) })
+        .catch(() => { /* leave on /query — user can click New Chat manually */ })
+        .finally(() => { autoCreating.current = false })
+    }
+  }, [connectionId, threadId, location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleConnectionChange = (id: string) => {
     setConnectionIdState(id)
     localStorage.setItem('querywise_active_connection', id)
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-white overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-56 shrink-0 flex flex-col bg-card border-r border-border">
+      <aside className="w-56 shrink-0 flex flex-col bg-white border-r border-gray-200">
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-4 py-4 border-b border-border shrink-0">
-          <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg">
-            <Bot className="h-4 w-4 text-primary-foreground" />
+        <div className="flex items-center gap-2.5 px-4 py-4 border-b border-gray-200 shrink-0">
+          <div className="flex items-center justify-center w-8 h-8 bg-gray-900 rounded-lg">
+            <Bot className="h-4 w-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground leading-tight">QueryWise</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">AI Chat</p>
+            <p className="text-sm font-semibold text-gray-900 leading-tight">QueryWise</p>
+            <p className="text-[10px] text-gray-400 leading-tight">AI Chat</p>
           </div>
         </div>
 
         {/* Connection selector */}
-        <div className="px-3 py-2 border-b border-border shrink-0">
+        <div className="px-3 py-2 border-b border-gray-200 shrink-0">
           <select
             value={connectionId}
             onChange={(e) => handleConnectionChange(e.target.value)}
-            className="w-full h-7 px-2 text-xs rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full h-7 px-2 text-xs rounded-md border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-500"
           >
             {(!connections || connections.length === 0) && (
               <option value="" disabled>No connections</option>
@@ -260,7 +273,7 @@ export function ChatLayout() {
         </div>
 
         {/* Bottom nav */}
-        <nav className="shrink-0 px-2 py-2 border-t border-border space-y-0.5">
+        <nav className="shrink-0 px-2 py-2 border-t border-gray-200 space-y-0.5">
           {BOTTOM_NAV.map((item) => {
             const active = location.pathname === item.path
             return (
@@ -270,8 +283,8 @@ export function ChatLayout() {
                 className={cn(
                   'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left',
                   active
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
                 )}
               >
                 <item.icon className="h-4 w-4 shrink-0" />

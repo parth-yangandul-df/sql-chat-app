@@ -9,10 +9,11 @@ def test_catalog_total_count():
 def test_catalog_domain_counts():
     from collections import Counter
     counts = Counter(e.domain for e in INTENT_CATALOG)
-    assert counts["resource"] == 9
-    assert counts["client"] == 5
+    assert counts["resource"] == 6
+    assert counts["client"] == 3
     assert counts["project"] == 6
     assert counts["timesheet"] == 4
+    assert counts["user_self"] == 5
 
 
 def test_catalog_unique_names():
@@ -21,7 +22,7 @@ def test_catalog_unique_names():
 
 
 def test_catalog_valid_domains():
-    valid = {"resource", "client", "project", "timesheet"}
+    valid = {"resource", "client", "project", "timesheet", "user_self"}
     for entry in INTENT_CATALOG:
         assert entry.domain in valid
 

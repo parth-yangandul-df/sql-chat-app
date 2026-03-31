@@ -24,6 +24,7 @@ async def write_history(state: GraphState) -> dict[str, Any]:
         execution = QueryExecution(
             connection_id=uuid.UUID(state["connection_id"]),
             session_id=uuid.UUID(state["session_id"]) if state.get("session_id") else None,
+            user_id=uuid.UUID(state["user_id"]) if state.get("user_id") else None,
             natural_language=state["question"],
             generated_sql=state.get("generated_sql"),
             final_sql=state.get("sql"),
@@ -40,6 +41,10 @@ async def write_history(state: GraphState) -> dict[str, Any]:
         await db.flush()
     except Exception:
         logger.warning("write_history: failed to persist query execution record", exc_info=True)
+        try:
+            await db.rollback()
+        except Exception:
+            pass
         return {
             "execution_id": None,
             "execution_time_ms": result.execution_time_ms if result else None,

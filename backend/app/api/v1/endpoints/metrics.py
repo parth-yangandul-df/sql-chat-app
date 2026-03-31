@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_optional_user, require_role
 from app.api.v1.schemas.metric import MetricCreate, MetricResponse, MetricUpdate
 from app.core.exceptions import NotFoundError
 from app.db.models.metric import MetricDefinition
+from app.db.models.user import User
 from app.db.session import get_db
 from app.services.embedding_service import embed_metric
 
@@ -20,6 +22,7 @@ router = APIRouter(tags=["metrics"])
 async def list_metrics(
     connection_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     result = await db.execute(
         select(MetricDefinition)
@@ -38,6 +41,7 @@ async def create_metric(
     connection_id: uuid.UUID,
     body: MetricCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     metric = MetricDefinition(
         connection_id=connection_id,
@@ -60,6 +64,7 @@ async def get_metric(
     connection_id: uuid.UUID,
     metric_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     metric = await db.get(MetricDefinition, metric_id)
     if not metric or metric.connection_id != connection_id:
@@ -76,6 +81,7 @@ async def update_metric(
     metric_id: uuid.UUID,
     body: MetricUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     metric = await db.get(MetricDefinition, metric_id)
     if not metric or metric.connection_id != connection_id:
@@ -100,6 +106,7 @@ async def delete_metric(
     connection_id: uuid.UUID,
     metric_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     metric = await db.get(MetricDefinition, metric_id)
     if not metric or metric.connection_id != connection_id:

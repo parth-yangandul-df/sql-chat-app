@@ -1590,6 +1590,35 @@ def print_schema_summary(client: httpx.Client, connection_id: str) -> None:
         print(f"  {detail['table_name']}: {', '.join(cols)}")
 
 
+def login(base_url: str, email: str, password: str) -> str:
+    """Authenticate against the QueryWise backend and return an access token."""
+    try:
+        resp = httpx.post(
+            f"{base_url}{API_PREFIX}/auth/login",
+            json={"email": email, "password": password},
+            timeout=30,
+        )
+    except httpx.ConnectError as e:
+        print(f"ERROR: Cannot reach backend at {base_url}: {e}")
+        sys.exit(1)
+
+    if resp.status_code == 401:
+        print(f"ERROR: Login failed — invalid credentials for '{email}'.")
+        print("  Use --email and --password to supply valid admin credentials.")
+        sys.exit(1)
+
+    if resp.status_code != 200:
+        print(f"ERROR: Login returned HTTP {resp.status_code}: {resp.text[:200]}")
+        sys.exit(1)
+
+    token = resp.json().get("access_token")
+    if not token:
+        print("ERROR: Login response did not contain an access_token.")
+        sys.exit(1)
+
+    return token
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Seed semantic metadata for an Azure SQL Server connection into QueryWise"
@@ -1603,6 +1632,16 @@ def main() -> None:
         "--connection-name",
         default=None,
         help="Name of the connection to seed (default: first sqlserver connection)",
+    )
+    parser.add_argument(
+        "--email",
+        default="admin@querywise.dev",
+        help="Admin user email for authentication (default: admin@querywise.dev)",
+    )
+    parser.add_argument(
+        "--password",
+        default="admin123",
+        help="Admin user password for authentication (default: admin123)",
     )
     parser.add_argument(
         "--schema-only",
@@ -1633,7 +1672,14 @@ def main() -> None:
     else:
         print("  Mode: SKIP — existing entries will not be modified (use --overwrite or --purge to reset)")
 
-    with httpx.Client(base_url=base_url, timeout=60) as client:
+    # Authenticate and obtain a JWT before making any API calls
+    print(f"  Authenticating as {args.email}...")
+    token = login(base_url, args.email, args.password)
+    print("  Authenticated.")
+
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    with httpx.Client(base_url=base_url, timeout=60, headers=auth_headers) as client:
         # Verify backend is reachable
         try:
             client.get(f"{API_PREFIX}/health").raise_for_status()

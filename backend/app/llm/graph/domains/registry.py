@@ -9,6 +9,7 @@ from app.llm.graph.domains.client import ClientAgent
 from app.llm.graph.domains.project import ProjectAgent
 from app.llm.graph.domains.resource import ResourceAgent
 from app.llm.graph.domains.timesheet import TimesheetAgent
+from app.llm.graph.domains.user_self import UserSelfAgent
 from app.llm.graph.state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ DOMAIN_REGISTRY: dict[str, type] = {
     "client": ClientAgent,
     "project": ProjectAgent,
     "timesheet": TimesheetAgent,
+    "user_self": UserSelfAgent,
 }
 
 

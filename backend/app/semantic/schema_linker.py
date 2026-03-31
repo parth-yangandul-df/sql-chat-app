@@ -12,6 +12,7 @@ from app.config import settings
 from app.db.models.schema_cache import CachedColumn, CachedRelationship, CachedTable
 from app.semantic.relevance_scorer import (
     ANCHOR_TABLE_SIGNALS,
+    LOW_SIGNAL_TABLES,
     ScoredItem,
     column_keyword_score,
     extract_keywords,
@@ -108,9 +109,14 @@ async def find_relevant_tables(
         if key not in scored:
             scored[key] = ScoredItem(id=key, name=table.table_name)
             reason_map[key] = "column_keyword"
+        # Cap column_keyword score for known low-signal (history/audit/notification) tables
+        # so they don't displace relevant tables when they happen to share generic column names.
+        effective_score = col_score
+        if table.table_name.lower() in LOW_SIGNAL_TABLES:
+            effective_score = min(col_score, 0.1)
         # Store column score as keyword_score if it's the best we have
-        if col_score > scored[key].keyword_score:
-            scored[key].keyword_score = col_score
+        if effective_score > scored[key].keyword_score:
+            scored[key].keyword_score = effective_score
             if reason_map.get(key) not in ("embedding", "keyword"):
                 reason_map[key] = "column_keyword"
 

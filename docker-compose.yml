@@ -45,6 +45,8 @@ services:
       - "5173:5173"
     environment:
       VITE_API_URL: http://localhost:8000
+      CHOKIDAR_USEPOLLING: "false"
+      WATCHPACK_POLLING: "false"
     volumes:
       - ./frontend:/app
       - /app/node_modules

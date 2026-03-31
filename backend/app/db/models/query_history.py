@@ -18,7 +18,9 @@ class QueryExecution(Base):
     session_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=True
     )
-    user_id: Mapped[str | None] = mapped_column(String(255))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     natural_language: Mapped[str] = mapped_column(Text, nullable=False)
     generated_sql: Mapped[str | None] = mapped_column(Text)
     final_sql: Mapped[str | None] = mapped_column(Text)

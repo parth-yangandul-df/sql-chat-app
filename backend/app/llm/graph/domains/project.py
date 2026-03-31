@@ -22,10 +22,10 @@ class ProjectAgent(BaseDomainAgent):
             )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
 
-        elif intent == "project_by_client":
+        elif intent == "project_by_client": # done and ready for improvement
             name = params.get("resource_name", params.get("client_name", ""))
             sql = (
-                "SELECT p.ProjectName, p.StartDate, p.EndDate,r.ResourceName as [Project Manager], p.NumberOfResorces, s.StatusName "
+                "SELECT p.ProjectName as [Project Name], c.clientname as [Client Name], cast(p.StartDate as date) as [Start date], cast(p.EndDate as date) as [End date],r.ResourceName as [Project Manager], s.StatusName as Status "
                 "FROM Project p JOIN Client c ON p.ClientId = c.ClientId "
 				"JOIN Status s ON s.StatusId = p.ProjectStatusId "
 				"JOIN Resource r ON r.ResourceId = p.ProjectManagerId "
@@ -41,22 +41,24 @@ class ProjectAgent(BaseDomainAgent):
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
 
-        elif intent == "project_resources":
+        elif intent == "project_resources": # done and ready for improvement
             name = params.get("project_name", "")
             sql = (
-                "SELECT p.ProjectName, r.ResourceName, pr.StartDate, pr.percentageallocation "
+                "SELECT p.ProjectName, c.ClientId, r.ResourceName, tc.TechCategoryName, pr.Billable, pr.ResourceRole, pr.PercentageAllocation "
                 "FROM Project p "
                 "JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId "
                 "JOIN Resource r ON pr.ResourceId = r.ResourceId "
+                "JOIN TechCategory tc ON tc.TechCategoryId = r.TechCategoryId "
+                "JOIN Client c ON c.ClientId = pr.ClientId "
                 "WHERE p.ProjectName LIKE ? AND pr.IsActive = 1"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
 
-        elif intent == "project_timeline": 
+        elif intent == "project_timeline": # done and ready for improvement
             name = params.get("resource_name", params.get("project_name", ""))
             sql = (
-                "SELECT ProjectName, cast(StartDate as Date) as [Start Date], cast(EndDate as date) as [End Date], "
-                "DATEDIFF(day, StartDate, EndDate) AS DurationDays "
+                "SELECT ProjectName, cast(StartDate as Date) as [Start Date],COALESCE(CONVERT(VARCHAR(10), EndDate, 120), 'NA') AS [End Date], "
+                "COALESCE(CAST(DATEDIFF(DAY, StartDate, EndDate) AS VARCHAR(10)), 'NA') AS DurationDays "
                 "FROM Project WHERE ProjectName LIKE ?"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
@@ -65,7 +67,7 @@ class ProjectAgent(BaseDomainAgent):
             sql = (
                 "SELECT p.ProjectId, p.ProjectName, p.EndDate, c.ClientName "
                 "FROM Project p JOIN Client c ON p.ClientId = c.ClientId "
-                "JOIN Status st ON p.StatusId = st.StatusId AND st.ReferenceId = 2 "
+                "JOIN Status st ON p.ProjectStatusId = st.StatusId AND st.ReferenceId = 2 "
                 "WHERE p.EndDate < GETDATE() AND st.StatusName != 'Completed'"
             )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_optional_user, require_role
 from app.api.v1.schemas.dictionary import (
     DictionaryEntryCreate,
     DictionaryEntryResponse,
@@ -11,6 +12,7 @@ from app.api.v1.schemas.dictionary import (
 )
 from app.core.exceptions import NotFoundError
 from app.db.models.dictionary import DictionaryEntry
+from app.db.models.user import User
 from app.db.session import get_db
 
 router = APIRouter(prefix="/columns/{column_id}/dictionary", tags=["dictionary"])
@@ -20,6 +22,7 @@ router = APIRouter(prefix="/columns/{column_id}/dictionary", tags=["dictionary"]
 async def list_dictionary_entries(
     column_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     result = await db.execute(
         select(DictionaryEntry)
@@ -34,6 +37,7 @@ async def create_dictionary_entry(
     column_id: uuid.UUID,
     body: DictionaryEntryCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     entry = DictionaryEntry(column_id=column_id, **body.model_dump())
     db.add(entry)
@@ -47,6 +51,7 @@ async def update_dictionary_entry(
     entry_id: uuid.UUID,
     body: DictionaryEntryUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     entry = await db.get(DictionaryEntry, entry_id)
     if not entry or entry.column_id != column_id:
@@ -64,6 +69,7 @@ async def delete_dictionary_entry(
     column_id: uuid.UUID,
     entry_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     entry = await db.get(DictionaryEntry, entry_id)
     if not entry or entry.column_id != column_id:
