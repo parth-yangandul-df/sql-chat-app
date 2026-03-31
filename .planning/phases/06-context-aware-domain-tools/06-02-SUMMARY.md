@@ -140,6 +140,15 @@ None — no external service configuration required.
 - `run_domain_tool.py` node needs to consume `entry.fallback_intent` on 0-row results (planned for a subsequent plan in Phase 06)
 - All 24 catalog entry names are valid fallback targets — referential integrity confirmed
 
+## Self-Check: PASSED
+
+- ✅ `backend/tests/test_intent_catalog_fallbacks.py` exists on disk
+- ✅ `backend/app/llm/graph/intent_catalog.py` exists on disk
+- ✅ `.planning/phases/06-context-aware-domain-tools/06-02-SUMMARY.md` exists on disk
+- ✅ Commit `77b6b89` (test RED) found in git log
+- ✅ Commit `d8cc9d7` (feat GREEN) found in git log
+- ✅ `python -c "from app.llm.graph.intent_catalog import INTENT_CATALOG; print(sum(1 for e in INTENT_CATALOG if e.fallback_intent))"` → 18
+
 ---
 *Phase: 06-context-aware-domain-tools*
 *Completed: 2026-03-31*
