@@ -103,11 +103,13 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 
 ## Accumulated Context
 
-### Pending Todos (3)
+### Pending Todos (5)
 
-- **Add result table feature parity between frontend and chatbot-frontend** (`ui`) — `2026-03-27-add-result-table-feature-parity-between-frontend-and-chatbot-frontend.md`
-- **Implement ChatGPT-style threaded chat sessions** (`general`) — `2026-03-27-implement-chatgpt-style-threaded-chat-sessions.md`
+- **Build QueryWise chat widget for Angular embedding** (`ui`) — `2026-03-30-build-querywise-chat-widget-for-angular-embedding.md`
 - **Implement RBAC with JWT auth admin manager user roles** (`auth`) — `2026-03-30-implement-rbac-with-jwt-auth-admin-manager-user-roles.md`
+- **Scaffold Angular 21 test app with widget integration** (`general`) — `2026-03-30-scaffold-angular-21-test-app-with-widget-integration.md`
+- **Fix recent questions to be user-specific via token handoff** (`ui`) — `2026-03-31-fix-recent-questions-to-be-user-specific-via-token-handoff.md`
+- **Build standalone dedicated chatbot page for Angular redirect** (`ui`) — `2026-03-31-build-standalone-dedicated-chatbot-page-for-angular-redirect.md`
 
 ## Last Session
 - **Stopped at:** Completed 05-05-PLAN.md
