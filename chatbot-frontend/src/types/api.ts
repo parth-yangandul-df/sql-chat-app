@@ -76,6 +76,14 @@ export interface Column {
   ordinal_position: number
 }
 
+export interface TurnContext {
+  intent: string
+  domain: string
+  params: Record<string, unknown>
+  columns: string[]
+  sql: string
+}
+
 export interface QueryResult {
   id: string
   question: string
@@ -94,6 +102,7 @@ export interface QueryResult {
   llm_provider: string
   llm_model: string
   retry_count: number
+  turn_context: TurnContext | null
 }
 
 export interface QueryHistory {

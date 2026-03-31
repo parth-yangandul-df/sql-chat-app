@@ -1,24 +1,82 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useParams, useOutletContext } from 'react-router-dom'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { queryApi, type ConversationTurn } from '@/api/queryApi'
-import { useSessionMessages } from '@/hooks/useThreads'
+import { sessionApi } from '@/api/sessionApi'
 import { PureMultimodalInput } from '@/components/ui/multimodal-ai-chat-input'
 import { SpotlightTable } from '@/components/ui/spotlight-table'
 import { MorphLoading } from '@/components/ui/morph-loading'
 import { RecentQuestions, saveRecentQuestion } from '@/components/widget/RecentQuestions'
-import type { QueryResult } from '@/types/api'
-import type { ChatLayoutContext } from '@/components/layout/ChatLayout'
-import { Bot, User, AlertCircle, ChevronDown, ChevronUp, Copy, Check, Zap, MessageSquareOff } from 'lucide-react'
+import type { QueryResult, ChatSessionMessage } from '@/types/api'
+import {
+  Bot,
+  User,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Check,
+  Zap,
+} from 'lucide-react'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const CONVERSATION_HISTORY_TURNS = 3 // last N turns (N user + N assistant = 2N messages)
+const CONVERSATION_HISTORY_TURNS = 3
+const SESSION_STORAGE_KEY = 'qw_session_id'
 
 // ── Message types ──────────────────────────────────────────────────────────────
 type ChatMessage =
   | { id: string; role: 'user'; content: string }
   | { id: string; role: 'assistant'; result: QueryResult }
   | { id: string; role: 'error'; message: string }
+
+// ── Build conversation history for API ────────────────────────────────────────
+function buildConversationHistory(messages: ChatMessage[]): ConversationTurn[] {
+  const turns: ConversationTurn[] = []
+  for (const msg of messages) {
+    if (msg.role === 'user') {
+      turns.push({ role: 'user', content: msg.content })
+    } else if (msg.role === 'assistant') {
+      const content =
+        msg.result.summary ??
+        (msg.result.row_count > 0 ? `Returned ${msg.result.row_count} rows.` : 'No results found.')
+      turns.push({ role: 'assistant', content })
+    }
+  }
+  return turns.slice(-(CONVERSATION_HISTORY_TURNS * 2))
+}
+
+// ── Reconstruct messages from session history ─────────────────────────────────
+function buildMessagesFromHistory(historyItems: ChatSessionMessage[]): ChatMessage[] {
+  const messages: ChatMessage[] = []
+  for (const item of historyItems) {
+    messages.push({ id: `${item.id}-user`, role: 'user', content: item.natural_language })
+    if (item.execution_status === 'error' && item.error_message) {
+      messages.push({ id: `${item.id}-error`, role: 'error', message: item.error_message })
+    } else {
+      const result: QueryResult = {
+        id: item.id,
+        question: item.natural_language,
+        generated_sql: item.generated_sql ?? '',
+        final_sql: item.final_sql ?? '',
+        explanation: '',
+        columns: [],
+        column_types: [],
+        rows: [],
+        row_count: item.row_count ?? 0,
+        execution_time_ms: item.execution_time_ms ?? 0,
+        truncated: false,
+        summary: item.result_summary,
+        highlights: [],
+        suggested_followups: [],
+        llm_provider: '',
+        llm_model: '',
+        retry_count: item.retry_count,
+        turn_context: null,
+      }
+      messages.push({ id: `${item.id}-assistant`, role: 'assistant', result })
+    }
+  }
+  return messages
+}
 
 // ── SQL collapsible block ──────────────────────────────────────────────────────
 function SqlBlock({ sql }: { sql: string }) {
@@ -53,7 +111,11 @@ function SqlBlock({ sql }: { sql: string }) {
             className="absolute top-2 right-2 p-1 rounded bg-muted hover:bg-accent transition-colors"
             title="Copy SQL"
           >
-            {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+            {copied ? (
+              <Check className="h-3 w-3 text-green-500" />
+            ) : (
+              <Copy className="h-3 w-3 text-muted-foreground" />
+            )}
           </button>
         </div>
       )}
@@ -70,7 +132,7 @@ function AssistantMessage({
   onFollowup: (q: string) => void
 }) {
   return (
-    <div className="flex gap-3 group">
+    <div className="flex gap-3">
       <div className="shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
         <Bot className="h-4 w-4 text-gray-700" />
       </div>
@@ -83,7 +145,7 @@ function AssistantMessage({
             {result.highlights.map((h, i) => (
               <span
                 key={i}
-                className="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium"
+                className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 font-medium"
               >
                 {h}
               </span>
@@ -118,7 +180,7 @@ function AssistantMessage({
                 <button
                   key={i}
                   onClick={() => onFollowup(q)}
-                  className="px-3 py-1.5 text-xs rounded-full border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                  className="px-3 py-1.5 text-xs rounded-full border border-border bg-background hover:bg-accent transition-colors text-left"
                 >
                   {q}
                 </button>
@@ -134,7 +196,7 @@ function AssistantMessage({
 // ── User message bubble ────────────────────────────────────────────────────────
 function UserMessage({ content }: { content: string }) {
   return (
-    <div className="flex gap-3 justify-end group">
+    <div className="flex gap-3 justify-end">
       <div className="max-w-[75%]">
         <div className="px-4 py-2.5 rounded-2xl rounded-tr-sm bg-gray-900 text-white text-sm leading-relaxed">
           {content}
@@ -187,7 +249,8 @@ function WelcomeScreen({ onExample }: { onExample: (q: string) => void }) {
         </div>
         <h1 className="text-2xl font-semibold text-gray-900">How can I help you?</h1>
         <p className="text-sm text-gray-500 max-w-md">
-          Ask questions about your data in plain English. I'll generate SQL, execute it, and explain the results.
+          Ask questions about your data in plain English. I'll generate SQL, execute it, and explain
+          the results.
         </p>
       </div>
       <div className="w-full max-w-lg">
@@ -197,131 +260,80 @@ function WelcomeScreen({ onExample }: { onExample: (q: string) => void }) {
   )
 }
 
-// ── No thread selected state ───────────────────────────────────────────────────
-function NoThreadSelected() {
+// ── No connection / auth error state ──────────────────────────────────────────
+function SetupError({ message }: { message: string }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
-      <div className="flex items-center justify-center w-14 h-14 mx-auto bg-muted rounded-2xl">
-        <MessageSquareOff className="h-7 w-7 text-muted-foreground" />
+      <div className="flex items-center justify-center w-14 h-14 mx-auto bg-destructive/10 rounded-2xl">
+        <AlertCircle className="h-7 w-7 text-destructive" />
       </div>
-      <div className="space-y-1">
-        <h2 className="text-base font-medium text-foreground">No chat selected</h2>
-        <p className="text-sm text-muted-foreground max-w-xs">
-          Click "New Chat" in the sidebar to start a conversation, or select an existing thread.
-        </p>
+      <div className="space-y-1 max-w-sm">
+        <h2 className="text-base font-medium text-foreground">Unable to start chat</h2>
+        <p className="text-sm text-muted-foreground">{message}</p>
       </div>
     </div>
   )
 }
 
-// ── Build conversation history for API ────────────────────────────────────────
-function buildConversationHistory(messages: ChatMessage[]): ConversationTurn[] {
-  const turns: ConversationTurn[] = []
-  for (const msg of messages) {
-    if (msg.role === 'user') {
-      turns.push({ role: 'user', content: msg.content })
-    } else if (msg.role === 'assistant') {
-      // Use summary as assistant content; fall back to noting results were returned
-      const content = msg.result.summary
-        ?? (msg.result.row_count > 0 ? `Returned ${msg.result.row_count} rows.` : 'No results found.')
-      turns.push({ role: 'assistant', content })
-    }
-    // Skip error messages from history
-  }
-  // Last N turns = last N*2 messages
-  const maxMessages = CONVERSATION_HISTORY_TURNS * 2
-  return turns.slice(-maxMessages)
-}
+// ── Main StandaloneChatPage ────────────────────────────────────────────────────
+export function StandaloneChatPage() {
+  // Read from sessionStorage (written by main.tsx from URL params)
+  const connectionId = sessionStorage.getItem('qw_connection_id') ?? ''
 
-// ── Reconstruct messages from session history ─────────────────────────────────
-function buildMessagesFromHistory(
-  historyItems: Array<{
-    id: string
-    natural_language: string
-    result_summary: string | null
-    execution_status: string
-    error_message: string | null
-    final_sql: string | null
-    generated_sql: string | null
-    row_count: number | null
-    execution_time_ms: number | null
-    retry_count: number
-  }>
-): ChatMessage[] {
-  const messages: ChatMessage[] = []
-  for (const item of historyItems) {
-    messages.push({
-      id: `${item.id}-user`,
-      role: 'user',
-      content: item.natural_language,
-    })
-    if (item.execution_status === 'error' && item.error_message) {
-      messages.push({
-        id: `${item.id}-error`,
-        role: 'error',
-        message: item.error_message,
-      })
-    } else {
-      // Reconstruct a QueryResult shape for display
-      const result: QueryResult = {
-        id: item.id,
-        question: item.natural_language,
-        generated_sql: item.generated_sql ?? '',
-        final_sql: item.final_sql ?? '',
-        explanation: '',
-        columns: [],
-        column_types: [],
-        rows: [],
-        row_count: item.row_count ?? 0,
-        execution_time_ms: item.execution_time_ms ?? 0,
-        truncated: false,
-        summary: item.result_summary,
-        highlights: [],
-        suggested_followups: [],
-        llm_provider: '',
-        llm_model: '',
-        retry_count: item.retry_count,
-        turn_context: null,
-      }
-      messages.push({
-        id: `${item.id}-assistant`,
-        role: 'assistant',
-        result,
-      })
-    }
-  }
-  return messages
-}
-
-// ── Main ChatQueryPage ─────────────────────────────────────────────────────────
-export function ChatQueryPage() {
-  const { threadId } = useParams<{ threadId?: string }>()
-  const { connectionId } = useOutletContext<ChatLayoutContext>()
-  const queryClient = useQueryClient()
-
+  const [sessionId, setSessionId] = useState<string | null>(
+    () => sessionStorage.getItem(SESSION_STORAGE_KEY),
+  )
+  const [sessionError, setSessionError] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
-  const [attachments, setAttachments] = useState<{ url: string; name: string; contentType: string; size: number }[]>([])
+  const [attachments, setAttachments] = useState<
+    { url: string; name: string; contentType: string; size: number }[]
+  >([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const autoCreating = useRef(false)
 
-  // Load session history on mount / thread change
-  const { data: sessionMessages, isLoading: loadingHistory } = useSessionMessages(threadId)
-
-  useEffect(() => {
-    // Reset when thread changes
-    setMessages([])
-    setHistoryLoaded(false)
-  }, [threadId])
+  // ── Session history restore (on tab refresh) ──────────────────────────────
+  const { data: sessionMessages, isLoading: loadingHistory } = useQuery({
+    queryKey: ['session-messages', sessionId],
+    queryFn: () => sessionApi.messages(sessionId!),
+    enabled: !!sessionId,
+    staleTime: 0,
+  })
 
   useEffect(() => {
     if (sessionMessages && !historyLoaded) {
-      const restored = buildMessagesFromHistory(sessionMessages)
-      setMessages(restored)
+      setMessages(buildMessagesFromHistory(sessionMessages))
       setHistoryLoaded(true)
     }
   }, [sessionMessages, historyLoaded])
 
-  // Scroll to bottom on new messages
+  // ── Auto-create session on first load (no stored session) ─────────────────
+  useEffect(() => {
+    if (sessionId || autoCreating.current) return
+    if (!connectionId) {
+      setSessionError(
+        'No database connection was provided. Please open this page from the QueryWise dashboard.',
+      )
+      return
+    }
+    autoCreating.current = true
+    sessionApi
+      .create({ connection_id: connectionId })
+      .then((session) => {
+        sessionStorage.setItem(SESSION_STORAGE_KEY, session.id)
+        setSessionId(session.id)
+      })
+      .catch(() => {
+        setSessionError(
+          'Failed to start a chat session. Your session may have expired — please sign in again.',
+        )
+      })
+      .finally(() => {
+        autoCreating.current = false
+      })
+  }, [connectionId, sessionId])
+
+  // ── Scroll to bottom on new messages ─────────────────────────────────────
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
@@ -330,12 +342,19 @@ export function ChatQueryPage() {
     scrollToBottom()
   }, [messages, scrollToBottom])
 
+  // ── Query mutation ────────────────────────────────────────────────────────
   const mutation = useMutation({
-    mutationFn: ({ question, connId, history }: { question: string; connId: string; history: ConversationTurn[] }) =>
+    mutationFn: ({
+      question,
+      history,
+    }: {
+      question: string
+      history: ConversationTurn[]
+    }) =>
       queryApi.execute({
-        connection_id: connId,
+        connection_id: connectionId,
         question,
-        session_id: threadId,
+        session_id: sessionId ?? undefined,
         conversation_history: history,
       }),
     onSuccess: (result) => {
@@ -343,14 +362,10 @@ export function ChatQueryPage() {
         ...prev,
         { id: `${Date.now()}-assistant`, role: 'assistant', result },
       ])
-      // Invalidate thread list so title + message count update in sidebar
-      if (threadId && connectionId) {
-        queryClient.invalidateQueries({ queryKey: ['threads', connectionId] })
-        queryClient.invalidateQueries({ queryKey: ['session-messages', threadId] })
-      }
     },
     onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+      const message =
+        error instanceof Error ? error.message : 'An unexpected error occurred'
       setMessages((prev) => [
         ...prev,
         { id: `${Date.now()}-error`, role: 'error', message },
@@ -372,8 +387,8 @@ export function ChatQueryPage() {
 
       setMessages((prev) => {
         const next = [...prev, userMsg]
-        const history = buildConversationHistory(prev) // history = messages BEFORE this question
-        mutation.mutate({ question: content.trim(), connId: connectionId, history })
+        const history = buildConversationHistory(prev)
+        mutation.mutate({ question: content.trim(), history })
         return next
       })
     },
@@ -383,54 +398,39 @@ export function ChatQueryPage() {
   const handleFollowup = useCallback((q: string) => sendMessage(q), [sendMessage])
 
   const hasMessages = messages.length > 0
-
-  // No thread selected — show prompt to create one
-  if (!threadId) {
-    return (
-      <div className="flex flex-col h-full min-h-0">
-        <div className="shrink-0 flex items-center px-4 py-2 border-b border-gray-200 bg-white">
-          <h1 className="text-sm font-semibold text-gray-900">Chat</h1>
-        </div>
-        <NoThreadSelected />
-      </div>
-    )
-  }
+  const isReady = !!sessionId && !sessionError
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      {/* Top bar */}
-      <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 border-b border-gray-200 bg-white">
-        <h1 className="text-sm font-semibold text-gray-900 truncate">Chat</h1>
-        {connectionId && (
-          <span className="text-xs text-gray-400 shrink-0">
-            Thread active
-          </span>
-        )}
-      </div>
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
+      {/* Minimal top bar */}
+      <header className="shrink-0 flex items-center gap-2.5 px-4 py-3 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-center w-7 h-7 bg-gray-900 rounded-lg">
+          <Bot className="h-3.5 w-3.5 text-white" />
+        </div>
+        <span className="text-sm font-semibold text-gray-900">QueryWise</span>
+      </header>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
-        {loadingHistory ? (
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto bg-white">
+        {sessionError ? (
+          <SetupError message={sessionError} />
+        ) : loadingHistory || (!sessionId && !sessionError) ? (
           <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-xs text-gray-400">Loading conversation...</div>
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <MorphLoading size="sm" className="w-8 h-8" />
+              <span>Starting chat...</span>
+            </div>
           </div>
         ) : !hasMessages ? (
           <WelcomeScreen onExample={sendMessage} />
         ) : (
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
             {messages.map((msg) => {
-              if (msg.role === 'user') {
-                return <UserMessage key={msg.id} content={msg.content} />
-              }
-              if (msg.role === 'assistant') {
+              if (msg.role === 'user') return <UserMessage key={msg.id} content={msg.content} />
+              if (msg.role === 'assistant')
                 return (
-                  <AssistantMessage
-                    key={msg.id}
-                    result={msg.result}
-                    onFollowup={handleFollowup}
-                  />
+                  <AssistantMessage key={msg.id} result={msg.result} onFollowup={handleFollowup} />
                 )
-              }
               return <ErrorMessage key={msg.id} message={msg.message} />
             })}
             {mutation.isPending && <TypingIndicator />}
@@ -442,20 +442,18 @@ export function ChatQueryPage() {
       {/* Input area */}
       <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3">
         <div className="max-w-3xl mx-auto">
-          {!connectionId && (
-            <p className="text-xs text-amber-600 mb-2 text-center">
-              Select a database connection in the sidebar to start querying.
-            </p>
+          {!isReady && !sessionError && (
+            <p className="text-xs text-gray-400 text-center mb-2">Setting up your session...</p>
           )}
           <PureMultimodalInput
-            chatId={threadId ?? 'new'}
+            chatId={sessionId ?? 'init'}
             messages={[]}
             attachments={attachments}
             setAttachments={setAttachments}
             onSendMessage={({ input }) => sendMessage(input)}
             onStopGenerating={() => mutation.reset()}
             isGenerating={mutation.isPending}
-            canSend={!!connectionId && !mutation.isPending}
+            canSend={isReady && !mutation.isPending}
             hideSuggestions
           />
           <p className="text-center text-[10px] text-gray-400 mt-2">
