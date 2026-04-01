@@ -58,6 +58,70 @@ def _is_refinement_followup(question: str, last_turn_context: dict | None) -> bo
     return False
 
 
+# ---------------------------------------------------------------------------
+# Topic switch detection — clears context when user changes subject
+# ---------------------------------------------------------------------------
+
+# Domain-specific intent switches that indicate a topic change (not a refinement)
+_RESOURCE_TOPIC_SWITCHES: frozenset[tuple[str, str]] = frozenset({
+    ("active_resources", "benched_resources"),
+    ("active_resources", "resource_by_skill"),
+    ("active_resources", "resource_availability"),
+    ("benched_resources", "active_resources"),
+    ("benched_resources", "resource_by_skill"),
+    ("benched_resources", "resource_availability"),
+    ("resource_by_skill", "active_resources"),
+    ("resource_by_skill", "benched_resources"),
+})
+
+_PROJECT_TOPIC_SWITCHES: frozenset[tuple[str, str]] = frozenset({
+    ("active_projects", "project_budget"),
+    ("active_projects", "project_timeline"),
+    ("project_by_client", "project_budget"),
+    ("project_timeline", "project_resources"),
+})
+
+
+def _is_topic_switch(
+    current_domain: str | None,
+    current_intent: str | None,
+    last_turn_context: dict | None,
+) -> bool:
+    """Return True if the current query represents a topic switch.
+
+    A topic switch means the user has changed subject enough that prior
+    context should NOT be inherited for refinement.
+
+    Detects:
+    - Domain switches (resource → client, etc.)
+    - Major intent switches within the same domain (active → benched, etc.)
+    """
+    if not last_turn_context:
+        return False
+
+    last_domain = last_turn_context.get("domain")
+    last_intent = last_turn_context.get("intent")
+
+    # No prior domain/intent to compare against
+    if not last_domain or not last_intent:
+        return False
+
+    # Domain switch always clears context
+    if current_domain and last_domain and current_domain != last_domain:
+        return True
+
+    # Same domain — check for major intent switches
+    if current_domain == last_domain and current_intent and last_intent:
+        if current_domain == "resource":
+            if (last_intent, current_intent) in _RESOURCE_TOPIC_SWITCHES:
+                return True
+        elif current_domain == "project":
+            if (last_intent, current_intent) in _PROJECT_TOPIC_SWITCHES:
+                return True
+
+    return False
+
+
 def _resolve_question(question: str, history: list[dict]) -> str:
     """Enrich a thin follow-up with prior user context for intent classification.
 

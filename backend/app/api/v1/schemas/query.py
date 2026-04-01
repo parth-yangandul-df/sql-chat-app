@@ -24,6 +24,10 @@ class QueryRequest(BaseModel):
     session_id: UUID | None = None
     conversation_history: list[ConversationTurn] = Field(default_factory=list, max_length=6)
     last_turn_context: TurnContext | None = None
+    clear_context: bool = Field(
+        default=False,
+        description="Explicitly clear prior context for this query",
+    )
 
 
 class ExecuteSQLRequest(BaseModel):
@@ -48,6 +52,10 @@ class QueryResponse(BaseModel):
     llm_provider: str
     llm_model: str
     turn_context: TurnContext | None = None
+    topic_switch_detected: bool = Field(
+        default=False,
+        description="True if the system detected a topic switch and cleared context",
+    )
 
 
 class SQLOnlyResponse(BaseModel):

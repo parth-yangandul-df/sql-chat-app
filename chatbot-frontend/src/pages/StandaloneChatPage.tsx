@@ -71,6 +71,7 @@ function buildMessagesFromHistory(historyItems: ChatSessionMessage[]): ChatMessa
         llm_model: '',
         retry_count: item.retry_count,
         turn_context: null,
+        topic_switch_detected: false,
       }
       messages.push({ id: `${item.id}-assistant`, role: 'assistant', result })
     }

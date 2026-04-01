@@ -25,6 +25,7 @@ async def execute_query(
         conversation_history=[t.model_dump() for t in body.conversation_history],
         current_user=current_user,
         last_turn_context=body.last_turn_context.model_dump() if body.last_turn_context else None,
+        clear_context=body.clear_context,
     )
     return result
 

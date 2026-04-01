@@ -3,8 +3,8 @@
 Covers:
   - _strip_order_by() with ORDER BY present, absent, mid-query (should not strip mid-query ORDER BY)
   - _is_refine_mode() edge cases
-  - ResourceAgent._run_refinement() benched_resources pattern (employeeid join)
-  - ResourceAgent._run_refinement() active_resources pattern ([EMPID] join)
+  - ResourceAgent._run_refinement() unified skill filter (benched_resources pattern with prev.EMPID join)
+  - ResourceAgent._run_refinement() active_resources pattern (prev.[EMPID] join)
   - ResourceAgent._run_refinement() with no skill param → falls back to _run_intent
 """
 
@@ -40,7 +40,7 @@ ACTIVE_SQL_WITH_ORDER_BY = (
     "WHERE r.IsActive = 1 and r.statusid = 8 order by r.resourcename asc"
 )
 
-BENCHED_COLUMNS = ["employeeid", "ResourceName", "EmailId", "TechCategoryName"]
+BENCHED_COLUMNS = ["EMPID", "ResourceName", "EmailId", "TechCategoryName"]
 ACTIVE_COLUMNS = ["EMPID", "Name", "EmailId", "Designation"]
 
 
@@ -156,7 +156,7 @@ class TestIsRefineMode:
 
 
 # ---------------------------------------------------------------------------
-# ResourceAgent._run_refinement — benched_resources pattern
+# ResourceAgent._run_refinement — unified skill filter (both patterns)
 # ---------------------------------------------------------------------------
 
 class TestResourceAgentRefinementBenched:
@@ -187,8 +187,8 @@ class TestResourceAgentRefinementBenched:
         assert "ORDER BY" not in sql.upper()
 
     @pytest.mark.asyncio
-    async def test_benched_refinement_sql_joins_on_employeeid(self):
-        """Benched pattern joins on r2.EmployeeId = prev.employeeid (lowercase)."""
+    async def test_benched_refinement_sql_joins_on_empid(self):
+        """Unified pattern joins on r2.EmployeeId = prev.EMPID (uppercase alias)."""
         agent = ResourceAgent()
         mock_connector = AsyncMock()
         mock_connector.execute_query = AsyncMock(return_value=_make_query_result(BENCHED_COLUMNS))
@@ -203,12 +203,13 @@ class TestResourceAgentRefinementBenched:
 
         sql, _ = await agent._run_refinement(BENCHED_SQL_WITH_ORDER_BY, params, mock_connector, state)
 
-        assert "prev.employeeid" in sql
-        assert "[EMPID]" not in sql
+        # Both benched and active use unified prev.EMPID reference
+        assert "prev.EMPID" in sql
+        assert "prev.employeeid" not in sql
 
     @pytest.mark.asyncio
     async def test_benched_refinement_passes_skill_param(self):
-        """execute_query receives skill as '%Python%' positional param."""
+        """Unified skill filter searches s.Name, r2.PrimarySkill, r2.SecondarySkill."""
         agent = ResourceAgent()
         mock_connector = AsyncMock()
         mock_connector.execute_query = AsyncMock(return_value=_make_query_result(BENCHED_COLUMNS))
@@ -228,7 +229,8 @@ class TestResourceAgentRefinementBenched:
         # Params kwarg is used
         assert mock_connector.execute_query.called
         _, kw = mock_connector.execute_query.call_args
-        assert kw["params"] == ("%Python%",)
+        # Unified skill filter searches s.Name, r2.PrimarySkill, r2.SecondarySkill
+        assert kw["params"] == ("%Python%", "%Python%", "%Python%")
 
 
 # ---------------------------------------------------------------------------
@@ -238,7 +240,7 @@ class TestResourceAgentRefinementBenched:
 class TestResourceAgentRefinementActive:
     @pytest.mark.asyncio
     async def test_active_refinement_sql_contains_empid_join(self):
-        """Active resources refinement joins on prev.[EMPID] (bracketed alias)."""
+        """Active resources refinement joins on prev.EMPID (unified alias)."""
         agent = ResourceAgent()
         mock_connector = AsyncMock()
         mock_connector.execute_query = AsyncMock(return_value=_make_query_result(ACTIVE_COLUMNS))
@@ -254,7 +256,7 @@ class TestResourceAgentRefinementActive:
         sql, _ = await agent._run_refinement(ACTIVE_SQL_WITH_ORDER_BY, params, mock_connector, state)
 
         assert "AS prev" in sql
-        assert "prev.[EMPID]" in sql
+        assert "prev.EMPID" in sql
         assert "PA_Skills" in sql
         assert "ORDER BY" not in sql.upper()
 

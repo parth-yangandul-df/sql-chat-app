@@ -1,14 +1,28 @@
-"""BaseDomainAgent — shared execute() logic for all PRMS domain agents."""
+"""BaseDomainAgent — shared execute() logic for all PRMS domain agents.
+
+Supports parameter-based refinement via the declarative refinement registry.
+When a follow-up query is detected (_refine_mode=True), the agent attempts to
+find a matching refinement template and execute it as a subquery with additional
+filter conditions. If no template matches or refinement fails, falls back to
+the base intent.
+"""
 
 from __future__ import annotations
 
+import logging
 import re
 from abc import ABC, abstractmethod
 from typing import Any
 
 from app.connectors.base_connector import QueryResult
 from app.connectors.connector_registry import get_or_create_connector
+from app.llm.graph.domains.refinement_registry import (
+    find_matching_template,
+    supports_refinement,
+)
 from app.llm.graph.state import GraphState
+
+logger = logging.getLogger(__name__)
 
 
 def _is_refine_mode(params: dict) -> bool:
@@ -30,7 +44,21 @@ def _strip_order_by(sql: str) -> str:
 
 
 class BaseDomainAgent(ABC):
-    """Base class for PRMS domain SQL agents."""
+    """Base class for PRMS domain SQL agents.
+
+    Subclasses implement _run_intent() with SQL templates for each intent.
+    Refinement is handled automatically via the refinement registry —
+    subclasses can override _run_refinement() for custom logic (e.g. ResourceAgent).
+    """
+
+    @property
+    def domain(self) -> str:
+        """Return the domain name for this agent (used for registry lookup).
+
+        Override in subclasses if the class name doesn't match the domain.
+        Default: uses the class name without "Agent" suffix, lowercased.
+        """
+        return self.__class__.__name__.replace("Agent", "").lower()
 
     @abstractmethod
     async def _run_intent(
@@ -43,9 +71,16 @@ class BaseDomainAgent(ABC):
         """Return (sql, result). Raises ValueError for unknown intent."""
 
     async def execute(self, state: GraphState) -> dict[str, Any]:
-        """Dispatch to the correct SQL template and execute against the connector."""
+        """Dispatch to the correct SQL template and execute against the connector.
+
+        Flow:
+        1. If _refine_mode is set, try registry-based refinement
+        2. If registry has no matching template, try subclass _run_refinement()
+        3. Fall back to _run_intent() if neither works
+        """
         intent = state["intent"] or ""
         params = state.get("params") or {}
+        domain = self.domain
 
         connector = await get_or_create_connector(
             state["connection_id"],
@@ -55,7 +90,9 @@ class BaseDomainAgent(ABC):
 
         if _is_refine_mode(params):
             prior_sql = _get_prior_sql(params)
-            sql, result = await self._run_refinement(prior_sql, params, connector, state)
+            sql, result = await self._try_refinement(
+                prior_sql, params, connector, state, domain, intent,
+            )
         else:
             sql, result = await self._run_intent(intent, params, connector, state)
 
@@ -69,6 +106,62 @@ class BaseDomainAgent(ABC):
             "error": None,
         }
 
+    async def _try_refinement(
+        self,
+        prior_sql: str,
+        params: dict[str, Any],
+        connector: Any,
+        state: GraphState,
+        domain: str,
+        intent: str,
+    ) -> tuple[str, QueryResult]:
+        """Attempt refinement via registry, then subclass override, then fallback.
+
+        Priority:
+        1. Registry-based refinement (declarative templates)
+        2. Subclass _run_refinement() (custom logic like ResourceAgent)
+        3. Base intent (safe fallback)
+        """
+        t = state["timeout_seconds"]
+        m = state["max_rows"]
+        stripped = _strip_order_by(prior_sql)
+
+        # Step 1: Try registry-based refinement
+        if supports_refinement(domain, intent):
+            template = find_matching_template(domain, intent, params)
+            if template:
+                try:
+                    sql, sql_params = template.build_sql(stripped, params)
+                    result = await connector.execute_query(
+                        sql, params=sql_params, timeout_seconds=t, max_rows=m,
+                    )
+                    logger.info(
+                        "refinement: domain=%s intent=%s type=%s rows=%d",
+                        domain, intent, template.refinement_type.value, result.row_count,
+                    )
+                    return sql, result
+                except Exception as e:
+                    logger.warning(
+                        "refinement: registry template failed (%s), trying subclass override", e,
+                    )
+
+        # Step 2: Try subclass _run_refinement() override
+        # Check if the subclass has its own implementation (not the base default)
+        if type(self)._run_refinement is not BaseDomainAgent._run_refinement:
+            try:
+                return await self._run_refinement(prior_sql, params, connector, state)
+            except Exception as e:
+                logger.warning(
+                    "refinement: subclass override failed (%s), falling back to base intent", e,
+                )
+
+        # Step 3: Fallback to base intent
+        logger.info(
+            "refinement: no matching template for domain=%s intent=%s, running base intent",
+            domain, intent,
+        )
+        return await self._run_intent(intent, params, connector, state)
+
     async def _run_refinement(
         self,
         prior_sql: str,
@@ -78,8 +171,12 @@ class BaseDomainAgent(ABC):
     ) -> tuple[str, QueryResult]:
         """Wrap prior SQL as subquery with a new filter.
 
-        Default: runs base intent unchanged (safe fallback for agents that don't implement refinement).
-        Override in subclasses to add domain-specific refinement logic.
+        Default: runs base intent unchanged (safe fallback for agents that
+        don't implement refinement).
+
+        Override in subclasses for custom refinement logic that isn't covered
+        by the declarative registry (e.g. ResourceAgent's skill-based JOIN
+        refinement).
         """
         intent = state["intent"] or ""
         return await self._run_intent(intent, params, connector, state)

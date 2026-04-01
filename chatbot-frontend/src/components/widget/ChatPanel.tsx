@@ -9,7 +9,7 @@ import { RecentQuestions, saveRecentQuestion } from '@/components/widget/RecentQ
 import { ResultsModal } from '@/components/widget/ResultsModal'
 import type { QueryResult, TurnContext } from '@/types/api'
 import type { ChatMessage } from '@/components/widget/ChatWidget'
-import { AlertCircle, Table, X } from 'lucide-react'
+import { AlertCircle, Table, X, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -187,6 +187,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [attachments, setAttachments] = useState<{ url: string; name: string; contentType: string; size: number }[]>([])
+  const [clearNextContext, setClearNextContext] = useState(false)
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -203,10 +204,17 @@ export function ChatPanel({
         question,
         session_id: sessionId ?? undefined,
         conversation_history: history,
-        last_turn_context: lastTurnContext ?? undefined,
+        last_turn_context: clearNextContext ? undefined : (lastTurnContext ?? undefined),
+        clear_context: clearNextContext,
       }),
     onSuccess: (result) => {
-      setLastTurnContext(result.turn_context)   // store for next request
+      // Clear context if topic switch detected or explicit clear was requested
+      if (result.topic_switch_detected || clearNextContext) {
+        setLastTurnContext(null)
+      } else {
+        setLastTurnContext(result.turn_context)   // store for next request
+      }
+      setClearNextContext(false)  // reset flag after use
       setMessages((prev) => [
         ...prev,
         { id: `${Date.now()}-assistant`, role: 'assistant', result },
@@ -275,12 +283,27 @@ export function ChatPanel({
                 <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
                   <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">QW</AvatarFallback>
                 </Avatar>
-                {/* Online status dot */}
                 <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-foreground">QueryWise</h3>
                 <p className="text-xs text-muted-foreground">Data assistant · online</p>
+                {lastTurnContext && (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-[10px] font-medium text-primary">
+                      <span className="h-1 w-1 rounded-full bg-primary animate-pulse" />
+                      {lastTurnContext.domain} · {lastTurnContext.intent}
+                    </span>
+                    <button
+                      onClick={() => setClearNextContext(true)}
+                      className="p-0.5 rounded hover:bg-primary/20 transition-colors"
+                      title="Clear context for next query"
+                      aria-label="Clear context"
+                    >
+                      <RefreshCw className="h-3 w-3 text-primary/60" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             <Button
@@ -340,6 +363,19 @@ export function ChatPanel({
             canSend={!!connectionId && !mutation.isPending}
             hideSuggestions={true}
           />
+          {clearNextContext && (
+            <div className="flex items-center justify-between px-2 py-1.5 mb-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                Context cleared — next query will start fresh
+              </span>
+              <button
+                onClick={() => setClearNextContext(false)}
+                className="text-[10px] text-amber-600/60 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors"
+              >
+                Undo
+              </button>
+            </div>
+          )}
           <p className="text-center text-[10px] text-muted-foreground mt-1.5">
             Enter to send · Shift+Enter for new line
           </p>

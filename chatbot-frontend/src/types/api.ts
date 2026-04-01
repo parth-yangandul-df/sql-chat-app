@@ -103,6 +103,7 @@ export interface QueryResult {
   llm_model: string
   retry_count: number
   turn_context: TurnContext | null
+  topic_switch_detected: boolean
 }
 
 export interface QueryHistory {

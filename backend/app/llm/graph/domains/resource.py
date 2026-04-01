@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from app.llm.graph.domains.base_domain import BaseDomainAgent, _strip_order_by
@@ -9,6 +10,27 @@ from app.llm.graph.state import GraphState
 
 
 class ResourceAgent(BaseDomainAgent):
+    @staticmethod
+    def _detect_prior_intent(prior_columns: list[str]) -> str:
+        """Identify which resource intent generated the prior result set.
+
+        Uses distinguishing column names rather than EMPID variants (both
+        active_resources and benched_resources return EMPID as the alias).
+
+        Returns the detected intent name, or "unknown" if unrecognizable.
+        """
+        cols_lower = {c.lower() for c in prior_columns}
+        if "techcategoryname" in cols_lower:
+            return "benched_resources"
+        if "designation" in cols_lower:
+            return "active_resources"
+        # Fallback: check for other resource intent signatures
+        if "billab" in cols_lower or "percentageallocation" in cols_lower:
+            return "resource_project_assignments"
+        if "skillexperience" in cols_lower:
+            return "resource_skills_list"
+        return "unknown"
+
     async def _run_refinement(
         self,
         prior_sql: str,
@@ -16,52 +38,111 @@ class ResourceAgent(BaseDomainAgent):
         connector: Any,
         state: GraphState,
     ) -> tuple[str, Any]:
-        """Wrap prior resource SQL as subquery with skill filter."""
+        """Wrap prior resource SQL as subquery with a new filter.
+
+        Supported refinement types:
+        - skill: join PA_ResourceSkills/PA_Skills to filter by skill name
+        - name: filter by resource name via subquery WHERE
+        - designation/tech_category: filter by column value via subquery WHERE
+
+        Falls back to base intent if no supported refinement param is found
+        or if the refinement SQL fails.
+        """
+        logger = logging.getLogger(__name__)
+
         skill = params.get("skill", "")
-        prior_columns = params.get("_prior_columns", [])
+        _ = params.get("_prior_columns", [])  # available for future intent detection
         t = state["timeout_seconds"]
         m = state["max_rows"]
-
-        # Only skill-based refinement is supported; no skill → run base intent
-        if not skill:
-            intent = state["intent"] or ""
-            return await self._run_intent(intent, params, connector, state)
-
         stripped = _strip_order_by(prior_sql)
 
-        # Detect which resource query was prior: benched uses "employeeid" (lowercase),
-        # active uses "EMPID" (uppercase alias)
-        if "employeeid" in [c.lower() for c in prior_columns] and "EMPID" not in prior_columns:
-            # benched_resources pattern — join on employeeid (lowercase col name)
+        # --- Skill-based refinement (most common) ---
+        if skill:
+            # Both active_resources and benched_resources return EMPID as the
+            # join key — use consistent unbracketed reference.
             sql = (
                 f"SELECT prev.* "
                 f"FROM ({stripped}) AS prev "
-                f"JOIN Resource r2 ON r2.EmployeeId = prev.employeeid "
-                f"JOIN PA_ResourceSkills rs ON rs.ResourceId = r2.ResourceId "
-                f"JOIN PA_Skills s ON s.SkillId = rs.SkillId "
-                f"WHERE s.Name LIKE ?"
-            )
-            result = await connector.execute_query(
-                sql, params=(f"%{skill}%",), timeout_seconds=t, max_rows=m
-            )
-        else:
-            # active_resources pattern — join on [EMPID] bracketed alias
-            sql = (
-                f"SELECT prev.* "
-                f"FROM ({stripped}) AS prev "
-                f"JOIN Resource r2 ON r2.EmployeeId = prev.[EMPID] "
+                f"JOIN Resource r2 ON r2.EmployeeId = prev.EMPID "
                 f"JOIN PA_ResourceSkills rs ON rs.ResourceId = r2.ResourceId "
                 f"JOIN PA_Skills s ON s.SkillId = rs.SkillId "
                 f"WHERE s.Name LIKE ? OR r2.PrimarySkill LIKE ? OR r2.SecondarySkill LIKE ?"
             )
-            result = await connector.execute_query(
-                sql,
-                params=(f"%{skill}%", f"%{skill}%", f"%{skill}%"),
-                timeout_seconds=t,
-                max_rows=m,
-            )
+            try:
+                result = await connector.execute_query(
+                    sql,
+                    params=(f"%{skill}%", f"%{skill}%", f"%{skill}%"),
+                    timeout_seconds=t,
+                    max_rows=m,
+                )
+                return sql, result
+            except Exception as e:
+                logger.warning(
+                    "resource: skill refinement failed (%s), falling back to base intent", e,
+                )
+                # Fall through to base intent below
 
-        return sql, result
+        # --- Name-based refinement ---
+        name = params.get("resource_name", "")
+        if name:
+            sql = (
+                f"SELECT prev.* "
+                f"FROM ({stripped}) AS prev "
+                f"WHERE prev.[Name] LIKE ?"
+            )
+            try:
+                result = await connector.execute_query(
+                    sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m,
+                )
+                return sql, result
+            except Exception as e:
+                logger.warning(
+                    "resource: name refinement failed (%s), falling back to base intent", e,
+                )
+
+        # --- Designation filter (active_resources) ---
+        designation = params.get("designation", "")
+        if designation:
+            sql = (
+                f"SELECT prev.* "
+                f"FROM ({stripped}) AS prev "
+                f"WHERE prev.[Designation] LIKE ?"
+            )
+            try:
+                result = await connector.execute_query(
+                    sql, params=(f"%{designation}%",), timeout_seconds=t, max_rows=m,
+                )
+                return sql, result
+            except Exception as e:
+                logger.warning(
+                    "resource: designation refinement failed (%s), falling back to base intent", e,
+                )
+
+        # --- Tech category filter (benched_resources) ---
+        tech_category = params.get("tech_category", "")
+        if tech_category:
+            sql = (
+                f"SELECT prev.* "
+                f"FROM ({stripped}) AS prev "
+                f"WHERE prev.TechCategoryName LIKE ?"
+            )
+            try:
+                result = await connector.execute_query(
+                    sql, params=(f"%{tech_category}%",), timeout_seconds=t, max_rows=m,
+                )
+                return sql, result
+            except Exception as e:
+                logger.warning(
+                    "resource: tech_category refinement failed (%s), falling back to base intent", e,
+                )
+
+        # --- No supported refinement param → base intent ---
+        intent = state["intent"] or ""
+        logger.info(
+            "resource: no supported refinement param (skill=%r, name=%r), running base intent=%s",
+            skill, name, intent,
+        )
+        return await self._run_intent(intent, params, connector, state)
 
     async def _run_intent(self, intent: str, params: dict[str, Any], connector: Any, state: GraphState) -> tuple[str, Any]:
         t = state["timeout_seconds"]
@@ -75,7 +156,7 @@ class ResourceAgent(BaseDomainAgent):
 
         elif intent == "benched_resources": # done and ready for improvement
             sql = (
-                    "SELECT DISTINCT r.employeeid, r.ResourceName, r.EmailId, t.TechCategoryName "
+                    "SELECT DISTINCT r.employeeid as [EMPID], r.ResourceName as [Name], r.EmailId, t.TechCategoryName "
                     "FROM Resource r "
                     "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
                     "JOIN Project p ON pr.ProjectId = p.ProjectId "
@@ -110,7 +191,7 @@ class ResourceAgent(BaseDomainAgent):
         elif intent == "resource_project_assignments": # done and ready for improvement
             name = params.get("resource_name", "")
             sql = (
-                "SELECT r.EmployeeId as EMPID,r.ResourceName as [Employee Name], p.ProjectName as  [Project Name], CAST(pr.StartDate AS DATE) AS [Start Date],"
+                "SELECT r.EmployeeId as [EMPID],r.ResourceName as [Employee Name], p.ProjectName as  [Project Name], CAST(pr.StartDate AS DATE) AS [Start Date],"
                 "CAST(pr.EndDate AS DATE) AS [End Date], pr.resourcerole as [Role], pr.PercentageAllocation as [Allocation], pr.Billab FROM Resource r "
                 "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
                 "JOIN Project p ON pr.ProjectId = p.ProjectId "

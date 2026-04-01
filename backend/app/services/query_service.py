@@ -1,5 +1,6 @@
 """Query Service — orchestrates the full NL → SQL → results pipeline."""
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -16,11 +17,14 @@ from app.llm.agents.query_composer import QueryComposerAgent
 from app.llm.agents.result_interpreter import ResultInterpreterAgent
 from app.llm.agents.sql_validator import SQLValidatorAgent, ValidationStatus
 from app.llm.graph.graph import get_compiled_graph
+from app.llm.graph.nodes.intent_classifier import _is_topic_switch
 from app.llm.graph.state import GraphState
 from app.llm.router import route
 from app.semantic.context_builder import build_context
 from app.services.connection_service import get_connection, get_decrypted_connection_string
 from app.utils.sql_sanitizer import check_sql_safety
+
+logger = logging.getLogger(__name__)
 
 
 async def execute_nl_query(
@@ -31,6 +35,7 @@ async def execute_nl_query(
     conversation_history: list[dict] | None = None,
     current_user: User | None = None,
     last_turn_context: dict | None = None,
+    clear_context: bool = False,
 ) -> dict:
     """Full pipeline: NL question → LangGraph → domain tool or LLM fallback → results.
 
@@ -44,6 +49,9 @@ async def execute_nl_query(
     conn = await get_connection(db, connection_id)
     connection_string = get_decrypted_connection_string(conn)
 
+    # Honor explicit clear_context flag
+    effective_context = None if clear_context else last_turn_context
+
     initial_state: GraphState = {
         "question": question,
         "connection_id": str(connection_id),
@@ -54,7 +62,7 @@ async def execute_nl_query(
         "db": db,
         "session_id": str(session_id) if session_id else None,
         "conversation_history": conversation_history or [],
-        "last_turn_context": last_turn_context,
+        "last_turn_context": effective_context,
         # Auth / RBAC — populated from the authenticated user when available
         "user_id": str(current_user.id) if current_user else None,
         "user_role": current_user.role if current_user else None,
@@ -85,6 +93,19 @@ async def execute_nl_query(
 
     final_state = await get_compiled_graph().ainvoke(initial_state)
 
+    # Topic switch detection: clear context when user changes subject
+    topic_switch_detected = False
+    if effective_context and not clear_context:
+        current_domain = final_state.get("domain")
+        current_intent = final_state.get("intent")
+        if _is_topic_switch(current_domain, current_intent, effective_context):
+            topic_switch_detected = True
+            logger.info(
+                "query: topic switch detected — domain %s→%s, intent %s→%s",
+                effective_context.get("domain"), current_domain,
+                effective_context.get("intent"), current_intent,
+            )
+
     if final_state.get("error") and final_state.get("result") is None:
         raise AppError(final_state["error"], status_code=422)
 
@@ -100,6 +121,20 @@ async def execute_nl_query(
             await db.flush()
 
     result: QueryResult = final_state["result"]
+
+    # Determine turn_context: None if topic switch or no valid result
+    if topic_switch_detected:
+        turn_context = None
+    elif final_state.get("intent") and final_state.get("domain"):
+        turn_context = {
+            "intent": final_state.get("intent"),
+            "domain": final_state.get("domain"),
+            "params": final_state.get("params") or {},
+            "columns": final_state["result"].columns if final_state.get("result") else [],
+            "sql": final_state.get("sql") or "",
+        }
+    else:
+        turn_context = None
 
     return {
         "id": final_state.get("execution_id"),
@@ -119,13 +154,8 @@ async def execute_nl_query(
         "llm_provider": final_state.get("llm_provider"),
         "llm_model": final_state.get("llm_model"),
         "retry_count": final_state.get("retry_count", 0),
-        "turn_context": {
-            "intent": final_state.get("intent"),
-            "domain": final_state.get("domain"),
-            "params": final_state.get("params") or {},
-            "columns": final_state["result"].columns if final_state.get("result") else [],
-            "sql": final_state.get("sql") or "",
-        } if (final_state.get("intent") and final_state.get("domain")) else None,
+        "turn_context": turn_context,
+        "topic_switch_detected": topic_switch_detected,
     }
 
 

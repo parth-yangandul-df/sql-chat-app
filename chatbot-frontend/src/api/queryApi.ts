@@ -13,6 +13,7 @@ export const queryApi = {
     session_id?: string
     conversation_history?: ConversationTurn[]
     last_turn_context?: TurnContext
+    clear_context?: boolean
   }) => api.post<QueryResult>('/query', data).then((r) => r.data),
 
   history: (params?: { connection_id?: string; limit?: number; offset?: number }) =>
