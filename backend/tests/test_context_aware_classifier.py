@@ -1,6 +1,7 @@
 """Tests for context-aware classify_intent: _is_refinement_followup() and fast path."""
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -50,43 +51,66 @@ def _base_state(**overrides):
 
 
 # ---------------------------------------------------------------------------
-# Unit tests for _is_refinement_followup (pure, no async needed)
+# Unit tests for _is_refinement_followup (state-based, no async needed)
 # ---------------------------------------------------------------------------
 
 
-def test_is_refinement_followup_which_of_these_with_skill():
-    """'Which of these know Python?' + context → True (deictic + skill keyword)."""
+def test_is_refinement_followup_short_question_with_context():
+    """Short question (≤3 content words) + context with SQL → True."""
+    from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
+
+    # "know python" → 2 content words after stop word removal
+    assert _is_refinement_followup("know python", _LAST_TURN) is True
+
+
+def test_is_refinement_followup_which_one_of_these_know_python():
+    """'Which one of these know python?' — previously broken, now True (short after stops)."""
+    from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
+
+    # "which", "one", "of", "these" are all stop words; "know", "python" = 2 content words
+    assert _is_refinement_followup("Which one of these know python?", _LAST_TURN) is True
+
+
+def test_is_refinement_followup_which_of_these_know_python():
+    """Original phrase 'Which of these know Python?' still works."""
     from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
 
     assert _is_refinement_followup("Which of these know Python?", _LAST_TURN) is True
 
 
-def test_is_refinement_followup_filter_by():
-    """'Filter by active only' + context → True (filter keyword)."""
+def test_is_refinement_followup_filter_by_active():
+    """'Filter by active only' → short question → True."""
     from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
 
+    # "filter", "active", "only" = 3 content words (≤3) → True
     assert _is_refinement_followup("Filter by active only", _LAST_TURN) is True
 
 
 def test_is_refinement_followup_among_them():
-    """'Among them, who are assigned?' + context → True."""
+    """'Among them who are assigned?' → short content words → True."""
     from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
 
+    # stop words: among, them, who, are; content: "assigned" = 1 word → True
     assert _is_refinement_followup("Among them, who are assigned?", _LAST_TURN) is True
 
 
-def test_is_refinement_followup_those_who_billable():
-    """'those who are billable' + context → True."""
+def test_is_refinement_followup_only_inactive():
+    """'only those who are inactive' → short → True."""
     from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
 
-    assert _is_refinement_followup("those who are billable", _LAST_TURN) is True
+    # stop words: only, those, who, are; content: "inactive" = 1 word → True
+    assert _is_refinement_followup("only those who are inactive", _LAST_TURN) is True
 
 
-def test_is_refinement_followup_returns_false_no_deictic():
-    """'Show all Python developers' + context → False (no deictic phrase)."""
+def test_is_refinement_followup_column_overlap():
+    """Question with ≥30% content-word overlap with prior column names → True."""
     from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
 
-    assert _is_refinement_followup("Show all Python developers", _LAST_TURN) is False
+    # content words: ["resourcename", "employeeid", "benched", "staff"] = 4 total
+    # overlap: "resourcename" + "employeeid" both in _LAST_TURN["columns"] → 2/4 = 50% ≥ 30%
+    assert _is_refinement_followup(
+        "show resourcename and employeeid for benched staff", _LAST_TURN
+    ) is True
 
 
 def test_is_refinement_followup_returns_false_no_context():
@@ -96,40 +120,30 @@ def test_is_refinement_followup_returns_false_no_context():
     assert _is_refinement_followup("Which of these know Python?", None) is False
 
 
-def test_is_refinement_followup_returns_false_filter_no_context():
-    """'Filter by active only' + None → False (no context)."""
+def test_is_refinement_followup_returns_false_no_sql():
+    """last_turn_context present but sql is empty → False."""
     from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
 
-    assert _is_refinement_followup("Filter by active only", None) is False
+    no_sql_context = {**_LAST_TURN, "sql": ""}
+    assert _is_refinement_followup("know python", no_sql_context) is False
 
 
-def test_is_refinement_followup_deictic_but_no_keyword():
-    """Deictic phrase present but no refinement keyword → False."""
+def test_is_refinement_followup_returns_false_long_no_overlap():
+    """Long fresh question with no overlap → False."""
     from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
 
-    # "among them" is deictic but "display" is not a refinement keyword
-    assert _is_refinement_followup("Among them, display all", _LAST_TURN) is False
+    # Many content words, none matching prior columns/params
+    assert _is_refinement_followup(
+        "Show all active frontend engineers working on mobile applications", _LAST_TURN
+    ) is False
 
 
-def test_is_refinement_followup_filter_them_keyword():
-    """'filter them by available' + context → True."""
+def test_is_refinement_followup_returns_false_no_sql_key():
+    """last_turn_context with no 'sql' key at all → False."""
     from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
 
-    assert _is_refinement_followup("filter them by available", _LAST_TURN) is True
-
-
-def test_is_refinement_followup_only_those():
-    """'only those who are inactive' + context → True."""
-    from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
-
-    assert _is_refinement_followup("only those who are inactive", _LAST_TURN) is True
-
-
-def test_is_refinement_followup_same_ones():
-    """'same ones who are billable' + context → True."""
-    from app.llm.graph.nodes.intent_classifier import _is_refinement_followup
-
-    assert _is_refinement_followup("same ones who are billable", _LAST_TURN) is True
+    no_sql_key = {"intent": "benched_resources", "domain": "resource", "params": {}, "columns": []}
+    assert _is_refinement_followup("know python", no_sql_key) is False
 
 
 # ---------------------------------------------------------------------------
@@ -213,9 +227,9 @@ async def test_classify_intent_followup_user_self_domain_passes_rbac():
 
 @pytest.mark.asyncio
 async def test_classify_intent_normal_path_unchanged():
-    """Fresh question with last_turn_context set still goes through embedding (no deictic)."""
-    from app.llm.graph.nodes.intent_classifier import classify_intent
+    """Fresh long question with no prior overlap goes through embedding (no fast path)."""
     from app.llm.graph.intent_catalog import INTENT_CATALOG
+    from app.llm.graph.nodes.intent_classifier import classify_intent
 
     # Patch catalog so first entry gets matching embedding
     first_entry = INTENT_CATALOG[0]
@@ -223,7 +237,7 @@ async def test_classify_intent_normal_path_unchanged():
     first_entry.embedding = identical_embedding
 
     state = _base_state(
-        question="Show all Python developers",  # no deictic phrase
+        question="List project managers with more than five years of experience",  # no short-path trigger
         last_turn_context=_LAST_TURN,  # context present but irrelevant for fresh questions
     )
 

@@ -2,7 +2,6 @@
 
 import logging
 import os
-import re
 from typing import Any
 
 import numpy as np
@@ -14,45 +13,49 @@ from app.services.embedding_service import embed_text
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Follow-up detection — deictic phrases that signal refinement of prior results
+# Follow-up detection — state-based: uses prior SQL/columns/params, not regex
 # ---------------------------------------------------------------------------
 
-_FOLLOWUP_PATTERNS = re.compile(
-    r"\b(?:"
-    r"which\s+of\s+th(?:ese|ose)"
-    r"|among\s+th(?:em|ese|ose)"
-    r"|from\s+th(?:em|ese|ose)"
-    r"|of\s+th(?:ose|ese)"
-    r"|filter\s+(?:by|them)"
-    r"|only\s+th(?:ose|ese)"
-    r"|same\s+ones"
-    r"|th(?:ose|ese)\s+who"
-    r")\b",
-    re.IGNORECASE,
-)
-
-_REFINEMENT_KEYWORDS = re.compile(
-    r"\b(?:skill|know|python|java|javascript|typescript|dotnet|\.net|react|angular|"
-    r"who|filter|only|active|inactive|billable|assigned|available|unassigned)\b",
-    re.IGNORECASE,
-)
+# Common English stop words that carry no domain signal
+_STOP_WORDS = frozenset({
+    "a", "an", "the", "is", "are", "was", "were", "do", "does", "did",
+    "be", "been", "being", "have", "has", "had", "of", "in", "on", "at",
+    "to", "for", "with", "by", "from", "and", "or", "but", "not", "no",
+    "so", "if", "all", "show", "me", "my", "their", "list", "get",
+    "who", "what", "where", "when", "how", "which", "one", "these", "those",
+    "them", "this", "that", "it", "its", "i", "we", "you", "they", "he", "she",
+})
 
 
 def _is_refinement_followup(question: str, last_turn_context: dict | None) -> bool:
     """Return True if question is a thin follow-up that should inherit prior intent.
 
-    Requires ALL three conditions:
-    - last_turn_context is not None (a prior turn exists)
-    - question contains a deictic reference phrase ("which of these", "among them", etc.)
-    - question contains a refinement keyword (skill, active, filter, etc.)
+    State-based detection — reads prior SQL / columns / params from
+    last_turn_context rather than matching deictic regex phrases.
+
+    Returns True when last_turn_context has a prior SQL result AND either:
+    - The question is short (≤3 content words after stripping stop words), OR
+    - ≥30% of content words overlap with prior column names or param values.
     """
-    if not last_turn_context:
+    if not last_turn_context or not last_turn_context.get("sql"):
         return False
-    if not _FOLLOWUP_PATTERNS.search(question):
-        return False
-    if not _REFINEMENT_KEYWORDS.search(question):
-        return False
-    return True
+
+    words = [w.lower().strip("?.,!;:") for w in question.split()]
+    content_words = [w for w in words if w not in _STOP_WORDS and len(w) > 1]
+
+    # Short question with prior context → refinement
+    if len(content_words) <= 3:
+        return True
+
+    # Content words overlap with prior column names or param values → refinement
+    prior_words: set[str] = {c.lower() for c in (last_turn_context.get("columns") or [])}
+    prior_words |= {str(v).lower() for v in (last_turn_context.get("params") or {}).values()}
+    if prior_words:
+        overlap = sum(1 for w in content_words if w in prior_words)
+        if overlap / len(content_words) >= 0.3:
+            return True
+
+    return False
 
 
 def _resolve_question(question: str, history: list[dict]) -> str:

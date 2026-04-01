@@ -1,7 +1,6 @@
 """Tests for context-aware extract_params: param inheritance + _refine_mode flag."""
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -227,4 +226,46 @@ async def test_refine_mode_includes_columns():
     params = result["params"]
 
     assert params.get("_refine_mode") is True
-    assert params.get("_prior_columns") == ["employeeid", "ResourceName", "EmailId", "TechCategoryName"]
+    assert params.get("_prior_columns") == [
+        "employeeid",
+        "ResourceName",
+        "EmailId",
+        "TechCategoryName",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_refine_mode_fallback_skill_extraction():
+    """Bare refinement phrase 'which one of these know python' → skill='python' via fallback."""
+    from app.llm.graph.nodes.param_extractor import extract_params
+
+    state = _base_state(
+        question="which one of these know python",
+        last_turn_context=_LAST_TURN,
+        intent="benched_resources",  # same intent → _refine_mode set
+    )
+    result = await extract_params(state)
+    params = result["params"]
+
+    # _refine_mode should be set (same intent + prior sql)
+    assert params.get("_refine_mode") is True
+    # Fallback extraction should pick up "python" (after filtering stop words)
+    assert params.get("skill") == "python"
+
+
+@pytest.mark.asyncio
+async def test_refine_mode_fallback_skill_not_triggered_when_explicit_skill_present():
+    """Explicit skill extraction (via _SKILL_KW_RE) takes precedence over fallback."""
+    from app.llm.graph.nodes.param_extractor import extract_params
+
+    state = _base_state(
+        question="which of these with skill in Java",  # "with skill in Java" matches _SKILL_KW_RE
+        last_turn_context=_LAST_TURN,
+        intent="benched_resources",
+    )
+    result = await extract_params(state)
+    params = result["params"]
+
+    assert params.get("_refine_mode") is True
+    # _SKILL_KW_RE captures "Java" from "with skill in Java"
+    assert params.get("skill") == "Java"

@@ -103,4 +103,25 @@ async def extract_params(state: GraphState) -> dict[str, Any]:
         params["_prior_sql"] = prior_sql
         params["_prior_columns"] = last_turn_context.get("columns", [])
 
+    # Fallback skill extraction for refinement follow-ups.
+    # Fires only when _refine_mode is active and the existing regexes above
+    # didn't capture a skill (they require explicit trigger phrases like
+    # "who knows X" or "with skill X"). Bare phrasing such as
+    # "which of these know Python" would otherwise leave skill unset and
+    # cause ResourceAgent._run_refinement() to fall back to the full query.
+    if params.get("_refine_mode") and not params.get("skill"):
+        _refine_stop: frozenset[str] = frozenset({
+            "which", "one", "of", "these", "those", "them", "who",
+            "the", "a", "an", "know", "knows", "can", "are", "is",
+            "and", "or", "have", "do", "does", "show", "me", "list",
+            "among", "filter", "only", "same", "ones", "from",
+            "skill", "skills", "with", "by", "in", "for",
+        })
+        candidates = [
+            w for w in re.findall(r"[A-Za-z][A-Za-z0-9#+.\-]*", question)
+            if w.lower() not in _refine_stop and len(w) >= 2
+        ]
+        if candidates:
+            params["skill"] = candidates[0]
+
     return {"params": params}
