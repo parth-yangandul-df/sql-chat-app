@@ -50,12 +50,12 @@ INTENT_CATALOG: list[IntentEntry] = [
 
     # ── Client (3 active) ─────────────────────────────────────────────────
     IntentEntry("active_clients", "client", "show all active clients or list current client accounts", fallback_intent=None),
-    IntentEntry("client_projects", "client", "list all projects associated with a specific client or account", fallback_intent="active_clients"),
+    IntentEntry("client_projects", "client", "list projects for a specific client — client-centric view with project names and dates", fallback_intent="active_clients"),
     IntentEntry("client_status", "client", "check the active or inactive status of a specific client or account", fallback_intent="active_clients"),
 
     # ── Project (6 active) ────────────────────────────────────────────────
-    IntentEntry("active_projects", "project", "show all active or currently ongoing projects with their client names", fallback_intent=None),
-    IntentEntry("project_by_client", "project", "show projects for a specific client including project manager start date end date and status", fallback_intent="active_projects"),
+    IntentEntry("active_projects", "project", "show all active or currently ongoing projects — no client filter", fallback_intent=None),
+    IntentEntry("project_by_client", "project", "show projects for a specific client or company name — filter by client", fallback_intent="active_projects"),
     IntentEntry("project_budget", "project", "show budget or budget utilization for a specific project", fallback_intent="active_projects"),
     IntentEntry("project_resources", "project", "list all resources or employees assigned to a specific project with their role allocation and billable status", fallback_intent="active_projects"),
     IntentEntry("project_timeline", "project", "show start date end date and duration in days for a specific project", fallback_intent="active_projects"),
