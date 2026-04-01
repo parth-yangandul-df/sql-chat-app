@@ -2,8 +2,6 @@ import { useState, useMemo, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react'
 
-const PAGE_SIZE = 10
-
 interface SpotlightTableProps {
   columns: string[]
   rows: unknown[][]
@@ -41,6 +39,7 @@ function getPaginationPages(page: number, totalPages: number): (number | '...')[
 export function SpotlightTable({ columns, rows, truncated, rowCount, className }: SpotlightTableProps) {
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [sortCol, setSortCol] = useState<number | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
 
@@ -81,17 +80,22 @@ export function SpotlightTable({ columns, rows, truncated, rowCount, className }
     )
   }, [sortedRows, lower])
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
   const safePage = Math.min(page, totalPages)
-  const pagedRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pagedRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize)
 
-  const from = filteredRows.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
-  const to = Math.min(safePage * PAGE_SIZE, filteredRows.length)
+  const from = filteredRows.length === 0 ? 0 : (safePage - 1) * pageSize + 1
+  const to = Math.min(safePage * pageSize, filteredRows.length)
 
   // Reset to page 1 when search term changes
   useEffect(() => {
     setPage(1)
   }, [q])
+
+  // Reset to page 1 when page size changes
+  useEffect(() => {
+    setPage(1)
+  }, [pageSize])
 
   if (columns.length === 0 || rows.length === 0) {
     return (
@@ -247,7 +251,21 @@ export function SpotlightTable({ columns, rows, truncated, rowCount, className }
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground">
-        <span>{rowCount ?? rows.length} rows</span>
+        <div className="flex items-center gap-2">
+          <span>{rowCount ?? rows.length} rows</span>
+          {filteredRows.length > 10 && (
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="px-1.5 py-0.5 rounded border border-input bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value={10}>10 / page</option>
+              <option value={25}>25 / page</option>
+              <option value={50}>50 / page</option>
+              <option value={100}>100 / page</option>
+            </select>
+          )}
+        </div>
         {truncated && (
           <span className="text-amber-600 dark:text-amber-400">
             Results truncated — export CSV for full data
