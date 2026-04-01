@@ -389,14 +389,11 @@ export function StandaloneChatPage() {
         content: content.trim(),
       }
 
-      setMessages((prev) => {
-        const next = [...prev, userMsg]
-        const history = buildConversationHistory(prev)
-        mutation.mutate({ question: content.trim(), history })
-        return next
-      })
+      const history = buildConversationHistory(messages)
+      setMessages((prev) => [...prev, userMsg])
+      mutation.mutate({ question: content.trim(), history })
     },
-    [connectionId, mutation],
+    [connectionId, messages, mutation],
   )
 
   const handleFollowup = useCallback((q: string) => sendMessage(q), [sendMessage])

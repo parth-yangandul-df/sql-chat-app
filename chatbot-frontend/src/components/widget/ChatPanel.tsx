@@ -234,13 +234,11 @@ export function ChatPanel({
         content: trimmed,
       }
 
-      setMessages((prev) => {
-        const history = buildConversationHistory(prev)
-        mutation.mutate({ question: trimmed, history })
-        return [...prev, userMsg]
-      })
+      const history = buildConversationHistory(messages)
+      setMessages((prev) => [...prev, userMsg])
+      mutation.mutate({ question: trimmed, history })
     },
-    [connectionId, mutation, setMessages],
+    [connectionId, messages, mutation, setMessages],
   )
 
   const handleViewResults = useCallback(
