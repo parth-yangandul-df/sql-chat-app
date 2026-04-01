@@ -399,7 +399,7 @@ def _inject_top(sql: str, n: int) -> str:
 
     # Find position after SELECT (accounting for SELECT DISTINCT)
     if upper.startswith("SELECT DISTINCT"):
-        insert_at = stripped.index("DISTINCT") + len("DISTINCT")
+        insert_at = upper.index("DISTINCT") + len("DISTINCT")
     elif upper.startswith("SELECT"):
         insert_at = stripped.index("SELECT") + len("SELECT")
     else:
