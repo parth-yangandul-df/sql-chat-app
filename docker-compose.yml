@@ -30,6 +30,8 @@ services:
       ENVIRONMENT: development
       PYTHONPATH: /app
       # OLLAMA_BASE_URL from .env = http://host.docker.internal:11434 (native Ollama on your machine)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       app-db:
         condition: service_healthy
