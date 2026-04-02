@@ -4,20 +4,20 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: unknown
-stopped_at: Completed 06-04-PLAN.md
-last_updated: "2026-03-31T12:53:27.037Z"
+stopped_at: Phase 06 complete + post-execution bug fixes
+last_updated: "2026-04-02T18:00:00Z"
 progress:
-  total_phases: 4
-  completed_phases: 2
+  total_phases: 6
+  completed_phases: 3
   total_plans: 15
-  completed_plans: 10
+  completed_plans: 15
 ---
 
 # QueryWise Project State
 
-**Current State:** Active development
-**Last Updated:** 2026-03-26
-**Phase Focus:** Phase 5 — LangGraph Domain Tool Pipeline ✅ COMPLETE
+**Current State:** Phase 06 complete, all 15 plans executed
+**Last Updated:** 2026-04-02
+**Phase Focus:** Phase 6 — Context-Aware Domain Tools ✅ COMPLETE
 **Current Plan:** Not started
 
 ## Project Architecture
@@ -25,13 +25,14 @@ progress:
 QueryWise is a text-to-SQL application with semantic metadata layer. Users ask natural language questions, LLM generates SQL using business context, executes against database, returns human-readable answers.
 
 ### Tech Stack
-- **Backend:** Python 3.12, FastAPI, SQLAlchemy (async), asyncpg, pgvector
-- **Frontend:** React 19, TypeScript, Vite, Mantine UI
+- **Backend:** Python 3.12, FastAPI, SQLAlchemy (async), asyncpg, pgvector, aioodbc
+- **Frontend:** React 19, TypeScript, Vite, Mantine UI, TanStack Query
 - **Databases:** PostgreSQL with pgvector extension (app DB), SQL Server (PRMS target DB)
-- **LLM:** Provider-agnostic (Anthropic Claude, OpenAI, Ollama)
+- **LLM:** Provider-agnostic (Anthropic Claude, OpenAI, Ollama, Groq)
+- **Embeddings:** Ollama nomic-embed-text (768-dim)
 
-### Current Request Flow (Phase 5 target)
-User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | llm_fallback] → interpret_result → write_history → Response
+### Current Request Flow
+User → FastAPI → LangGraph pipeline → classify_intent → extract_params → [domain tool | llm_fallback] → interpret_result → write_history → Response
 
 ## Decisions Made
 
@@ -53,6 +54,18 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - [Phase 06-04]: ORDER BY stripped with re.DOTALL flag — regex strips from first ORDER BY to end of string, correct for simple resource queries used as prior SQL
 - [Phase 06-04]: _run_refinement() default in BaseDomainAgent falls back to _run_intent() — ProjectAgent, ClientAgent, TimesheetAgent, UserSelfAgent require zero changes
 
+### Phase 06 Post-Execution Decisions (2026-04-02)
+- [Refinement Registry]: 61 declarative refinement templates across 5 domains (resource, client, project, timesheet, user_self) covering skill, name, date range, status, numeric, boolean, text filter types
+- [BaseDomainAgent]: Unified _try_refinement() with 3-tier priority: registry → subclass override → base intent
+- [ResourceAgent]: Fixed EMPID column reference — both active_resources and benched_resources return EMPID alias, unified to prev.EMPID
+- [Topic Switch Detection]: _is_topic_switch() in intent_classifier.py detects domain/intent switches to auto-clear context
+- [Context Clearing]: query_service.py stores base SQL (_prior_sql) in turn_context instead of refined SQL to prevent parameter marker accumulation on chained refinements
+- [API]: clear_context boolean flag in QueryRequest, topic_switch_detected in QueryResponse
+- [Frontend]: ChatPanel context status badge, clear button, amber banner when context cleared
+- [SQL Server]: aioodbc.create_pool(minsize=1, maxsize=5) replaces single connection for concurrent query safety
+- [Docker]: extra_hosts mapping for host.docker.internal to reach Ollama on Windows host
+- [Intent Catalog]: Improved project intent descriptions to reduce misclassification
+
 ### Phase 5 Plan 01 Decisions (2026-03-26)
 - Patched embed_text at usage site (app.llm.graph.intent_catalog) not definition site for correct mock isolation in tests
 - Reset _catalog_embedded global in idempotency test for deterministic test ordering
@@ -61,19 +74,16 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - Patch ensure_catalog_embedded (not just embed_text) in classifier tests — classify_intent calls it when catalog has empty embeddings, using a different import binding than the node-level mock
 - extract_params is async to conform to LangGraph node signature convention, even though no I/O is performed
 
-
 ### Phase 5 Plan 03 Decisions (2026-03-26)
 - BaseConnector.execute_query() params changed from dict[str, Any] | None to tuple[Any, ...] | None to align with SQL Server ? positional placeholder style
 - BaseDomainAgent.execute() uses state["intent"] or "" guard to safely pass str to _run_intent() when GraphState.intent is str | None
 - TimesheetAgent uses module-level _VALID constant for consistent IsApproved/IsDeleted/IsRejected filter across all valid-entry intents
-
 - Intent catalog is code-only (no DB-backed admin config in this phase)
 - Routing transparency via Python `logging` only — no user-facing indicator
-- `TOOL_CONFIDENCE_THRESHOLD` env var (default 0.78) controls routing gate
+- `TOOL_CONFIDENCE_THRESHOLD` env var (default 0.65) controls routing gate
 - 0-row results: try `fallback_intent` (1 hop max) → then `llm_fallback`
 - SQL execution errors → immediate AppError, no LLM retry
 - Embedding failure → graceful degradation to full LLM mode (no 503)
-- SQLServer `_run_query()` params bug must be fixed in Plan 03 before domain agents work
 - All 24 SQL templates use bare table names (no `dbo.` prefix)
 - `generate_sql_only()` and `execute_raw_sql()` completely untouched
 
@@ -81,20 +91,21 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - Patch llm_fallback at app.llm.graph.graph.llm_fallback (usage site in graph.py) not app.llm.graph.nodes.llm_fallback.llm_fallback (definition site) — graph.py imports function reference directly, patch must be at consuming module
 - result_interpreter.py uses typed annotation sql: str = state.get("sql") or "" to satisfy type checker for str | None -> str coercion
 
-
+### Code Style
 - Python: Ruff, 100 char line length
 - TypeScript: ESLint, strict mode
 - Async everywhere for DB operations and LLM calls
 
 ## Current Environment Variables
 - DATABASE_URL, ENCRYPTION_KEY
-- DEFAULT_LLM_PROVIDER, DEFAULT_LLM_MODEL
-- EMBEDDING_MODEL, EMBEDDING_DIMENSION
+- DEFAULT_LLM_PROVIDER=groq, DEFAULT_LLM_MODEL=llama-3.3-70b-versatile
+- EMBEDDING_PROVIDER=ollama, EMBEDDING_MODEL=nomic-embed-text, EMBEDDING_DIMENSION=768
 - CORS_ORIGINS, AUTO_SETUP_SAMPLE_DB
-- TOOL_CONFIDENCE_THRESHOLD (new in Phase 5, default 0.78)
+- TOOL_CONFIDENCE_THRESHOLD (default 0.65)
+- OLLAMA_BASE_URL=http://host.docker.internal:11434
 
 ## Known Constraints
-- Feature work on `feature/langgraph-domain-tools` branch only — `dev` branch pipeline unchanged
+- Feature work on `langgraph` branch
 - SQL Server: parameterized queries use `?` positional placeholders (pyodbc/aioodbc)
 - Timesheet valid entries: `IsApproved=1 AND IsDeleted=0 AND IsRejected=0`
 - Status table filter: `ReferenceId=1` (Client), `ReferenceId=2` (Project), `ReferenceId=3` (Resource)
@@ -110,6 +121,16 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 | 05-04 | result_interpreter, llm_fallback, write_history, graph assembly | ✅ Complete (2026-03-26) |
 | 05-05 | Wire into query_service.py + startup hook + full test suite | ✅ Complete (2026-03-26) |
 
+## Phase 6 Progress
+
+| Plan | Description | Status |
+|------|-------------|--------|
+| 06-01 | TurnContext schema foundation | ✅ Complete (2026-04-02) |
+| 06-02 | fallback_intent wiring for all catalog entries | ✅ Complete (2026-04-02) |
+| 06-03 | Context-aware classify_intent + param inheritance | ✅ Complete (2026-04-02) |
+| 06-04 | Domain tool subquery refinement | ✅ Complete (2026-04-02) |
+| 06-05 | Frontend TurnContext tracking | ✅ Complete (2026-04-02) |
+
 ## Accumulated Context
 
 ### Pending Todos (5)
@@ -121,5 +142,5 @@ User → FastAPI → LangGraph pipeline → classify_intent → [domain tool | l
 - **Build standalone dedicated chatbot page for Angular redirect** (`ui`) — `2026-03-31-build-standalone-dedicated-chatbot-page-for-angular-redirect.md`
 
 ## Last Session
-- **Stopped at:** Completed 06-04-PLAN.md
+- **Stopped at:** Phase 06 complete + post-execution bug fixes
 - **Resume file:** None

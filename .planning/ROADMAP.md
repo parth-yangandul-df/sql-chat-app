@@ -4,7 +4,7 @@
 
 - [x] **Phase 1: Foundation** - Basic FastAPI setup, LLM providers, semantic layer, connection management
 - [x] **Phase 5: LangGraph Domain Tool Pipeline** - Replace LLM SQL generation with embedding-based intent classification and PRMS domain tools (completed 2026-03-26)
-- [ ] **Phase 6: Context-Aware Domain Tools** - Stateful follow-up handling, TurnContext propagation, domain tool subquery refinement, fallback_intent wiring
+- [x] **Phase 6: Context-Aware Domain Tools** - Stateful follow-up handling, TurnContext propagation, domain tool subquery refinement, fallback_intent wiring (completed 2026-04-02)
 
 ---
 
@@ -26,7 +26,7 @@
 
 ### Phase 5: LangGraph Domain Tool Pipeline
 **Goal**: Replace `execute_nl_query()` with a LangGraph `StateGraph` that routes NL questions to 24 pre-built PRMS domain SQL tools (via embedding-based intent classification) or falls back to the existing LLM generation chain
-**Status:** In Progress
+**Status:** Complete (2026-03-26)
 **Depends on**: Phase 1
 **Requirements**: LG-01, LG-02, LG-03, LG-04, LG-05, LG-06, LG-07, LG-08, LG-09, LG-10, LG-11, LG-12, LG-13, LG-14, LG-15, LG-16
 **Success Criteria**:
@@ -42,12 +42,12 @@
 - [x] 05-02-PLAN.md — Intent classifier node (cosine similarity) + param extractor node
 - [x] 05-03-PLAN.md — SQLServer connector bug fix + 4 PRMS domain agents + domain registry
 - [x] 05-04-PLAN.md — result_interpreter, llm_fallback, write_history nodes + graph assembly (with 0-row topology)
-- [ ] 05-05-PLAN.md — Wire graph into query_service.py + startup hook + full test suite
+- [x] 05-05-PLAN.md — Wire graph into query_service.py + startup hook + full test suite
 
 ### Phase 6: Context-Aware Domain Tools & Stateful Follow-Up
 
 **Goal:** Make the LangGraph pipeline stateful across conversation turns so follow-up queries ("Which of these know Python?", "Filter by active only") route to domain tools instead of falling back to LLM — by adding structured TurnContext propagation, follow-up detection in intent classification, param inheritance in param extraction, subquery-based domain tool refinement mode, and fallback_intent wiring for 0-row results
-**Status:** Planned
+**Status:** Complete (2026-04-02)
 **Depends on:** Phase 5
 **Requirements**: CTX-01, CTX-02, CTX-03, CTX-04, CTX-05, CTX-06, CTX-07, CTX-08, CTX-09, CTX-10
 **Success Criteria**:
@@ -59,14 +59,14 @@
   6. chatbot-frontend ChatPanel and StandaloneChatPage send last_turn_context on every follow-up request
   7. chatbot-frontend ChatPanel sends session_id (currently missing)
 
-**Plans:** 2/5 plans executed
+**Plans:** 5/5 plans executed
 
 Plans:
-- [ ] 06-01-PLAN.md — TurnContext schema foundation (backend schemas, GraphState, query_service, endpoint)
-- [ ] 06-02-PLAN.md — fallback_intent wiring for all 24 active catalog entries
-- [ ] 06-03-PLAN.md — Context-aware classify_intent (follow-up fast path) + param inheritance in extract_params
-- [ ] 06-04-PLAN.md — Domain tool subquery refinement (base_domain helpers + ResourceAgent._run_refinement)
-- [ ] 06-05-PLAN.md — Frontend TurnContext tracking (types, queryApi, ChatWidget session, ChatPanel, StandaloneChatPage)
+- [x] 06-01-PLAN.md — TurnContext schema foundation (backend schemas, GraphState, query_service, endpoint)
+- [x] 06-02-PLAN.md — fallback_intent wiring for all 24 active catalog entries
+- [x] 06-03-PLAN.md — Context-aware classify_intent (follow-up fast path) + param inheritance in extract_params
+- [x] 06-04-PLAN.md — Domain tool subquery refinement (base_domain helpers + ResourceAgent._run_refinement)
+- [x] 06-05-PLAN.md — Frontend TurnContext tracking (types, queryApi, ChatWidget session, ChatPanel, StandaloneChatPage)
 
 ---
 
@@ -76,4 +76,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundation | N/A | Complete | 2026-03-01 |
 | 5. LangGraph Domain Tool Pipeline | 5/5 | Complete | 2026-03-26 |
-| 6. Context-Aware Domain Tools | 2/5 | In Progress|  |
+| 6. Context-Aware Domain Tools | 5/5 | Complete | 2026-04-02 |
