@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends
@@ -11,6 +12,8 @@ from app.db.models.metric import MetricDefinition
 from app.db.models.user import User
 from app.db.session import get_db
 from app.services.embedding_service import embed_metric
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["metrics"])
 
@@ -52,7 +55,7 @@ async def create_metric(
     try:
         metric.metric_embedding = await embed_metric(metric)
     except Exception:
-        pass
+        logger.warning("Failed to embed metric %s", metric.id, exc_info=True)
     return metric
 
 
@@ -94,7 +97,7 @@ async def update_metric(
     try:
         metric.metric_embedding = await embed_metric(metric)
     except Exception:
-        pass
+        logger.warning("Failed to embed metric %s", metric_id, exc_info=True)
     return metric
 
 

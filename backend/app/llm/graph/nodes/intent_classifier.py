@@ -26,7 +26,6 @@ _STOP_WORDS = frozenset({
     "them", "this", "that", "it", "its", "i", "we", "you", "they", "he", "she",
 })
 
-
 def _is_refinement_followup(question: str, last_turn_context: dict | None) -> bool:
     """Return True if question is a thin follow-up that should inherit prior intent.
 

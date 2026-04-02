@@ -2,7 +2,6 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 WORKSPACE_DIR = BACKEND_DIR.parent
 
@@ -25,13 +24,17 @@ class Settings(BaseSettings):
 
     # Security
     encryption_key: str = "dev-encryption-key-change-in-production"
-    cors_origins: list[str] = ["http://localhost:5173","http://localhost:5174","http://localhost:4200","http://localhost:4000"]
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:4200",
+        "http://localhost:4000",
+    ]
 
     # JWT authentication
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     jwt_expiry_seconds: int = 3600
-
 
     # Query defaults
     default_query_timeout_seconds: int = 30
@@ -77,9 +80,13 @@ class Settings(BaseSettings):
 
     # Auto-setup sample database on startup
     auto_setup_sample_db: bool = True
-    sample_db_connection_string: str = (
-        "postgresql://sample:sample_dev@sample-db:5432/sampledb"
-    )
+    sample_db_connection_string: str = "postgresql://sample:sample_dev@sample-db:5432/sampledb"
+
+    # Logging
+    log_level: str = "INFO"
+    log_file_enabled: bool = True
+    log_rotation: str = "10 MB"
+    log_retention: str = "7 days"
 
 
 settings = Settings()
