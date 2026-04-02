@@ -128,4 +128,31 @@ ANCHOR_TABLE_SIGNALS: dict[str, str] = {
     "businessunit": "BusinessUnit",
     "stakeholder": "ClientStakeholder",
     "designation": "Designation",
+    # Billing / allocation signals → ProjectResource
+    "billable": "ProjectResource",
+    "billing": "ProjectResource",
+    "billed": "ProjectResource",
+    "allocation": "ProjectResource",
+    "allocated": "ProjectResource",
+    "bench": "ProjectResource",
+    "shadow": "ProjectResource",
+    "utilization": "ProjectResource",
+    # Skills signal → PA_ResourceSkills
+    "skill": "PA_ResourceSkills",
+    "skills": "PA_ResourceSkills",
+    # Timesheet signal → TS_EODDetails
+    "timesheet": "TS_EODDetails",
+    "eod": "TS_EODDetails",
+}
+
+# Low-signal tables: history/audit/notification tables that share generic column names
+# (ResourceId, ProjectId, etc.) with core tables and pollute column-keyword results.
+# Their column_keyword score is capped so they don't displace relevant tables.
+LOW_SIGNAL_TABLES: set[str] = {
+    "clienthistory",
+    "projecthistory",
+    "resourcehistory",
+    "pa_notifications",
+    "pa_emailqueue",
+    "pa_auditlog",
 }

@@ -48,7 +48,8 @@ class PostgreSQLConnector(BaseConnector):
             return False
 
     async def introspect_schemas(self) -> list[str]:
-        assert self._pool is not None
+        if self._pool is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 """
@@ -61,7 +62,8 @@ class PostgreSQLConnector(BaseConnector):
             return [row["schema_name"] for row in rows]
 
     async def introspect_tables(self, schema: str = "public") -> list[TableInfo]:
-        assert self._pool is not None
+        if self._pool is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         async with self._pool.acquire() as conn:
             # Get tables and views
             table_rows = await conn.fetch(
@@ -197,12 +199,8 @@ class PostgreSQLConnector(BaseConnector):
         if issues:
             raise SQLSafetyError("; ".join(issues))
 
-        assert self._pool is not None
-
-        # Wrap with LIMIT if not already present
+        assert self._pool is not None  # safety: already checked above via SQLSafetyError path
         wrapped_sql = sql.rstrip().rstrip(";")
-        if "limit" not in wrapped_sql.lower():
-            wrapped_sql = f"SELECT * FROM ({wrapped_sql}) AS _q LIMIT {max_rows + 1}"
 
         start = time.monotonic()
         try:
@@ -245,7 +243,8 @@ class PostgreSQLConnector(BaseConnector):
     async def get_sample_values(
         self, schema: str, table: str, column: str, limit: int = 20
     ) -> list[Any]:
-        assert self._pool is not None
+        if self._pool is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         # Use identifier quoting for safety
         query = f"""
             SELECT DISTINCT "{column}"

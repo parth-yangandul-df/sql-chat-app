@@ -1,5 +1,6 @@
 from app.connectors.base_connector import BaseConnector, ConnectorType
 from app.connectors.postgresql.connector import PostgreSQLConnector
+from app.core.exceptions import ValidationError as AppValidationError
 
 # Registry of connector classes by type
 _CONNECTOR_CLASSES: dict[ConnectorType, type[BaseConnector]] = {
@@ -38,14 +39,17 @@ def get_connector_class(connector_type: str) -> type[BaseConnector]:
     """Get the connector class for a given type string."""
     try:
         ct = ConnectorType(connector_type)
-    except ValueError:
-        raise ValueError(
-            f"Unknown connector type: {connector_type}. "
+    except ValueError as exc:
+        raise AppValidationError(
+            f"Unknown connector type: '{connector_type}'. "
             f"Available: {[t.value for t in ConnectorType]}"
-        )
+        ) from exc
     cls = _CONNECTOR_CLASSES.get(ct)
     if cls is None:
-        raise ValueError(f"Connector type '{connector_type}' is not yet implemented.")
+        raise AppValidationError(
+            f"Connector type '{connector_type}' is installed but not available "
+            f"(missing optional dependency)."
+        )
     return cls
 
 

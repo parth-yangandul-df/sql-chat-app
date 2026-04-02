@@ -5,8 +5,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_optional_user, require_role
 from app.core.exceptions import NotFoundError
 from app.db.models.sample_query import SampleQuery
+from app.db.models.user import User
 from app.db.session import get_db
 from app.services.embedding_service import embed_sample_query
 
@@ -50,6 +52,7 @@ class SampleQueryResponse(BaseModel):
 async def list_sample_queries(
     connection_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     result = await db.execute(
         select(SampleQuery)
@@ -68,6 +71,7 @@ async def create_sample_query(
     connection_id: uuid.UUID,
     body: SampleQueryCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     sq = SampleQuery(connection_id=connection_id, **body.model_dump())
     db.add(sq)
@@ -88,6 +92,7 @@ async def update_sample_query(
     sq_id: uuid.UUID,
     body: SampleQueryUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     sq = await db.get(SampleQuery, sq_id)
     if not sq or sq.connection_id != connection_id:
@@ -110,6 +115,7 @@ async def delete_sample_query(
     connection_id: uuid.UUID,
     sq_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     sq = await db.get(SampleQuery, sq_id)
     if not sq or sq.connection_id != connection_id:

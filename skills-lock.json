@@ -6,6 +6,11 @@
       "sourceType": "github",
       "computedHash": "f28ca5f4c57a8c587305d8ac7f090f4f8dd1723b403e126a95677606a4dc9572"
     },
+    "langgraph-state-management": {
+      "source": "lubu-labs/langchain-agent-skills",
+      "sourceType": "github",
+      "computedHash": "3fa1e32e66eb4885e2505c8557e17b28bc2796f4270400b85306743218b785c5"
+    },
     "shadcn-ui": {
       "source": "google-labs-code/stitch-skills",
       "sourceType": "github",

@@ -7,6 +7,23 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Widget: reads sessionStorage on every request so Angular can set these before any call fires.
+// Fallback: if sessionStorage is empty (e.g. timing edge on first render), read ?token= from URL directly.
+api.interceptors.request.use((config) => {
+  const apiUrl = sessionStorage.getItem('qw_api_url')
+  if (apiUrl) config.baseURL = `${apiUrl}/api/v1`
+  let token = sessionStorage.getItem('qw_auth_token')
+  if (!token) {
+    const urlToken = new URLSearchParams(window.location.search).get('token')
+    if (urlToken) {
+      token = urlToken
+      sessionStorage.setItem('qw_auth_token', urlToken)
+    }
+  }
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
 api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {

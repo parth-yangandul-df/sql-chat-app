@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Stack,
   Title,
@@ -17,57 +17,39 @@ import {
   CopyButton,
   ActionIcon,
   Tooltip,
-  Progress,
+  TextInput,
+  UnstyledButton,
 } from '@mantine/core';
-import { IconSend, IconCopy, IconCheck, IconAlertCircle, IconPlayerPlay, IconX, IconEdit } from '@tabler/icons-react';
+import {
+  IconSend,
+  IconCopy,
+  IconCheck,
+  IconAlertCircle,
+  IconSearch,
+  IconArrowsSort,
+  IconArrowUp,
+  IconArrowDown,
+  IconDownload,
+} from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import Editor from '@monaco-editor/react';
 import { queryApi } from '../api/queryApi';
 import { useConnections } from '../hooks/useConnections';
 import { usePagination } from '../hooks/usePagination';
 import { TablePagination } from '../components/common/TablePagination';
 import type { QueryResult } from '../types/api';
 
-interface SqlPreview {
-  sql: string;
-  explanation: string;
-  confidence: number;
-  tables_used: string[];
-}
-
 export function QueryPage() {
   const [question, setQuestion] = useState('');
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [result, setResult] = useState<QueryResult | null>(null);
-  const [sqlPreview, setSqlPreview] = useState<SqlPreview | null>(null);
-  const [editedSql, setEditedSql] = useState('');
 
   const { data: connections, isLoading: loadingConns } = useConnections();
 
-  const sqlOnlyMutation = useMutation({
+  const queryMutation = useMutation({
     mutationFn: () =>
-      queryApi.sqlOnly({ connection_id: connectionId!, question }),
-    onSuccess: (data) => {
-      setSqlPreview({
-        sql: data.generated_sql,
-        explanation: data.explanation,
-        confidence: data.confidence,
-        tables_used: data.tables_used,
-      });
-      setEditedSql(data.generated_sql);
-    },
-  });
-
-  const executeMutation = useMutation({
-    mutationFn: () =>
-      queryApi.executeSql({
-        connection_id: connectionId!,
-        sql: editedSql,
-        original_question: question,
-      }),
+      queryApi.execute({ connection_id: connectionId!, question }),
     onSuccess: (data) => {
       setResult(data);
-      setSqlPreview(null);
     },
   });
 
@@ -81,7 +63,7 @@ export function QueryPage() {
 
   const handleRunQuery = () => {
     setResult(null);
-    sqlOnlyMutation.mutate();
+    queryMutation.mutate();
   };
 
   return (
@@ -101,7 +83,7 @@ export function QueryPage() {
       </Group>
 
       <Textarea
-        placeholder="e.g. What is the total ECL by stage?"
+        placeholder="e.g. Show active resources"
         autosize
         minRows={2}
         maxRows={6}
@@ -119,105 +101,28 @@ export function QueryPage() {
         <Button
           leftSection={<IconSend size={16} />}
           onClick={handleRunQuery}
-          loading={sqlOnlyMutation.isPending}
+          loading={queryMutation.isPending}
           disabled={!connectionId || !question.trim()}
         >
           Run Query
         </Button>
       </Group>
 
-      {(sqlOnlyMutation.isError || executeMutation.isError) && (
+      {queryMutation.isError && (
         <Alert
           color="red"
           icon={<IconAlertCircle size={16} />}
           title="Query failed"
         >
-          {((sqlOnlyMutation.error || executeMutation.error) as Error).message}
+          {(queryMutation.error as Error).message}
         </Alert>
       )}
 
-      {executeMutation.isPending && (
+      {queryMutation.isPending && (
         <Group justify="center" py="xl">
           <Loader size="lg" />
-          <Text>Executing query...</Text>
+          <Text>Running query...</Text>
         </Group>
-      )}
-
-      {sqlPreview && !executeMutation.isPending && (
-        <Paper withBorder p="md">
-          <Group justify="space-between" mb="xs">
-            <Group gap="xs">
-              <Text fw={600}>Review Generated SQL</Text>
-              <Tooltip label="You can edit the SQL before executing">
-                <IconEdit size={16} style={{ color: 'var(--mantine-color-dimmed)' }} />
-              </Tooltip>
-            </Group>
-          </Group>
-          {sqlPreview.explanation && (
-            <Text size="sm" c="dimmed" mb="sm">
-              {sqlPreview.explanation}
-            </Text>
-          )}
-          <div style={{ border: '1px solid var(--mantine-color-dark-4)', borderRadius: '4px', overflow: 'hidden' }}>
-            <Editor
-              height="200px"
-              defaultLanguage="sql"
-              value={editedSql}
-              onChange={(value) => setEditedSql(value ?? '')}
-              theme="vs-dark"
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: 'on',
-                scrollBeyondLastLine: false,
-                wordWrap: 'on',
-                automaticLayout: true,
-                padding: { top: 8, bottom: 8 },
-              }}
-            />
-          </div>
-          <Group mt="sm" gap="xl" align="flex-start">
-            <Stack gap={4}>
-              <Text size="xs" c="dimmed" fw={500}>CONFIDENCE</Text>
-              <Group gap="xs" align="center">
-                <Progress
-                  value={sqlPreview.confidence * 100}
-                  color={sqlPreview.confidence >= 0.8 ? 'green' : sqlPreview.confidence >= 0.5 ? 'yellow' : 'red'}
-                  size="sm"
-                  w={80}
-                />
-                <Text size="sm" fw={500}>{Math.round(sqlPreview.confidence * 100)}%</Text>
-              </Group>
-            </Stack>
-            {sqlPreview.tables_used.length > 0 && (
-              <Stack gap={4}>
-                <Text size="xs" c="dimmed" fw={500}>TABLES USED</Text>
-                <Group gap="xs">
-                  {sqlPreview.tables_used.map((t) => (
-                    <Badge key={t} variant="light" color="blue" size="sm">{t}</Badge>
-                  ))}
-                </Group>
-              </Stack>
-            )}
-          </Group>
-          <Group justify="flex-end" mt="md">
-            <Button
-              variant="default"
-              leftSection={<IconX size={16} />}
-              onClick={() => setSqlPreview(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="green"
-              leftSection={<IconPlayerPlay size={16} />}
-              onClick={() => executeMutation.mutate()}
-              disabled={!editedSql.trim()}
-            >
-              Execute
-            </Button>
-          </Group>
-        </Paper>
       )}
 
       {result && <QueryResultView result={result} />}
@@ -225,8 +130,67 @@ export function QueryPage() {
   );
 }
 
+function exportCsv(columns: string[], rows: unknown[][]) {
+  const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const header = columns.map(escape).join(',');
+  const body = rows.map((r) => (r as unknown[]).map(escape).join(',')).join('\n');
+  const blob = new Blob([header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `results_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function QueryResultView({ result }: { result: QueryResult }) {
-  const { page, setPage, totalPages, total, paged, pageSize } = usePagination(result.rows);
+  const [q, setQ] = useState('');
+  const [sortCol, setSortCol] = useState<number | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
+
+  const lower = q.toLowerCase();
+
+  function cycleSort(colIdx: number) {
+    if (sortCol !== colIdx) {
+      setSortCol(colIdx);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      setSortCol(null);
+      setSortDir(null);
+    }
+  }
+
+  const sortedRows = useMemo(() => {
+    if (sortCol === null || sortDir === null) return result.rows;
+    return [...result.rows].sort((a, b) => {
+      const av = (a as unknown[])[sortCol];
+      const bv = (b as unknown[])[sortCol];
+      const an = Number(av);
+      const bn = Number(bv);
+      const numeric = !isNaN(an) && !isNaN(bn);
+      const cmp = numeric ? an - bn : String(av ?? '').localeCompare(String(bv ?? ''));
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [result.rows, sortCol, sortDir]);
+
+  // Global filter — applied across ALL rows before pagination
+  const filteredRows = useMemo(() => {
+    if (!lower) return sortedRows;
+    return sortedRows.filter((row) =>
+      (row as unknown[]).some((cell) =>
+        String(cell ?? '').toLowerCase().includes(lower),
+      ),
+    );
+  }, [sortedRows, lower]);
+
+  const { page, setPage, totalPages, total, paged, pageSize } = usePagination(filteredRows);
+
+  // Reset to page 1 whenever the search term changes
+  useEffect(() => {
+    setPage(1);
+  }, [q, setPage]);
 
   return (
     <Stack gap="md">
@@ -259,6 +223,15 @@ function QueryResultView({ result }: { result: QueryResult }) {
               <Badge size="sm" variant="light" color="gray">
                 {result.row_count} rows
               </Badge>
+              {result.llm_provider === 'domain_tool' ? (
+                <Badge size="sm" color="green" variant="filled">
+                  domain tool
+                </Badge>
+              ) : (
+                <Badge size="sm" color="violet" variant="light">
+                  LLM generated
+                </Badge>
+              )}
               {result.retry_count > 0 && (
                 <Badge size="sm" color="yellow">
                   {result.retry_count} retries
@@ -289,30 +262,74 @@ function QueryResultView({ result }: { result: QueryResult }) {
 
       {result.rows.length > 0 && (
         <Paper withBorder p="sm">
+          {/* Toolbar: search + match counter + export */}
+          <Group mb="sm" gap="xs" align="center" justify="space-between">
+            <Group gap="xs" align="center">
+              <TextInput
+                leftSection={<IconSearch size={14} />}
+                placeholder="Filter rows..."
+                value={q}
+                onChange={(e) => setQ(e.currentTarget.value)}
+                size="sm"
+                w={280}
+              />
+              {lower && (
+                <Text size="xs" c="dimmed">
+                  {filteredRows.length} of {result.rows.length} rows match
+                </Text>
+              )}
+            </Group>
+            <Button
+              variant="default"
+              size="sm"
+              leftSection={<IconDownload size={14} />}
+              onClick={() => exportCsv(result.columns, result.rows)}
+            >
+              Export CSV
+            </Button>
+          </Group>
+
           <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                {result.columns.map((col) => (
-                  <Table.Th key={col}>{col}</Table.Th>
+                {result.columns.map((col, colIdx) => (
+                  <Table.Th key={col} style={{ whiteSpace: 'nowrap' }}>
+                    <UnstyledButton
+                      onClick={() => cycleSort(colIdx)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <Text size="sm" fw={600}>{col}</Text>
+                      {sortCol === colIdx && sortDir === 'asc' ? (
+                        <IconArrowUp size={14} />
+                      ) : sortCol === colIdx && sortDir === 'desc' ? (
+                        <IconArrowDown size={14} />
+                      ) : (
+                        <IconArrowsSort size={14} style={{ opacity: 0.4 }} />
+                      )}
+                    </UnstyledButton>
+                  </Table.Th>
                 ))}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {paged.map((row, i) => (
-                <Table.Tr key={i}>
-                  {(row as unknown[]).map((cell, j) => (
-                    <Table.Td key={j}>
-                      {cell === null ? (
-                        <Text c="dimmed" fs="italic" size="sm">
-                          null
-                        </Text>
-                      ) : (
-                        String(cell)
-                      )}
-                    </Table.Td>
-                  ))}
-                </Table.Tr>
-              ))}
+              {paged.map((row, i) => {
+                const rowArr = row as unknown[];
+                return (
+                  <Table.Tr key={i} bg={lower ? 'teal.0' : undefined}>
+                    {rowArr.map((cell, j) => (
+                      <Table.Td key={j}>
+                        {cell === null ? (
+                          <Text c="dimmed" fs="italic" size="sm">
+                            null
+                          </Text>
+                        ) : (
+                          String(cell)
+                        )}
+                      </Table.Td>
+                    ))}
+                  </Table.Tr>
+                );
+              })}
             </Table.Tbody>
           </Table>
           <TablePagination

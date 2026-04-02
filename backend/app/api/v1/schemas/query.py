@@ -1,13 +1,33 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
+class ConversationTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class TurnContext(BaseModel):
+    intent: str
+    domain: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    columns: list[str] = Field(default_factory=list)
+    sql: str = ""
+
+
 class QueryRequest(BaseModel):
     connection_id: UUID
     question: str = Field(min_length=1, max_length=1000)
+    session_id: UUID | None = None
+    conversation_history: list[ConversationTurn] = Field(default_factory=list, max_length=6)
+    last_turn_context: TurnContext | None = None
+    clear_context: bool = Field(
+        default=False,
+        description="Explicitly clear prior context for this query",
+    )
 
 
 class ExecuteSQLRequest(BaseModel):
@@ -31,6 +51,11 @@ class QueryResponse(BaseModel):
     suggested_followups: list[str]
     llm_provider: str
     llm_model: str
+    turn_context: TurnContext | None = None
+    topic_switch_detected: bool = Field(
+        default=False,
+        description="True if the system detected a topic switch and cleared context",
+    )
 
 
 class SQLOnlyResponse(BaseModel):

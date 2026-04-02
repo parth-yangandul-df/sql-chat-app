@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_optional_user, require_role
 from app.api.v1.schemas.glossary import (
     GlossaryTermCreate,
     GlossaryTermResponse,
@@ -11,6 +12,7 @@ from app.api.v1.schemas.glossary import (
 )
 from app.core.exceptions import NotFoundError
 from app.db.models.glossary import GlossaryTerm
+from app.db.models.user import User
 from app.db.session import get_db
 from app.services.embedding_service import embed_glossary_term
 
@@ -24,6 +26,7 @@ router = APIRouter(tags=["glossary"])
 async def list_glossary_terms(
     connection_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     result = await db.execute(
         select(GlossaryTerm)
@@ -42,6 +45,7 @@ async def create_glossary_term(
     connection_id: uuid.UUID,
     body: GlossaryTermCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     term = GlossaryTerm(
         connection_id=connection_id,
@@ -69,6 +73,7 @@ async def get_glossary_term(
     connection_id: uuid.UUID,
     term_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     term = await db.get(GlossaryTerm, term_id)
     if not term or term.connection_id != connection_id:
@@ -85,6 +90,7 @@ async def update_glossary_term(
     term_id: uuid.UUID,
     body: GlossaryTermUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     term = await db.get(GlossaryTerm, term_id)
     if not term or term.connection_id != connection_id:
@@ -109,6 +115,7 @@ async def delete_glossary_term(
     connection_id: uuid.UUID,
     term_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     term = await db.get(GlossaryTerm, term_id)
     if not term or term.connection_id != connection_id:

@@ -3,12 +3,14 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_optional_user, require_role
 from app.api.v1.schemas.connection import (
     ConnectionCreate,
     ConnectionResponse,
     ConnectionTestResult,
     ConnectionUpdate,
 )
+from app.db.models.user import User  # noqa: F401
 from app.db.session import get_db
 from app.services import connection_service
 
@@ -34,13 +36,20 @@ def _to_response(c: object) -> ConnectionResponse:
 
 
 @router.get("", response_model=list[ConnectionResponse])
-async def list_connections(db: AsyncSession = Depends(get_db)):
+async def list_connections(
+    db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+):
     connections = await connection_service.list_connections(db)
     return [_to_response(c) for c in connections]
 
 
 @router.post("", response_model=ConnectionResponse, status_code=201)
-async def create_connection(body: ConnectionCreate, db: AsyncSession = Depends(get_db)):
+async def create_connection(
+    body: ConnectionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
     conn = await connection_service.create_connection(
         db,
         name=body.name,
@@ -56,7 +65,11 @@ async def create_connection(body: ConnectionCreate, db: AsyncSession = Depends(g
 
 
 @router.get("/{connection_id}", response_model=ConnectionResponse)
-async def get_connection(connection_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_connection(
+    connection_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+):
     conn = await connection_service.get_connection(db, connection_id)
     return _to_response(conn)
 
@@ -66,6 +79,7 @@ async def update_connection(
     connection_id: uuid.UUID,
     body: ConnectionUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     conn = await connection_service.update_connection(
         db, connection_id, **body.model_dump(exclude_none=True)
@@ -75,11 +89,19 @@ async def update_connection(
 
 
 @router.delete("/{connection_id}", status_code=204)
-async def delete_connection(connection_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def delete_connection(
+    connection_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
     await connection_service.delete_connection(db, connection_id)
 
 
 @router.post("/{connection_id}/test", response_model=ConnectionTestResult)
-async def test_connection(connection_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def test_connection(
+    connection_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+):
     success, message = await connection_service.test_connection(db, connection_id)
     return ConnectionTestResult(success=success, message=message)

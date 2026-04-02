@@ -12,5 +12,12 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    watch: {
+      usePolling: false,
+      ignored: ['**/.git/**', '**/node_modules/**'],
+    },
+    hmr: {
+      overlay: false,
+    },
   },
 })

@@ -77,3 +77,6 @@ ollama_data/
 *.ntvs*
 *.njsproj
 *.sln
+
+.opencode/
+.ocx/

@@ -1,225 +1,161 @@
 """Query Service — orchestrates the full NL → SQL → results pipeline."""
 
+import logging
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.base_connector import QueryResult
 from app.connectors.connector_registry import get_or_create_connector
 from app.core.exceptions import AppError, SQLSafetyError
+from app.db.models.chat_session import ChatSession
 from app.db.models.query_history import QueryExecution
+from app.db.models.user import User
 from app.llm.agents.error_handler import ErrorHandlerAgent
 from app.llm.agents.query_composer import QueryComposerAgent
 from app.llm.agents.result_interpreter import ResultInterpreterAgent
 from app.llm.agents.sql_validator import SQLValidatorAgent, ValidationStatus
+from app.llm.graph.graph import get_compiled_graph
+from app.llm.graph.nodes.intent_classifier import _is_topic_switch
+from app.llm.graph.state import GraphState
 from app.llm.router import route
 from app.semantic.context_builder import build_context
 from app.services.connection_service import get_connection, get_decrypted_connection_string
 from app.utils.sql_sanitizer import check_sql_safety
+
+logger = logging.getLogger(__name__)
 
 
 async def execute_nl_query(
     db: AsyncSession,
     connection_id: uuid.UUID,
     question: str,
+    session_id: uuid.UUID | None = None,
+    conversation_history: list[dict] | None = None,
+    current_user: User | None = None,
+    last_turn_context: dict | None = None,
+    clear_context: bool = False,
 ) -> dict:
-    """Full pipeline: NL question → SQL → execute → interpret.
+    """Full pipeline: NL question → LangGraph → domain tool or LLM fallback → results.
 
-    Steps:
-    1. Build semantic context
-    2. Route to LLM provider/model
-    3. Generate SQL (QueryComposerAgent)
-    4. Validate SQL (SQLValidatorAgent)
-    5. Execute query (via connector)
-    6. Interpret results (ResultInterpreterAgent)
-    7. Save to history
+    Delegates to the compiled LangGraph pipeline. Returns the same response
+    dict shape as the original pipeline for API compatibility.
 
-    Returns dict with all response fields.
+    current_user is optional to preserve backward compatibility with unauthenticated
+    calls. When provided, user_id, user_role, and resource_id are threaded into
+    GraphState for RBAC enforcement within the pipeline.
     """
     conn = await get_connection(db, connection_id)
     connection_string = get_decrypted_connection_string(conn)
 
-    # Step 1: Build context
-    context = await build_context(db, connection_id, question, dialect=conn.connector_type)
+    # Honor explicit clear_context flag
+    effective_context = None if clear_context else last_turn_context
 
-    # Step 2: Route to LLM
-    provider, llm_config = route(question)
+    initial_state: GraphState = {
+        "question": question,
+        "connection_id": str(connection_id),
+        "connector_type": conn.connector_type,
+        "connection_string": connection_string,
+        "timeout_seconds": conn.max_query_timeout_seconds,
+        "max_rows": conn.max_rows,
+        "db": db,
+        "session_id": str(session_id) if session_id else None,
+        "conversation_history": conversation_history or [],
+        "last_turn_context": effective_context,
+        # Auth / RBAC — populated from the authenticated user when available
+        "user_id": str(current_user.id) if current_user else None,
+        "user_role": current_user.role if current_user else None,
+        "resource_id": current_user.resource_id if current_user else None,
+        # Classification defaults
+        "domain": None,
+        "intent": None,
+        "confidence": 0.0,
+        "params": {},
+        # Execution defaults
+        "sql": None,
+        "result": None,
+        "generated_sql": None,
+        "retry_count": 0,
+        "explanation": None,
+        "llm_provider": None,
+        "llm_model": None,
+        # Interpretation defaults
+        "answer": None,
+        "highlights": [],
+        "suggested_followups": [],
+        # History defaults
+        "execution_id": None,
+        "execution_time_ms": None,
+        # Error propagation
+        "error": None,
+    }
 
-    # Step 3: Generate SQL
-    composer = QueryComposerAgent(provider, llm_config)
-    composer_output = await composer.compose(question, context.prompt_context)
-    generated_sql = composer_output.generated_sql
+    final_state = await get_compiled_graph().ainvoke(initial_state)
 
-    if not generated_sql:
-        raise AppError("Failed to generate SQL query", status_code=422)
-
-    # Step 4: Validate SQL
-    validator = SQLValidatorAgent()
-    # Build schema map for validation
-    schema_tables = {}
-    for lt in context.tables:
-        schema_tables[lt.table.table_name.upper()] = [
-            c.column_name.upper() for c in lt.columns
-        ]
-
-    validation = await validator.validate(generated_sql, schema_tables)
-
-    final_sql = generated_sql
-    retry_count = 0
-
-    # If validation fails, try error handler
-    if validation.status != ValidationStatus.VALID:
-        error_handler = ErrorHandlerAgent(provider, llm_config)
-        previous_attempts = [generated_sql]
-
-        while validation.status != ValidationStatus.VALID and retry_count < 3:
-            retry_count += 1
-            resolution = await error_handler.handle_error(
-                question=question,
-                failed_sql=final_sql,
-                error_message="; ".join(validation.issues),
-                schema_context=context.prompt_context,
-                attempt_number=retry_count,
-                previous_attempts=previous_attempts,
+    # Topic switch detection: clear context when user changes subject
+    topic_switch_detected = False
+    if effective_context and not clear_context:
+        current_domain = final_state.get("domain")
+        current_intent = final_state.get("intent")
+        if _is_topic_switch(current_domain, current_intent, effective_context):
+            topic_switch_detected = True
+            logger.info(
+                "query: topic switch detected — domain %s→%s, intent %s→%s",
+                effective_context.get("domain"), current_domain,
+                effective_context.get("intent"), current_intent,
             )
 
-            if not resolution.should_retry or not resolution.corrected_sql:
-                raise AppError(
-                    f"SQL validation failed: {'; '.join(validation.issues)}",
-                    status_code=422,
-                )
+    if final_state.get("error") and final_state.get("result") is None:
+        raise AppError(final_state["error"], status_code=422)
 
-            final_sql = resolution.corrected_sql
-            previous_attempts.append(final_sql)
-            validation = await validator.validate(final_sql, schema_tables)
-
-    if validation.status == ValidationStatus.UNSAFE:
-        raise AppError(
-            f"SQL safety violation: {'; '.join(validation.issues)}",
-            status_code=403,
-        )
-
-    # Step 5: Execute query
-    connector = await get_or_create_connector(
-        str(connection_id), conn.connector_type, connection_string
-    )
-    result: QueryResult | None = None
-
-    try:
-        result = await connector.execute_query(
-            final_sql,
-            timeout_seconds=conn.max_query_timeout_seconds,
-            max_rows=conn.max_rows,
-        )
-    except Exception as e:
-        # Try error handler on execution errors
-        error_handler = ErrorHandlerAgent(provider, llm_config)
-        previous_attempts = [final_sql]
-
-        for attempt in range(1, 4):
-            resolution = await error_handler.handle_error(
-                question=question,
-                failed_sql=final_sql,
-                error_message=str(e),
-                schema_context=context.prompt_context,
-                attempt_number=attempt,
-                previous_attempts=previous_attempts,
-            )
-
-            if not resolution.should_retry or not resolution.corrected_sql:
-                break
-
-            final_sql = resolution.corrected_sql
-            retry_count += 1
-            previous_attempts.append(final_sql)
-
-            # Re-validate before executing
-            validation = await validator.validate(final_sql, schema_tables)
-            if validation.status != ValidationStatus.VALID:
-                continue
-
-            try:
-                result = await connector.execute_query(
-                    final_sql,
-                    timeout_seconds=conn.max_query_timeout_seconds,
-                    max_rows=conn.max_rows,
-                )
-                break
-            except Exception as retry_error:
-                e = retry_error
-                continue
-        if result is None:
-            execution = QueryExecution(
-                connection_id=connection_id,
-                natural_language=question,
-                generated_sql=generated_sql,
-                final_sql=final_sql,
-                execution_status="error",
-                error_message=str(e),
-                retry_count=retry_count,
-                llm_provider=provider.provider_type.value,
-                llm_model=llm_config.model,
-            )
-            db.add(execution)
+    # Auto-set session title from first question (if session has default title)
+    if session_id:
+        session = await db.get(ChatSession, session_id)
+        if session and session.title == "New Chat":
+            session.title = question[:100].strip()
+            session.updated_at = datetime.now(timezone.utc)
             await db.flush()
-            raise AppError(f"Query execution failed after {retry_count} retries: {e}")
+        elif session:
+            session.updated_at = datetime.now(timezone.utc)
+            await db.flush()
 
-    if result is None:
-        raise AppError("Query execution failed before any result was returned", status_code=500)
+    result: QueryResult = final_state["result"]
 
-    # Step 6: Interpret results
-    summary = None
-    highlights = []
-    followups = []
-
-    if result.rows:
-        interpreter = ResultInterpreterAgent(provider, llm_config)
-        interpretation = await interpreter.interpret(
-            question=question,
-            sql=final_sql,
-            columns=result.columns,
-            rows=result.rows,
-            row_count=result.row_count,
-        )
-        summary = interpretation.summary
-        highlights = interpretation.highlights
-        followups = interpretation.suggested_followups
-
-    # Step 7: Save to history
-    execution = QueryExecution(
-        connection_id=connection_id,
-        natural_language=question,
-        generated_sql=generated_sql,
-        final_sql=final_sql,
-        execution_status="success",
-        row_count=result.row_count,
-        execution_time_ms=result.execution_time_ms,
-        retry_count=retry_count,
-        result_summary=summary,
-        llm_provider=provider.provider_type.value,
-        llm_model=llm_config.model,
-    )
-    db.add(execution)
-    await db.flush()
+    # Determine turn_context: None if topic switch or no valid result
+    if topic_switch_detected:
+        turn_context = None
+    elif final_state.get("intent") and final_state.get("domain"):
+        turn_context = {
+            "intent": final_state.get("intent"),
+            "domain": final_state.get("domain"),
+            "params": final_state.get("params") or {},
+            "columns": final_state["result"].columns if final_state.get("result") else [],
+            "sql": final_state.get("sql") or "",
+        }
+    else:
+        turn_context = None
 
     return {
-        "id": execution.id,
+        "id": final_state.get("execution_id"),
         "question": question,
-        "generated_sql": generated_sql,
-        "final_sql": final_sql,
-        "explanation": composer_output.explanation,
+        "generated_sql": final_state.get("generated_sql"),
+        "final_sql": final_state.get("sql"),
+        "explanation": final_state.get("explanation"),
         "columns": result.columns,
         "column_types": result.column_types,
         "rows": _serialize_rows(result.rows),
         "row_count": result.row_count,
         "execution_time_ms": result.execution_time_ms,
         "truncated": result.truncated,
-        "summary": summary,
-        "highlights": highlights,
-        "suggested_followups": followups,
-        "llm_provider": provider.provider_type.value,
-        "llm_model": llm_config.model,
-        "retry_count": retry_count,
+        "summary": final_state.get("answer"),
+        "highlights": final_state.get("highlights", []),
+        "suggested_followups": final_state.get("suggested_followups", []),
+        "llm_provider": final_state.get("llm_provider"),
+        "llm_model": final_state.get("llm_model"),
+        "retry_count": final_state.get("retry_count", 0),
+        "turn_context": turn_context,
+        "topic_switch_detected": topic_switch_detected,
     }
 
 

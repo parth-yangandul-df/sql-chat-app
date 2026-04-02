@@ -58,14 +58,15 @@ class SQLServerConnector(BaseConnector):
     """Async SQL Server / Azure SQL connector.
 
     Uses aioodbc (async wrapper around pyodbc) so all DB I/O is non-blocking.
-    No connection pooling — this is intentional for an experimental setup;
-    add aioodbc.create_pool() later when moving to production.
+    Uses aioodbc.create_pool() (minsize=1, maxsize=5) so concurrent requests
+    each acquire their own connection from the pool, avoiding the
+    "Connection is busy" error from simultaneous cursors on a single connection.
     """
 
     connector_type = ConnectorType.SQLSERVER
 
     def __init__(self) -> None:
-        self._connection: Any | None = None
+        self._pool: Any | None = None
         self._connection_string: str = ""
 
     # ------------------------------------------------------------------
@@ -75,7 +76,9 @@ class SQLServerConnector(BaseConnector):
     async def connect(self, connection_string: str, **kwargs: Any) -> None:
         resolved = _resolve_driver(connection_string)
         try:
-            self._connection = await aioodbc.connect(dsn=resolved, autocommit=True)
+            self._pool = await aioodbc.create_pool(
+                dsn=resolved, minsize=1, maxsize=5, autocommit=True
+            )
             self._connection_string = resolved
         except Exception as e:
             raise ConnectionError(
@@ -87,28 +90,30 @@ class SQLServerConnector(BaseConnector):
             ) from e
 
     async def disconnect(self) -> None:
-        if self._connection:
+        if self._pool:
             try:
-                await self._connection.close()
+                await self._pool.close()
             except Exception:
                 pass
-            self._connection = None
+            self._pool = None
 
     async def test_connection(self) -> bool:
-        if not self._connection:
+        if not self._pool:
             return False
         try:
-            cursor = await self._connection.cursor()
-            await cursor.execute("SELECT 1")
-            await cursor.close()
-            return True
-        except Exception:
-            # Connection may have gone stale — try to reconnect once
-            try:
-                await self.connect(self._connection_string)
-                cursor = await self._connection.cursor()
+            async with self._pool.acquire() as conn:
+                cursor = await conn.cursor()
                 await cursor.execute("SELECT 1")
                 await cursor.close()
+            return True
+        except Exception:
+            # Pool may have stale connections — try to reconnect once
+            try:
+                await self.connect(self._connection_string)
+                async with self._pool.acquire() as conn:  # type: ignore[union-attr]
+                    cursor = await conn.cursor()
+                    await cursor.execute("SELECT 1")
+                    await cursor.close()
                 return True
             except Exception:
                 return False
@@ -119,7 +124,8 @@ class SQLServerConnector(BaseConnector):
 
     async def introspect_schemas(self) -> list[str]:
         """Return user-accessible schemas, excluding system ones."""
-        assert self._connection is not None
+        if self._pool is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         sql = """
             SELECT SCHEMA_NAME
             FROM INFORMATION_SCHEMA.SCHEMATA
@@ -131,100 +137,103 @@ class SQLServerConnector(BaseConnector):
             )
             ORDER BY SCHEMA_NAME
         """
-        cursor = await self._connection.cursor()
-        try:
-            await cursor.execute(sql)
-            rows = await cursor.fetchall()
-            return [row[0] for row in rows]
-        finally:
-            await cursor.close()
+        async with self._pool.acquire() as conn:
+            cursor = await conn.cursor()
+            try:
+                await cursor.execute(sql)
+                rows = await cursor.fetchall()
+                return [row[0] for row in rows]
+            finally:
+                await cursor.close()
 
     async def introspect_tables(self, schema: str = "dbo") -> list[TableInfo]:
         """Introspect all tables and views in a schema with columns."""
-        assert self._connection is not None
-        cursor = await self._connection.cursor()
-        try:
-            # --- Tables and views ---
-            await cursor.execute(
-                """
-                SELECT TABLE_NAME, TABLE_TYPE
-                FROM INFORMATION_SCHEMA.TABLES
-                WHERE TABLE_SCHEMA = ?
-                  AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
-                ORDER BY TABLE_NAME
-                """,
-                schema,
-            )
-            table_rows = await cursor.fetchall()
+        if self._pool is None:
+            raise ConnectionError("Connector not connected — call connect() first")
+        async with self._pool.acquire() as conn:
+            cursor = await conn.cursor()
+            try:
+                # --- Tables and views ---
+                await cursor.execute(
+                    """
+                    SELECT TABLE_NAME, TABLE_TYPE
+                    FROM INFORMATION_SCHEMA.TABLES
+                    WHERE TABLE_SCHEMA = ?
+                      AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+                    ORDER BY TABLE_NAME
+                    """,
+                    schema,
+                )
+                table_rows = await cursor.fetchall()
 
-            # --- All columns for the schema in one query (efficient) ---
-            await cursor.execute(
-                """
-                SELECT
-                    c.TABLE_NAME,
-                    c.COLUMN_NAME,
-                    c.DATA_TYPE,
-                    c.IS_NULLABLE,
-                    c.COLUMN_DEFAULT,
-                    c.ORDINAL_POSITION,
-                    CASE WHEN pk.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END AS IS_PK
-                FROM INFORMATION_SCHEMA.COLUMNS c
-                LEFT JOIN (
-                    SELECT ku.TABLE_NAME, ku.COLUMN_NAME
-                    FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-                    JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE ku
-                        ON tc.CONSTRAINT_NAME = ku.CONSTRAINT_NAME
-                        AND tc.TABLE_SCHEMA = ku.TABLE_SCHEMA
-                    WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
-                      AND tc.TABLE_SCHEMA = ?
-                ) pk ON pk.TABLE_NAME = c.TABLE_NAME
-                     AND pk.COLUMN_NAME = c.COLUMN_NAME
-                WHERE c.TABLE_SCHEMA = ?
-                ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION
-                """,
-                schema,
-                schema,
-            )
-            col_rows = await cursor.fetchall()
-
-            await cursor.execute(
-                """
-                SELECT
-                    fk.CONSTRAINT_NAME,
-                    fk.TABLE_NAME,
-                    fk.COLUMN_NAME,
-                    fk.REFERENCED_TABLE_SCHEMA,
-                    fk.REFERENCED_TABLE_NAME,
-                    fk.REFERENCED_COLUMN_NAME
-                FROM (
+                # --- All columns for the schema in one query (efficient) ---
+                await cursor.execute(
+                    """
                     SELECT
-                        tc.CONSTRAINT_NAME,
-                        kcu.TABLE_SCHEMA,
-                        kcu.TABLE_NAME,
-                        kcu.COLUMN_NAME,
-                        ccu.TABLE_SCHEMA AS REFERENCED_TABLE_SCHEMA,
-                        ccu.TABLE_NAME AS REFERENCED_TABLE_NAME,
-                        ccu.COLUMN_NAME AS REFERENCED_COLUMN_NAME
-                    FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-                    JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
-                        ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-                        AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
-                    JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
-                        ON rc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-                    JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE ccu
-                        ON ccu.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME
-                        AND ccu.TABLE_SCHEMA = rc.UNIQUE_CONSTRAINT_SCHEMA
-                    WHERE tc.CONSTRAINT_TYPE = 'FOREIGN KEY'
-                        AND kcu.TABLE_SCHEMA = ?
-                ) fk
-                ORDER BY fk.TABLE_NAME, fk.CONSTRAINT_NAME, fk.COLUMN_NAME
-                """,
-                schema,
-            )
-            fk_rows = await cursor.fetchall()
+                        c.TABLE_NAME,
+                        c.COLUMN_NAME,
+                        c.DATA_TYPE,
+                        c.IS_NULLABLE,
+                        c.COLUMN_DEFAULT,
+                        c.ORDINAL_POSITION,
+                        CASE WHEN pk.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END AS IS_PK
+                    FROM INFORMATION_SCHEMA.COLUMNS c
+                    LEFT JOIN (
+                        SELECT ku.TABLE_NAME, ku.COLUMN_NAME
+                        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+                        JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE ku
+                            ON tc.CONSTRAINT_NAME = ku.CONSTRAINT_NAME
+                            AND tc.TABLE_SCHEMA = ku.TABLE_SCHEMA
+                        WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
+                          AND tc.TABLE_SCHEMA = ?
+                    ) pk ON pk.TABLE_NAME = c.TABLE_NAME
+                         AND pk.COLUMN_NAME = c.COLUMN_NAME
+                    WHERE c.TABLE_SCHEMA = ?
+                    ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION
+                    """,
+                    schema,
+                    schema,
+                )
+                col_rows = await cursor.fetchall()
 
-        finally:
-            await cursor.close()
+                await cursor.execute(
+                    """
+                    SELECT
+                        fk.CONSTRAINT_NAME,
+                        fk.TABLE_NAME,
+                        fk.COLUMN_NAME,
+                        fk.REFERENCED_TABLE_SCHEMA,
+                        fk.REFERENCED_TABLE_NAME,
+                        fk.REFERENCED_COLUMN_NAME
+                    FROM (
+                        SELECT
+                            tc.CONSTRAINT_NAME,
+                            kcu.TABLE_SCHEMA,
+                            kcu.TABLE_NAME,
+                            kcu.COLUMN_NAME,
+                            ccu.TABLE_SCHEMA AS REFERENCED_TABLE_SCHEMA,
+                            ccu.TABLE_NAME AS REFERENCED_TABLE_NAME,
+                            ccu.COLUMN_NAME AS REFERENCED_COLUMN_NAME
+                        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+                        JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+                            ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                            AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+                        JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+                            ON rc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+                        JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE ccu
+                            ON ccu.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME
+                            AND ccu.TABLE_SCHEMA = rc.UNIQUE_CONSTRAINT_SCHEMA
+                        WHERE tc.CONSTRAINT_TYPE = 'FOREIGN KEY'
+                            AND kcu.TABLE_SCHEMA = ?
+                    ) fk
+                    ORDER BY fk.TABLE_NAME, fk.CONSTRAINT_NAME, fk.COLUMN_NAME
+                    """,
+                    schema,
+                )
+                fk_rows = await cursor.fetchall()
+
+            finally:
+                await cursor.close()
 
         # Group columns by table
         columns_by_table: dict[str, list[ColumnInfo]] = {}
@@ -284,7 +293,7 @@ class SQLServerConnector(BaseConnector):
     async def execute_query(
         self,
         sql: str,
-        params: dict[str, Any] | None = None,
+        params: tuple[Any, ...] | None = None,
         timeout_seconds: int = 30,
         max_rows: int = 1000,
     ) -> QueryResult:
@@ -293,7 +302,8 @@ class SQLServerConnector(BaseConnector):
         if issues:
             raise SQLSafetyError("; ".join(issues))
 
-        assert self._connection is not None
+        if self._pool is None:
+            raise ConnectionError("Connector not connected — call connect() first")
 
         # T-SQL uses TOP instead of LIMIT
         wrapped_sql = _inject_top(sql, max_rows + 1)
@@ -301,7 +311,7 @@ class SQLServerConnector(BaseConnector):
         start = time.monotonic()
         try:
             result = await asyncio.wait_for(
-                self._run_query(wrapped_sql),
+                self._run_query(wrapped_sql, params),
                 timeout=timeout_seconds,
             )
         except TimeoutError as e:
@@ -323,19 +333,25 @@ class SQLServerConnector(BaseConnector):
         )
 
     async def _run_query(
-        self, sql: str
+        self, sql: str, params: tuple[Any, ...] | None = None
     ) -> tuple[list[Any], list[str], list[str]]:
-        cursor = await self._connection.cursor()
-        try:
-            await cursor.execute(sql)
-            rows = await cursor.fetchall()
-            if not rows:
-                return [], [], []
-            col_names = [desc[0] for desc in cursor.description]
-            col_types = [_mssql_type_name(desc[1]) for desc in cursor.description]
-            return rows, col_names, col_types
-        finally:
-            await cursor.close()
+        if self._pool is None:
+            raise ConnectionError("Connector not connected — call connect() first")
+        async with self._pool.acquire() as conn:
+            cursor = await conn.cursor()
+            try:
+                if params:
+                    await cursor.execute(sql, params)
+                else:
+                    await cursor.execute(sql)
+                rows = await cursor.fetchall()
+                if not rows:
+                    return [], [], []
+                col_names = [desc[0] for desc in cursor.description]
+                col_types = [_mssql_type_name(desc[1]) for desc in cursor.description]
+                return rows, col_names, col_types
+            finally:
+                await cursor.close()
 
     # ------------------------------------------------------------------
     # Sample values
@@ -344,20 +360,22 @@ class SQLServerConnector(BaseConnector):
     async def get_sample_values(
         self, schema: str, table: str, column: str, limit: int = 20
     ) -> list[Any]:
-        assert self._connection is not None
+        if self._pool is None:
+            raise ConnectionError("Connector not connected — call connect() first")
         sql = (
             f"SELECT DISTINCT TOP {limit} [{column}] "
             f"FROM [{schema}].[{table}] "
             f"WHERE [{column}] IS NOT NULL "
             f"ORDER BY [{column}]"
         )
-        cursor = await self._connection.cursor()
-        try:
-            await cursor.execute(sql)
-            rows = await cursor.fetchall()
-            return [row[0] for row in rows]
-        finally:
-            await cursor.close()
+        async with self._pool.acquire() as conn:
+            cursor = await conn.cursor()
+            try:
+                await cursor.execute(sql)
+                rows = await cursor.fetchall()
+                return [row[0] for row in rows]
+            finally:
+                await cursor.close()
 
 
 # ------------------------------------------------------------------
@@ -381,7 +399,7 @@ def _inject_top(sql: str, n: int) -> str:
 
     # Find position after SELECT (accounting for SELECT DISTINCT)
     if upper.startswith("SELECT DISTINCT"):
-        insert_at = stripped.index("DISTINCT") + len("DISTINCT")
+        insert_at = upper.index("DISTINCT") + len("DISTINCT")
     elif upper.startswith("SELECT"):
         insert_at = stripped.index("SELECT") + len("SELECT")
     else:
