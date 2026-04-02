@@ -5,6 +5,7 @@
 - [x] **Phase 1: Foundation** - Basic FastAPI setup, LLM providers, semantic layer, connection management
 - [x] **Phase 5: LangGraph Domain Tool Pipeline** - Replace LLM SQL generation with embedding-based intent classification and PRMS domain tools (completed 2026-03-26)
 - [x] **Phase 6: Context-Aware Domain Tools** - Stateful follow-up handling, TurnContext propagation, domain tool subquery refinement, fallback_intent wiring (completed 2026-04-02)
+- [ ] **Phase 7: QueryPlan Compiler** - Replace SQL subquery wrapping with a structured QueryPlan state model that accumulates typed filters across turns and compiles SQL deterministically (in progress)
 
 ---
 
@@ -68,6 +69,21 @@ Plans:
 - [x] 06-04-PLAN.md — Domain tool subquery refinement (base_domain helpers + ResourceAgent._run_refinement)
 - [x] 06-05-PLAN.md — Frontend TurnContext tracking (types, queryApi, ChatWidget session, ChatPanel, StandaloneChatPage)
 
+### Phase 7: QueryPlan Compiler
+
+**Goal:** Replace SQL subquery wrapping with a structured QueryPlan state model that accumulates typed filters across conversation turns and compiles SQL deterministically — with zero RBAC regressions, a safe feature-flag rollout (`USE_QUERY_PLAN_COMPILER`), and full regression test coverage before retiring the old path.
+**Status:** Not Started
+**Depends on:** Phase 6
+**Requirements**: QP-01, QP-02, QP-03, QP-04
+
+**Plans:** 4/4 plans planned
+
+Plans:
+- [ ] 07-01-PLAN.md — QueryPlan Foundation (query_plan.py, GraphState, query_service, feature flag)
+- [ ] 07-02-PLAN.md — Filter Extraction + Plan Update (FieldRegistry, filter_extractor, plan_updater, graph wiring)
+- [ ] 07-03-PLAN.md — SQL Compiler + Domain Agent Rewrite (sql_compiler, base_domain flag, regression tests, retirements)
+- [ ] 07-04-PLAN.md — Semantic Layer Executable (glossary→filters, dict value_map, metric injection)
+
 ---
 
 ## Progress
@@ -77,3 +93,4 @@ Plans:
 | 1. Foundation | N/A | Complete | 2026-03-01 |
 | 5. LangGraph Domain Tool Pipeline | 5/5 | Complete | 2026-03-26 |
 | 6. Context-Aware Domain Tools | 5/5 | Complete | 2026-04-02 |
+| 7. QueryPlan Compiler | 0/4 | Not Started | — |
