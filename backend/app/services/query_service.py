@@ -126,12 +126,19 @@ async def execute_nl_query(
     if topic_switch_detected:
         turn_context = None
     elif final_state.get("intent") and final_state.get("domain"):
+        final_params = final_state.get("params") or {}
+        # Always store the base (original) SQL, not the refinement-wrapped SQL.
+        # When _prior_sql is present, final_state["sql"] holds the refinement
+        # wrapper (e.g. "SELECT prev.* FROM (base) AS prev JOIN ... WHERE ... LIKE ?")
+        # which accumulates parameter markers on chained refinements.
+        # Storing the base SQL ensures subsequent refinements always start clean.
+        base_sql = final_params.get("_prior_sql") or final_state.get("sql") or ""
         turn_context = {
             "intent": final_state.get("intent"),
             "domain": final_state.get("domain"),
-            "params": final_state.get("params") or {},
+            "params": final_params,
             "columns": final_state["result"].columns if final_state.get("result") else [],
-            "sql": final_state.get("sql") or "",
+            "sql": base_sql,
         }
     else:
         turn_context = None
