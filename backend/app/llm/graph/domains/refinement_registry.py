@@ -1,3 +1,7 @@
+# DEPRECATED: superseded by QueryPlan compiler (Phase 7).
+# Kept for feature flag rollback safety — still imported by _try_refinement() in the
+# flag=OFF path (base_domain.py else branch). DO NOT delete until USE_QUERY_PLAN_COMPILER=true
+# is confirmed stable in production and the flag=OFF rollback path is no longer needed.
 """Declarative refinement registry for all PRMS domain agents.
 
 Each refinement template defines how to wrap a prior SQL result set as a

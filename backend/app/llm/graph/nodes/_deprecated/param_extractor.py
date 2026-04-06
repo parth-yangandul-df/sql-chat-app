@@ -1,7 +1,3 @@
-# DEPRECATED: superseded by filter_extractor.py (Phase 7, Plan 02).
-# Kept at original path for backward compatibility with existing tests and the
-# flag=OFF refinement path. Archived copy also at _deprecated/param_extractor.py.
-# Delete after USE_QUERY_PLAN_COMPILER=true is confirmed in production.
 """extract_params node — regex/keyword parameter extraction. No LLM calls."""
 
 from __future__ import annotations
