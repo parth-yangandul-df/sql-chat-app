@@ -15,12 +15,31 @@ Feature flag: only reached when settings.use_query_plan_compiler == True.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from app.llm.graph.nodes.field_registry import FIELD_REGISTRY, FieldConfig
 from app.llm.graph.query_plan import FilterClause, QueryPlan
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# MetricFragment — injectable metric SQL for SELECT / JOIN / GROUP BY
+# ---------------------------------------------------------------------------
+
+@dataclass
+class MetricFragment:
+    """A metric SQL fragment for injection into compile_query().
+
+    Carries the three SQL elements needed to inject an aggregation metric:
+    - select_expr: Additional SELECT expression (e.g. "SUM(Hours) AS total_hours")
+    - join_clause: Additional JOIN clause (e.g. "JOIN Timesheets ON ...")
+    - requires_group_by: Whether to inject a GROUP BY clause for non-aggregated columns
+    """
+    select_expr: str       # e.g. "SUM(Hours) AS total_hours"
+    join_clause: str       # e.g. "JOIN Timesheets ON resources.id = timesheets.resource_id"
+    requires_group_by: bool
 
 
 # ---------------------------------------------------------------------------
@@ -257,6 +276,31 @@ BASE_QUERIES: dict[str, str] = {
 
 
 # ---------------------------------------------------------------------------
+# detect_metrics — keyword-based metric detection stub
+# ---------------------------------------------------------------------------
+
+def detect_metrics(
+    question: str,
+    available_metrics: list[dict],
+) -> list[MetricFragment]:
+    """Keyword-matching metric detection stub.
+
+    Full LLM-based detection is deferred to a future phase.
+    Currently returns empty list — structure ready for future implementation.
+
+    Args:
+        question: The user's natural language question.
+        available_metrics: List of metric definition dicts from the DB.
+
+    Returns:
+        List of MetricFragment objects matching detected metrics. Currently always [].
+    """
+    # Stub — full implementation deferred to future phase (LLM-based detection)
+    logger.debug("detect_metrics: keyword stub called — LLM detection deferred")
+    return []
+
+
+# ---------------------------------------------------------------------------
 # build_in_clause — safe IN clause builder with SQL Server 2000-item limit
 # ---------------------------------------------------------------------------
 
@@ -377,7 +421,7 @@ def compile_query(
     resource_id: int | None = None,
     select_extras: str = "",
     join_extras: str = "",
-    metrics: list[Any] | None = None,
+    metrics: list[MetricFragment] | None = None,
 ) -> tuple[str, tuple]:
     """Compile a QueryPlan into executable SQL Server SQL with parameters.
 
@@ -386,7 +430,9 @@ def compile_query(
         resource_id: Required for user_self domain (RBAC guard).
         select_extras: Additional SELECT columns to inject at {select_extras} token.
         join_extras: Additional JOIN clauses to inject at {join_extras} token.
-        metrics: Reserved for future metric injection (Phase 7.4+).
+        metrics: Optional list of MetricFragment for aggregation injection.
+                 Each metric's select_expr and join_clause are combined (comma/space).
+                 If any metric requires GROUP BY, a GROUP BY is appended.
 
     Returns:
         (sql, params_tuple) — ready for connector.execute_query().
@@ -410,6 +456,23 @@ def compile_query(
             f"not found in BASE_QUERIES. Available: {list(BASE_QUERIES.keys())}"
         )
 
+    # ── Merge metric fragments into select_extras / join_extras ───────────
+    needs_group_by = False
+    if metrics:
+        select_parts: list[str] = [select_extras] if select_extras else []
+        join_parts: list[str] = [join_extras] if join_extras else []
+
+        for mf in metrics:
+            if mf.select_expr:
+                select_parts.append(mf.select_expr)
+            if mf.join_clause:
+                join_parts.append(mf.join_clause)
+            if mf.requires_group_by:
+                needs_group_by = True
+
+        select_extras = ", ".join(select_parts)
+        join_extras = " ".join(join_parts)
+
     # ── Build filter WHERE clauses ─────────────────────────────────────────
     where_fragments: list[str] = []
     filter_params: list[Any] = []
@@ -431,7 +494,9 @@ def compile_query(
 
     # ── Assemble final SQL ─────────────────────────────────────────────────
     # 1. Replace {select_extras} and {join_extras} tokens
-    sql = base_sql.replace("{select_extras}", select_extras).replace("{join_extras}", join_extras)
+    select_token = f", {select_extras}" if select_extras else ""
+    join_token = f" {join_extras}" if join_extras else ""
+    sql = base_sql.replace("{select_extras}", select_token).replace("{join_extras}", join_token)
 
     # 2. For user_self intents: the base SQL already contains "WHERE ... = ?"
     #    with resource_id as the first param. We need to inject resource_id
@@ -452,6 +517,11 @@ def compile_query(
             "compile_query: domain=%s intent=%s filters=%d params=%d",
             plan.domain, plan.intent, len(plan.filters), len(all_params),
         )
+
+        # 3. GROUP BY injection (after WHERE) if any metric requires it
+        if needs_group_by:
+            sql = _inject_group_by(sql, plan)
+
         return sql, all_params
 
     # 3. For other domains: append WHERE filters if any
@@ -463,9 +533,62 @@ def compile_query(
         else:
             sql = sql + " WHERE " + additional
 
+    # 4. GROUP BY injection if any metric requires it
+    if needs_group_by:
+        sql = _inject_group_by(sql, plan)
+
     all_params = tuple(filter_params)
     logger.debug(
         "compile_query: domain=%s intent=%s filters=%d params=%d",
         plan.domain, plan.intent, len(plan.filters), len(all_params),
     )
     return sql, all_params
+
+
+# ---------------------------------------------------------------------------
+# _inject_group_by — extract non-aggregated columns and append GROUP BY
+# ---------------------------------------------------------------------------
+
+def _inject_group_by(sql: str, plan: QueryPlan) -> str:
+    """Inject a GROUP BY clause for the non-aggregated columns in the SELECT.
+
+    Parses the SELECT list and extracts columns that are NOT wrapped in an
+    aggregation function (SUM, COUNT, AVG, MIN, MAX). Returns the SQL with
+    GROUP BY appended.
+
+    This is a best-effort parser for the structured templates in BASE_QUERIES.
+    It finds the first SELECT ... FROM and extracts individual items.
+    """
+    import re
+
+    # Extract the SELECT list between SELECT and the first FROM
+    select_match = re.search(r"SELECT\s+(.*?)\s+FROM\b", sql, re.IGNORECASE | re.DOTALL)
+    if not select_match:
+        logger.warning("_inject_group_by: could not parse SELECT list — skipping GROUP BY")
+        return sql
+
+    select_list_raw = select_match.group(1)
+
+    # Split select items by comma (naive but sufficient for templates)
+    items = [item.strip() for item in select_list_raw.split(",")]
+
+    # Filter out aggregation expressions: SUM(...), COUNT(...), AVG(...), MIN(...), MAX(...)
+    agg_pattern = re.compile(r"^\s*(SUM|COUNT|AVG|MIN|MAX)\s*\(", re.IGNORECASE)
+
+    group_by_cols: list[str] = []
+    for item in items:
+        item = item.strip()
+        if not item or agg_pattern.match(item):
+            continue
+        # Strip aliases (AS alias or just alias at end)
+        alias_stripped = re.sub(r"\s+AS\s+\[?[A-Za-z0-9_ ]+\]?\s*$", "", item, flags=re.IGNORECASE).strip()
+        alias_stripped = re.sub(r"\s+\[?[A-Za-z0-9_]+\]?\s*$", "", alias_stripped).strip()
+        if alias_stripped:
+            group_by_cols.append(alias_stripped)
+
+    if not group_by_cols:
+        logger.warning("_inject_group_by: no non-aggregated columns found — skipping GROUP BY")
+        return sql
+
+    group_by_clause = "GROUP BY " + ", ".join(group_by_cols)
+    return sql + " " + group_by_clause
