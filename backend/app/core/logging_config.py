@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
+import datetime as _dt
 from pathlib import Path
 from uuid import uuid4
 
@@ -25,8 +26,8 @@ from loguru import logger
 # ---------------------------------------------------------------------------
 
 
-def _json_formatter(record: dict) -> str:
-    """Format a log record as a single JSON line.
+def _format_record(record: dict) -> str:
+    """Format a log record as a single JSON line (no trailing newline).
 
     Semantic fields follow the project convention:
     timestamp, level, component, operation, operation_status, trace_id,
@@ -45,20 +46,39 @@ def _json_formatter(record: dict) -> str:
         "context": {
             k: v
             for k, v in extra.items()
-            if k not in ("operation", "status", "trace_id", "metrics")
+            if k not in ("operation", "status", "trace_id", "metrics", "_serialized")
         },
         "metrics": extra.get("metrics"),
         "error": None,
     }
 
     exc = record.get("exception")
-    if exc is not None and exc.type is not None:
-        log_entry["error"] = {
-            "type": exc.type.__name__,
-            "message": str(exc.value) if exc.value else "Unknown error",
-        }
+    if exc is not None:
+        # stdlib path: exc_info is a (type, value, traceback) tuple
+        if isinstance(exc, tuple):
+            exc_type, exc_value, _ = exc
+            if exc_type is not None:
+                log_entry["error"] = {
+                    "type": exc_type.__name__,
+                    "message": str(exc_value) if exc_value else "Unknown error",
+                }
+        # loguru path: exc is an ExceptionInfo object with .type / .value
+        elif hasattr(exc, "type") and exc.type is not None:
+            log_entry["error"] = {
+                "type": exc.type.__name__,
+                "message": str(exc.value) if exc.value else "Unknown error",
+            }
 
     return json.dumps(log_entry, default=str)
+
+
+def _console_sink(message: object) -> None:
+    """Write a formatted JSONL line directly to stderr (bypasses loguru's format_map)."""
+    record = message.record  # type: ignore[attr-defined]
+    # Use pre-serialized JSON if available (set by InterceptHandler), else format now
+    line = record.get("extra", {}).get("_serialized") or _format_record(record)
+    sys.stderr.write(line + "\n")
+    sys.stderr.flush()
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +111,22 @@ class InterceptHandler(logging.Handler):
             frame = frame.f_back
             depth += 1
 
-        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+        # Pre-serialize to JSON here so both sinks receive a ready string via
+        # extra["_serialized"] — avoids loguru re-processing JSON as a format template.
+        # We build a minimal record dict matching _format_record's expected shape.
+        _record_dict = {
+            "time": _dt.datetime.fromtimestamp(record.created, tz=_dt.timezone.utc),
+            "level": type("_L", (), {"name": record.levelname})(),
+            "name": record.name,
+            "message": record.getMessage(),
+            "extra": {},
+            "exception": record.exc_info if record.exc_info else None,
+        }
+        _serialized = _format_record(_record_dict)
+
+        logger.opt(depth=depth, exception=record.exc_info).bind(
+            _serialized=_serialized
+        ).log(level, record.getMessage())
 
 
 # ---------------------------------------------------------------------------
@@ -135,10 +170,8 @@ def setup_logging(
 
     # Console — JSONL to stderr so it doesn't interfere with stdout streams
     logger.add(
-        sys.stderr,
-        format=_json_formatter,
+        _console_sink,
         level=level,
-        serialize=False,  # we format ourselves
     )
 
     # File — rotating JSONL via platformdirs
@@ -146,9 +179,9 @@ def setup_logging(
         log_dir = Path(platformdirs.user_log_dir(appname=app_name, ensure_exists=True))
         logger.add(
             str(log_dir / f"{app_name}.jsonl"),
-            format=_json_formatter,
+            format="{extra[_serialized]}\n",
             level="DEBUG",
-            rotation=rotation,
+            rotation="00:00",
             retention=retention,
             compression="gz",
             enqueue=True,  # async-safe for multi-threaded workers

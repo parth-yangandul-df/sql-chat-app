@@ -63,7 +63,7 @@ class Settings(BaseSettings):
 
     # Groq settings (used when default_llm_provider = "groq")
     groq_api_key: str = ""
-    groq_model: str = "moonshotai/kimi-k2-instruct"
+    groq_model: str = "meta-llama/llama-3.1-70b-versatile"  # Upgraded from kimi-k2 for better tool calling
 
     # Embedding provider override (leave empty to auto-derive from default_llm_provider)
     # Set to "ollama" to use Ollama for embeddings while using a different provider for LLM.
@@ -84,6 +84,9 @@ class Settings(BaseSettings):
 
     # QueryPlan compiler feature flag (Phase 7)
     use_query_plan_compiler: bool = False  # MIGRATION FLAG: remove after phase validation
+
+    # Groq unified intent + filter extractor (replaces embedding classifier + regex filter_extractor)
+    use_groq_extractor: bool = False  # Enable via USE_GROQ_EXTRACTOR=true in .env
 
     # Logging
     log_level: str = "INFO"

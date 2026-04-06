@@ -152,6 +152,7 @@ async def execute_nl_query(
             "columns": final_state["result"].columns if final_state.get("result") else [],
             "sql": base_sql,
             "query_plan": final_state.get("query_plan"),
+            "question": question,  # Store for semantic follow-up detection
         }
     else:
         turn_context = None

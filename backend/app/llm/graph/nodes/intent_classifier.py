@@ -26,6 +26,82 @@ _STOP_WORDS = frozenset({
     "them", "this", "that", "it", "its", "i", "we", "you", "they", "he", "she",
 })
 
+# ---------------------------------------------------------------------------
+# Keyword pre-check sets — fast-path routing before embedding similarity.
+# Each set covers unambiguous signals that embedding cosine similarity
+# frequently misroutes due to short/generic catalog descriptions.
+# ---------------------------------------------------------------------------
+
+_SKILL_KEYWORDS: frozenset[str] = frozenset({
+    # Languages
+    "python", "java", "javascript", "typescript", "golang", "go", "rust",
+    "kotlin", "swift", "scala", "ruby", "php", "perl", "matlab",
+    "c#", "c++", "vb.net", ".net",
+    # Frameworks / platforms
+    "react", "angular", "vue", "svelte", "nextjs", "next.js",
+    "django", "flask", "fastapi", "spring", "springboot",
+    "nodejs", "node.js", "express", "nestjs",
+    "dotnet", "asp.net", "blazor",
+    # Data / cloud / infra
+    "nosql", "mongodb", "postgres", "postgresql", "mysql",
+    "redis", "elasticsearch", "kafka",
+    "aws", "azure", "gcp", "kubernetes", "k8s",
+    "terraform", "ansible",
+    # Mobile / AI
+    "android", "ios", "flutter",
+    "tensorflow", "pytorch",
+    # Database query language
+    "sql",
+})
+
+# "bench" / "benched" are unambiguous — "available" / "free" excluded (too broad)
+_BENCH_KEYWORDS: frozenset[str] = frozenset({
+    "bench", "benched",
+})
+
+_OVERDUE_KEYWORDS: frozenset[str] = frozenset({
+    "overdue", "delayed", "behind schedule", "past deadline",
+    "past due", "past end date",
+})
+
+_TIMELINE_KEYWORDS: frozenset[str] = frozenset({
+    "timeline", "duration", "start date", "end date",
+    "how long", "when does", "when did", "deadline",
+})
+
+_BUDGET_KEYWORDS: frozenset[str] = frozenset({
+    "budget", "burn rate",
+})
+
+_UNAPPROVED_KEYWORDS: frozenset[str] = frozenset({
+    "unapproved", "pending approval", "not approved",
+    "waiting for approval", "unreviewed", "pending timesheet",
+})
+
+
+def _keyword_route(question: str) -> tuple[str, str] | None:
+    """Check keyword sets and return (intent_name, domain) if a pre-check fires.
+
+    Order matters — bench checked before skill to avoid "bench developers"
+    routing to resource_by_skill instead of benched_resources.
+    Returns None if no keyword guard matches.
+    """
+    q = question.lower()
+    if any(kw in q for kw in _BENCH_KEYWORDS):
+        return ("benched_resources", "resource")
+    if any(kw in q for kw in _SKILL_KEYWORDS):
+        return ("resource_by_skill", "resource")
+    if any(kw in q for kw in _OVERDUE_KEYWORDS):
+        return ("overdue_projects", "project")
+    if any(kw in q for kw in _TIMELINE_KEYWORDS):
+        return ("project_timeline", "project")
+    if any(kw in q for kw in _BUDGET_KEYWORDS):
+        return ("project_budget", "project")
+    if any(kw in q for kw in _UNAPPROVED_KEYWORDS):
+        return ("unapproved_timesheets", "timesheet")
+    return None
+
+
 def _is_refinement_followup(question: str, last_turn_context: dict | None) -> bool:
     """Return True if question is a thin follow-up that should inherit prior intent.
 
@@ -55,6 +131,38 @@ def _is_refinement_followup(question: str, last_turn_context: dict | None) -> bo
             return True
 
     return False
+
+
+async def _semantic_followup_check(question: str, last_turn_context: dict | None) -> bool:
+    """Use embedding similarity to determine if question is a semantic follow-up.
+    
+    Returns True only if cosine similarity between current question and
+    previous question embedding >= threshold. If prior question has no
+    embedding or similarity check fails, returns True (fail open for safety).
+    """
+    if not last_turn_context:
+        return True
+    
+    # Get prior question from turn context
+    prior_question = last_turn_context.get("question")
+    if not prior_question:
+        return True  # No prior question, allow follow-up inheritance
+    
+    try:
+        current_embedding = await embed_text(question)
+        prior_embedding = await embed_text(prior_question)
+        similarity = _cosine(current_embedding, prior_embedding)
+        
+        logger.info(
+            "semantic_followup: q=%r prior=%r similarity=%.2f threshold=%.2f",
+            question[:50], prior_question[:50], similarity, _SEMANTIC_SIMILARITY_THRESHOLD
+        )
+        
+        # Only treat as follow-up if semantic similarity is high enough
+        return similarity >= _SEMANTIC_SIMILARITY_THRESHOLD
+    except Exception as e:
+        logger.warning("semantic_followup: embedding failed (%s) — falling back to word heuristics", e)
+        return True  # Fail open, allow follow-up inheritance
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +250,9 @@ def _resolve_question(question: str, history: list[dict]) -> str:
 # Override via TOOL_CONFIDENCE_THRESHOLD env var without code changes.
 _THRESHOLD = float(os.environ.get("TOOL_CONFIDENCE_THRESHOLD", "0.65"))
 
+# Semantic similarity threshold for follow-up detection (0.65 = treat more queries as new topics)
+_SEMANTIC_SIMILARITY_THRESHOLD = float(os.environ.get("SEMANTIC_SIMILARITY_THRESHOLD", "0.65"))
+
 
 def _cosine(a: list[float], b: list[float]) -> float:
     va, vb = np.array(a, dtype=float), np.array(b, dtype=float)
@@ -182,6 +293,54 @@ async def classify_intent(state: GraphState) -> dict[str, Any]:
             "domain": inherited_domain,
             "intent": inherited_intent,
             "confidence": 0.95,
+        }
+
+    # Semantic follow-up check: if word-overlap is inconclusive, use embedding similarity
+    # Only runs when prior context exists but word-based follow-up detection returned False
+    if last_turn_context and last_turn_context.get("sql"):
+        is_semantic_followup = await _semantic_followup_check(question, last_turn_context)
+        if is_semantic_followup:
+            inherited_domain = last_turn_context["domain"]
+            inherited_intent = last_turn_context["intent"]
+            logger.info(
+                "intent=classify semantic_followup q=%r → inheriting intent=%s domain=%s",
+                question[:80], inherited_intent, inherited_domain,
+            )
+            if user_role == "user" and inherited_domain != "user_self":
+                return {"domain": None, "intent": None, "confidence": 0.0}
+            return {
+                "domain": inherited_domain,
+                "intent": inherited_intent,
+                "confidence": 0.95,
+            }
+        else:
+            logger.info(
+                "intent=classify semantic_topic_switch q=%r — treating as new topic",
+                question[:80],
+            )
+            last_turn_context = None  # Clear context for new topic
+
+    # Keyword pre-check — fires before embedding for unambiguous signal words.
+    # Prevents generic catalog descriptions from beating specific intents on
+    # cosine similarity. Guards are ordered: bench > skill > overdue > timeline
+    # > budget > unapproved. RBAC gate applies identically to embedding path.
+    kw_route = _keyword_route(question)
+    if kw_route is not None:
+        kw_intent, kw_domain = kw_route
+        if user_role == "user" and kw_domain != "user_self":
+            logger.info(
+                "intent=classify keyword_match rbac_gate role=user intent=%s → llm_fallback",
+                kw_intent,
+            )
+            return {"domain": None, "intent": None, "confidence": 0.0}
+        logger.info(
+            "intent=classify keyword_match q=%r → forcing intent=%s domain=%s",
+            question[:80], kw_intent, kw_domain,
+        )
+        return {
+            "domain": kw_domain,
+            "intent": kw_intent,
+            "confidence": 0.99,
         }
 
     # Normal embedding path ─────────────────────────────────────────────────

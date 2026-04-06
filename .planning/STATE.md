@@ -161,13 +161,14 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 
 ## Accumulated Context
 
-### Pending Todos (5)
+### Pending Todos (6)
 
 - **Build QueryWise chat widget for Angular embedding** (`ui`) — `2026-03-30-build-querywise-chat-widget-for-angular-embedding.md`
 - **Implement RBAC with JWT auth admin manager user roles** (`auth`) — `2026-03-30-implement-rbac-with-jwt-auth-admin-manager-user-roles.md`
 - **Scaffold Angular 21 test app with widget integration** (`general`) — `2026-03-30-scaffold-angular-21-test-app-with-widget-integration.md`
 - **Fix recent questions to be user-specific via token handoff** (`ui`) — `2026-03-31-fix-recent-questions-to-be-user-specific-via-token-handoff.md`
 - **Build standalone dedicated chatbot page for Angular redirect** (`ui`) — `2026-03-31-build-standalone-dedicated-chatbot-page-for-angular-redirect.md`
+- **Dockerize All Services with Optimization** (`tooling`) — `2026-04-06-dockerize-all-services-with-optimization.md`
 
 ## Last Session
 - **Stopped at:** Phase 07 complete

@@ -12,8 +12,8 @@ build/
 # Virtual environments
 .venv/
 venv/
+.env/
 env/
-
 # Ruff
 .ruff_cache/
 
@@ -47,7 +47,6 @@ Thumbs.db
 .claude/
 
 # Environment / secrets
-.env
 *.pem
 *.key
 

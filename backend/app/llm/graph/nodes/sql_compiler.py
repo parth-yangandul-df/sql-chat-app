@@ -64,7 +64,8 @@ BASE_QUERIES: dict[str, str] = {
         "dr.designationname as [Designation]{select_extras} "
         "FROM Resource r "
         "JOIN Designation dr ON r.designationid = dr.designationid{join_extras} "
-        "WHERE r.IsActive = 1 and r.statusid = 8"
+        "WHERE r.IsActive = 1 AND r.statusid = 8 "
+        "ORDER BY r.ResourceName ASC"
     ),
 
     "benched_resources": (
@@ -74,7 +75,8 @@ BASE_QUERIES: dict[str, str] = {
         "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
         "JOIN Project p ON pr.ProjectId = p.ProjectId "
         "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId{join_extras} "
-        "WHERE p.ProjectId = 119"  # hardcoded bench project; confirmed constant
+        "WHERE p.ProjectId = 119 "  # hardcoded bench project; confirmed constant
+        "ORDER BY r.ResourceName"
     ),
 
     "resource_by_skill": (
@@ -85,7 +87,7 @@ BASE_QUERIES: dict[str, str] = {
         "JOIN TechCatagory tc ON tc.TechCategoryId = r.TechCategoryId "
         "JOIN PA_ResourceSkills par ON par.ResourceId = r.ResourceId "
         "JOIN PA_Skills psk ON psk.SkillId = par.SkillId{join_extras} "
-        "WHERE r.IsActive = 1"
+        "WHERE r.IsActive = 1 AND ({skill_filter})"
     ),
 
     "resource_availability": (
@@ -175,7 +177,7 @@ BASE_QUERIES: dict[str, str] = {
         "FROM Project p "
         "JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId "
         "JOIN Resource r ON pr.ResourceId = r.ResourceId "
-        "JOIN TechCategory tc ON tc.TechCategoryId = r.TechCategoryId "
+        "JOIN TechCatagory tc ON tc.TechCategoryId = r.TechCategoryId "
         "JOIN Client c ON c.ClientId = pr.ClientId{join_extras} "
         "WHERE pr.IsActive = 1"
     ),
@@ -205,7 +207,8 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT ts.TimesheetId, r.ResourceName, ts.WorkDate, ts.Hours, ts.Description{select_extras} "
         "FROM Timesheet ts "
         "JOIN Resource r ON ts.ResourceId = r.ResourceId{join_extras} "
-        "WHERE ts.IsApproved = 1 AND ts.IsDeleted = 0 AND ts.IsRejected = 0"
+        "WHERE ts.IsApproved = 1 AND ts.IsDeleted = 0 AND ts.IsRejected = 0 "
+        "ORDER BY ts.WorkDate DESC"
     ),
 
     "timesheet_by_period": (
@@ -219,7 +222,8 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT ts.TimesheetId, r.ResourceName, ts.WorkDate, ts.Hours{select_extras} "
         "FROM Timesheet ts "
         "JOIN Resource r ON ts.ResourceId = r.ResourceId{join_extras} "
-        "WHERE ts.IsApproved = 0 AND ts.IsDeleted = 0 AND ts.IsRejected = 0"
+        "WHERE ts.IsApproved = 0 AND ts.IsDeleted = 0 AND ts.IsRejected = 0 "
+        "ORDER BY ts.WorkDate DESC"
     ),
 
     "timesheet_by_project": (
@@ -227,7 +231,8 @@ BASE_QUERIES: dict[str, str] = {
         "FROM Timesheet ts "
         "JOIN Resource r ON ts.ResourceId = r.ResourceId "
         "JOIN Project p ON ts.ProjectId = p.ProjectId{join_extras} "
-        "WHERE ts.IsApproved = 1 AND ts.IsDeleted = 0 AND ts.IsRejected = 0"
+        "WHERE ts.IsApproved = 1 AND ts.IsDeleted = 0 AND ts.IsRejected = 0 "
+        "ORDER BY ts.WorkDate DESC"
     ),
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -255,7 +260,8 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT ts.Title, ts.Category, ts.Activity, ts.[Effort Hours], ts.[File Date]{select_extras} "
         "FROM TS_Timesheet_Report ts "
         "JOIN Resource r ON r.EmployeeId = ts.[Emp ID]{join_extras} "
-        "WHERE r.ResourceId = ?"
+        "WHERE r.ResourceId = ? "
+        "ORDER BY ts.[File Date] DESC"
     ),
 
     "my_skills": (
@@ -270,7 +276,8 @@ BASE_QUERIES: dict[str, str] = {
         "FROM TS_Timesheet_Report ts "
         "JOIN Resource r ON r.EmployeeId = ts.[Emp ID]{join_extras} "
         "WHERE r.ResourceId = ? "
-        "GROUP BY ts.Title, ts.[File Date]"
+        "GROUP BY ts.Title, ts.[File Date] "
+        "ORDER BY ts.[File Date] DESC"
     ),
 }
 
@@ -473,12 +480,40 @@ def compile_query(
         select_extras = ", ".join(select_parts)
         join_extras = " ".join(join_parts)
 
-    # ── Build filter WHERE clauses ─────────────────────────────────────────
+    # ── Replace {select_extras} and {join_extras} tokens ──────────────────
+    select_token = f", {select_extras}" if select_extras else ""
+    join_token = f" {join_extras}" if join_extras else ""
+    sql = base_sql.replace("{select_extras}", select_token).replace("{join_extras}", join_token)
+
+    # ── Skill filter expansion: resource_by_skill 4-column OR search ──────
+    # This expands {skill_filter} token before the generic filter loop runs.
+    # Skill params are prepended so they align with the ? placeholders in the
+    # WHERE clause, which appear before any additional filter conditions.
+    skill_params: list[Any] = []
+    remaining_filters = list(plan.filters)
+
+    if "{skill_filter}" in sql:
+        skill_clauses = [f for f in remaining_filters if f.field == "skill"]
+        if skill_clauses:
+            sf = skill_clauses[0]
+            v = f"%{sf.values[0]}%"
+            skill_fragment = (
+                "r.PrimarySkill LIKE ? OR r.SecondarySkill LIKE ? "
+                "OR tc.TechCategoryName LIKE ? OR psk.Name LIKE ?"
+            )
+            sql = sql.replace("{skill_filter}", skill_fragment)
+            skill_params = [v, v, v, v]
+            # Remove skill from remaining filters so it isn't double-processed
+            remaining_filters = [f for f in remaining_filters if f.field != "skill"]
+        else:
+            # No skill filter — return all (IsActive=1 still applies from base WHERE)
+            sql = sql.replace("{skill_filter}", "1=1")
+
+    # ── Build filter WHERE clauses from remaining filters ─────────────────
     where_fragments: list[str] = []
     filter_params: list[Any] = []
 
-    for f in plan.filters:
-        # Look up field config for this field in this domain
+    for f in remaining_filters:
         field_config = FIELD_REGISTRY.get(f.field)
         if field_config is None:
             logger.warning(
@@ -493,22 +528,12 @@ def compile_query(
             filter_params.extend(params)
 
     # ── Assemble final SQL ─────────────────────────────────────────────────
-    # 1. Replace {select_extras} and {join_extras} tokens
-    select_token = f", {select_extras}" if select_extras else ""
-    join_token = f" {join_extras}" if join_extras else ""
-    sql = base_sql.replace("{select_extras}", select_token).replace("{join_extras}", join_token)
-
-    # 2. For user_self intents: the base SQL already contains "WHERE ... = ?"
-    #    with resource_id as the first param. We need to inject resource_id
-    #    as the first parameter, then append any filter WHERE conditions.
+    # For user_self intents: the base SQL already contains "WHERE ... = ?"
+    # with resource_id as the first param.
     if plan.domain == "user_self":
-        # Base params: resource_id goes first
         base_params: tuple = (resource_id,)
 
-        # If we have additional filters, we need to append them to the WHERE clause
         if where_fragments:
-            # The base SQL ends with "WHERE pr.ResourceId = ?" or similar.
-            # We append AND conditions after.
             additional = " AND ".join(where_fragments)
             sql = sql + " AND " + additional
 
@@ -518,26 +543,23 @@ def compile_query(
             plan.domain, plan.intent, len(plan.filters), len(all_params),
         )
 
-        # 3. GROUP BY injection (after WHERE) if any metric requires it
         if needs_group_by:
             sql = _inject_group_by(sql, plan)
 
         return sql, all_params
 
-    # 3. For other domains: append WHERE filters if any
+    # For other domains: skill_params first, then additional WHERE filters
     if where_fragments:
         additional = " AND ".join(where_fragments)
-        # Check if the base SQL already has a WHERE clause
         if " WHERE " in sql.upper() or " WHERE\n" in sql.upper():
             sql = sql + " AND " + additional
         else:
             sql = sql + " WHERE " + additional
 
-    # 4. GROUP BY injection if any metric requires it
     if needs_group_by:
         sql = _inject_group_by(sql, plan)
 
-    all_params = tuple(filter_params)
+    all_params = tuple(skill_params) + tuple(filter_params)
     logger.debug(
         "compile_query: domain=%s intent=%s filters=%d params=%d",
         plan.domain, plan.intent, len(plan.filters), len(all_params),

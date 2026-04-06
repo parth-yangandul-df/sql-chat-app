@@ -1,6 +1,6 @@
 """LangGraph StateGraph assembly for the PRMS domain tool pipeline.
 
-Graph topology:
+Graph topology (default — embedding + regex path):
   classify_intent
        |
        ├─ confidence >= threshold → extract_filters → update_query_plan → run_domain_tool
@@ -15,10 +15,27 @@ Graph topology:
                                      write_history
                                            │
                                           END
+
+Graph topology (USE_GROQ_EXTRACTOR=true — unified Groq path):
+  groq_extract
+       |
+       ├─ confidence >= 0.60 → update_query_plan → run_domain_tool
+       │                                            ├─ rows > 0 → interpret_result
+       │                                            └─ 0 rows + fallback_intent? → run_fallback_intent
+       │                                                            ├─ rows > 0 → interpret_result
+       │                                                            └─ 0 rows   → llm_fallback
+       └─ confidence < 0.60  → llm_fallback
+                                      │
+                                interpret_result
+                                      │
+                                write_history
+                                      │
+                                     END
 """
 
 from langgraph.graph import END, StateGraph
 
+from app.config import settings
 from app.llm.graph.domains.registry import run_domain_tool
 from app.llm.graph.nodes.fallback_intent import (
     route_after_domain_tool,
@@ -39,27 +56,50 @@ _compiled_graph = None
 def _build_graph():
     graph = StateGraph(GraphState)
 
-    graph.add_node("classify_intent", classify_intent)
-    graph.add_node("extract_filters", extract_filters)
-    graph.add_node("update_query_plan", update_query_plan)
+    # ── Shared nodes (both paths) ────────────────────────────────────────────
     graph.add_node("run_domain_tool", run_domain_tool)
     graph.add_node("run_fallback_intent", run_fallback_intent)
     graph.add_node("llm_fallback", llm_fallback)
     graph.add_node("interpret_result", interpret_result)
     graph.add_node("write_history", write_history)
+    graph.add_node("update_query_plan", update_query_plan)
 
-    graph.set_entry_point("classify_intent")
+    if settings.use_groq_extractor:
+        # ── Groq unified path ─────────────────────────────────────────────────
+        from app.llm.graph.nodes.llm_groq_extractor import groq_extract, route_after_groq
 
-    graph.add_conditional_edges(
-        "classify_intent",
-        route_after_classify,
-        {
-            "extract_params": "extract_filters",
-            "llm_fallback": "llm_fallback",
-        },
-    )
+        graph.add_node("groq_extract", groq_extract)
+        graph.set_entry_point("groq_extract")
 
-    graph.add_edge("extract_filters", "update_query_plan")
+        # groq_extract returns {domain, intent, confidence, filters}
+        # route_after_groq checks confidence >= 0.60
+        # Groq path skips extract_filters (already done inside groq_extract)
+        graph.add_conditional_edges(
+            "groq_extract",
+            route_after_groq,
+            {
+                "run_domain_tool": "update_query_plan",
+                "llm_fallback": "llm_fallback",
+            },
+        )
+    else:
+        # ── Default embedding + regex path ────────────────────────────────────
+        graph.add_node("classify_intent", classify_intent)
+        graph.add_node("extract_filters", extract_filters)
+
+        graph.set_entry_point("classify_intent")
+
+        graph.add_conditional_edges(
+            "classify_intent",
+            route_after_classify,
+            {
+                "extract_params": "extract_filters",
+                "llm_fallback": "llm_fallback",
+            },
+        )
+        graph.add_edge("extract_filters", "update_query_plan")
+
+    # ── Shared downstream edges ──────────────────────────────────────────────
     graph.add_edge("update_query_plan", "run_domain_tool")
 
     graph.add_conditional_edges(
