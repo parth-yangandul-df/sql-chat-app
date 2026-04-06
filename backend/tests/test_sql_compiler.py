@@ -37,14 +37,18 @@ def _make_plan(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_compile_query_empty_filters_returns_base_sql():
-    """Empty filters → base SQL returned with no WHERE clause appended."""
+    """Empty filters → base SQL returned with no WHERE clause appended (tokens replaced)."""
     plan = _make_plan(intent="active_resources")
     sql, params = compile_query(plan)
     assert params == ()
     # Base SQL for active_resources should contain key clauses
     assert "IsActive" in sql or "Resource" in sql
-    # No extra WHERE from filters
-    assert sql == BASE_QUERIES["active_resources"]
+    # Tokens must be replaced (empty string by default)
+    assert "{select_extras}" not in sql
+    assert "{join_extras}" not in sql
+    # Should equal the base query with empty tokens replaced
+    expected = BASE_QUERIES["active_resources"].replace("{select_extras}", "").replace("{join_extras}", "")
+    assert sql == expected
 
 
 # ─────────────────────────────────────────────────────────────────────────────
