@@ -18,6 +18,7 @@ from app.llm.agents.result_interpreter import ResultInterpreterAgent
 from app.llm.agents.sql_validator import SQLValidatorAgent, ValidationStatus
 from app.llm.graph.graph import get_compiled_graph
 from app.llm.graph.nodes.intent_classifier import _is_topic_switch
+from app.llm.graph.query_plan import QueryPlan
 from app.llm.graph.state import GraphState
 from app.llm.router import route
 from app.semantic.context_builder import build_context
@@ -89,6 +90,8 @@ async def execute_nl_query(
         "execution_time_ms": None,
         # Error propagation
         "error": None,
+        # QueryPlan compiler
+        "query_plan": None,
     }
 
     final_state = await get_compiled_graph().ainvoke(initial_state)
@@ -132,13 +135,22 @@ async def execute_nl_query(
         # wrapper (e.g. "SELECT prev.* FROM (base) AS prev JOIN ... WHERE ... LIKE ?")
         # which accumulates parameter markers on chained refinements.
         # Storing the base SQL ensures subsequent refinements always start clean.
-        base_sql = final_params.get("_prior_sql") or final_state.get("sql") or ""
+        query_plan_dict = final_state.get("query_plan")
+        if query_plan_dict:
+            try:
+                plan = QueryPlan.from_untrusted_dict(query_plan_dict)
+                base_sql = plan.base_intent_sql
+            except Exception:
+                base_sql = final_params.get("_prior_sql") or final_state.get("sql") or ""
+        else:
+            base_sql = final_params.get("_prior_sql") or final_state.get("sql") or ""
         turn_context = {
             "intent": final_state.get("intent"),
             "domain": final_state.get("domain"),
             "params": final_params,
             "columns": final_state["result"].columns if final_state.get("result") else [],
             "sql": base_sql,
+            "query_plan": final_state.get("query_plan"),
         }
     else:
         turn_context = None
