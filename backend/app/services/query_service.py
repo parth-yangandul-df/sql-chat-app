@@ -91,6 +91,7 @@ async def execute_nl_query(
         # Error propagation
         "error": None,
         # QueryPlan compiler
+        "filters": [],
         "query_plan": None,
     }
 

@@ -3,11 +3,11 @@
 Graph topology:
   classify_intent
        |
-       ├─ confidence >= threshold → extract_params → run_domain_tool
-       │                                               ├─ rows > 0 → interpret_result
-       │                                               └─ 0 rows + fallback_intent? → run_fallback_intent
-       │                                                                   ├─ rows > 0 → interpret_result
-       │                                                                   └─ 0 rows   → llm_fallback
+       ├─ confidence >= threshold → extract_filters → update_query_plan → run_domain_tool
+       │                                                                    ├─ rows > 0 → interpret_result
+       │                                                                    └─ 0 rows + fallback_intent? → run_fallback_intent
+       │                                                                                    ├─ rows > 0 → interpret_result
+       │                                                                                    └─ 0 rows   → llm_fallback
        └─ confidence < threshold  → llm_fallback
                                            │
                                      interpret_result
@@ -25,10 +25,11 @@ from app.llm.graph.nodes.fallback_intent import (
     route_after_fallback_intent,
     run_fallback_intent,
 )
+from app.llm.graph.nodes.filter_extractor import extract_filters
 from app.llm.graph.nodes.history_writer import write_history
 from app.llm.graph.nodes.intent_classifier import classify_intent, route_after_classify
 from app.llm.graph.nodes.llm_fallback import llm_fallback
-from app.llm.graph.nodes.param_extractor import extract_params
+from app.llm.graph.nodes.plan_updater import update_query_plan
 from app.llm.graph.nodes.result_interpreter import interpret_result
 from app.llm.graph.state import GraphState
 
@@ -39,7 +40,8 @@ def _build_graph():
     graph = StateGraph(GraphState)
 
     graph.add_node("classify_intent", classify_intent)
-    graph.add_node("extract_params", extract_params)
+    graph.add_node("extract_filters", extract_filters)
+    graph.add_node("update_query_plan", update_query_plan)
     graph.add_node("run_domain_tool", run_domain_tool)
     graph.add_node("run_fallback_intent", run_fallback_intent)
     graph.add_node("llm_fallback", llm_fallback)
@@ -52,12 +54,13 @@ def _build_graph():
         "classify_intent",
         route_after_classify,
         {
-            "extract_params": "extract_params",
+            "extract_params": "extract_filters",
             "llm_fallback": "llm_fallback",
         },
     )
 
-    graph.add_edge("extract_params", "run_domain_tool")
+    graph.add_edge("extract_filters", "update_query_plan")
+    graph.add_edge("update_query_plan", "run_domain_tool")
 
     graph.add_conditional_edges(
         "run_domain_tool",
