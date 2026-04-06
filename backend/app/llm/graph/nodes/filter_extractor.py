@@ -7,6 +7,7 @@ Extracts structured FilterClause objects from the user's question by:
 4. Handling follow-up turns by inheriting refine-mode context
 5. Dropping unknown fields safely with a WARNING log (never crash)
 6. Deferring LLM extraction to Plan 04 (stub logged)
+7. (Plan 04) Resolving glossary hints for field disambiguation
 """
 
 from __future__ import annotations
@@ -20,6 +21,15 @@ from app.llm.graph.query_plan import FilterClause, _sanitize_value
 from app.llm.graph.state import GraphState
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Lazy import for semantic_resolver — avoids circular imports and allows
+# test isolation via patch on the attribute at filter_extractor module level.
+# ---------------------------------------------------------------------------
+try:
+    from app.llm.graph.nodes.semantic_resolver import resolve_glossary_hints
+except ImportError:
+    resolve_glossary_hints = None  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -162,7 +172,7 @@ async def extract_filters(state: GraphState) -> dict[str, Any]:
     - Validates each match against FieldRegistry for the current domain
     - Drops unknown/invalid fields with WARNING log
     - Handles follow-up turns via refine-mode fallback skill extraction
-    - LLM extraction deferred to Plan 04 (stubbed with log)
+    - (Plan 04) Resolves glossary hints for field disambiguation
     - Returns {"filters": list[FilterClause]} (FilterClause objects directly)
     """
     question = state["question"]
@@ -183,6 +193,26 @@ async def extract_filters(state: GraphState) -> dict[str, Any]:
         # No domain classified → LLM fallback path, return empty
         logger.debug("filter_extractor: no domain set, returning empty filters")
         return {"filters": filters}
+
+    # ── 0. Glossary hint resolution (Plan 04 wiring) ─────────────────────
+    # Resolve available field hints from glossary terms to aid disambiguation.
+    # Degrades gracefully — regex extraction proceeds regardless of outcome.
+    glossary_hints: list[str] = []
+    db = state.get("db")
+    connection_id = state.get("connection_id")
+    if db is not None and connection_id is not None and resolve_glossary_hints is not None:
+        try:
+            glossary_hints = await resolve_glossary_hints(db, connection_id, domain)
+            if glossary_hints:
+                logger.debug(
+                    "filter_extractor: glossary hints for domain='%s': %s",
+                    domain, glossary_hints,
+                )
+        except Exception:
+            logger.warning(
+                "filter_extractor: glossary hint resolution failed — continuing with regex only",
+                exc_info=True,
+            )
 
     # ── 1. Skill extraction ──────────────────────────────────────────────
     skill_match = _SKILL_KW_RE.search(question) or _SKILL_TECH_RE.search(question)

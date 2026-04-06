@@ -21,6 +21,18 @@ from app.llm.graph.state import GraphState
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Lazy import for semantic_resolver value_map normalization
+# ---------------------------------------------------------------------------
+try:
+    from app.llm.graph.nodes.semantic_resolver import (
+        get_cached_value_map,
+        normalize_values_batch,
+    )
+except ImportError:
+    get_cached_value_map = None  # type: ignore[assignment]
+    normalize_values_batch = None  # type: ignore[assignment]
+
 
 async def update_query_plan(state: GraphState) -> dict[str, Any]:
     """Create or update QueryPlan with accumulated filter state.
@@ -32,6 +44,7 @@ async def update_query_plan(state: GraphState) -> dict[str, Any]:
        - multi_value=True: append new values to existing field's values list
        - multi_value=False: replace existing field entry with new filter (last-wins)
        - New field not in existing plan: add it
+    4. (Plan 04) Normalize filter values through cached value_map before accumulation
     """
     domain: str | None = state.get("domain")
     intent: str | None = state.get("intent")
@@ -42,6 +55,22 @@ async def update_query_plan(state: GraphState) -> dict[str, Any]:
     if not domain or not intent:
         logger.debug("plan_updater: no domain/intent (LLM fallback path), returning None plan")
         return {"query_plan": None}
+
+    # ── Plan 04: Normalize filter values through cached value_map ─────────
+    if new_filters and get_cached_value_map is not None and normalize_values_batch is not None:
+        try:
+            value_map = get_cached_value_map()
+            if value_map:
+                new_filters = normalize_values_batch(new_filters, value_map)
+                logger.debug(
+                    "plan_updater: normalized %d filter(s) through value_map",
+                    len(new_filters),
+                )
+        except Exception:
+            logger.warning(
+                "plan_updater: value_map normalization failed — using raw filter values",
+                exc_info=True,
+            )
 
     # ── 2. Topic switch detection ─────────────────────────────────────────
     if existing_plan_dict:
