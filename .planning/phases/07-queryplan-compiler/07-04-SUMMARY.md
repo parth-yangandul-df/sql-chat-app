@@ -143,3 +143,11 @@ None — no external service configuration required.
 ---
 *Phase: 07-queryplan-compiler*
 *Completed: 2026-04-06*
+
+## Self-Check: PASSED
+
+- ✅ `backend/app/llm/graph/nodes/semantic_resolver.py` — FOUND
+- ✅ `backend/tests/test_semantic_wiring.py` — FOUND
+- ✅ `.planning/phases/07-queryplan-compiler/07-04-SUMMARY.md` — FOUND
+- ✅ Commits `06ee493`, `dd04aa3`, `e298470`, `dff9f1c`, `269a094` — all verified
+- ✅ 274 tests pass (243 original + 27 semantic wiring + 4 integration = 274)
