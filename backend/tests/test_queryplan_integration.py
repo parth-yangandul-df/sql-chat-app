@@ -461,3 +461,238 @@ async def test_llm_fallback_to_domain(monkeypatch):
     assert result_domain["error"] is None
     assert result_domain["sql"] is not None
     assert mock_connector.execute_query.called
+
+
+# ===========================================================================
+# Task 4.4: Semantic layer end-to-end integration tests
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# Test 6: Glossary hints pipeline
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_glossary_hints_pipeline(monkeypatch):
+    """Full pipeline with glossary hints: resolve field hints → filter extraction.
+
+    Mocks glossary terms so resolve_glossary_hints() returns ["skill"].
+    Verifies that filter_extractor correctly extracts skill filter from question.
+    """
+    monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
+
+    import app.config
+    importlib.reload(app.config)
+
+    from app.llm.graph.nodes.filter_extractor import extract_filters
+
+    mock_db = MagicMock()
+
+    # Mock glossary terms DB returning hints for "skill" field
+    with patch(
+        "app.llm.graph.nodes.filter_extractor.resolve_glossary_hints",
+        new=AsyncMock(return_value=["skill", "designation"]),
+    ):
+        state = {
+            "question": "resources with Python skill",
+            "domain": "resource",
+            "intent": "active_resources",
+            "last_turn_context": None,
+            "db": mock_db,
+            "connection_id": "conn-001",
+        }
+        result = await extract_filters(state)
+
+    filters = result["filters"]
+    skill_filters = [f for f in filters if f.field == "skill"]
+    # Glossary hints available + skill in question → skill filter should be extracted
+    assert len(skill_filters) >= 1
+    assert skill_filters[0].values[0].lower() == "python"
+
+
+# ---------------------------------------------------------------------------
+# Test 7: Value_map normalization pipeline
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_value_map_normalization_pipeline(monkeypatch):
+    """Full pipeline with value_map: 'backend' in question → 'Backend Developer' in SQL.
+
+    Mocks cached value_map so plan_updater normalizes designation filter value.
+    Verifies: compiled SQL param contains 'Backend Developer' not 'backend'.
+    """
+    monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
+
+    import app.config
+    importlib.reload(app.config)
+
+    from app.llm.graph.nodes.plan_updater import update_query_plan
+    from app.llm.graph.nodes.sql_compiler import compile_query
+    from app.llm.graph.query_plan import FilterClause, QueryPlan
+
+    # Mock the cached value_map to normalize designation
+    value_map = {"designation": {"backend": "Backend Developer"}}
+
+    with patch(
+        "app.llm.graph.nodes.plan_updater.get_cached_value_map",
+        return_value=value_map,
+    ):
+        state = {
+            "domain": "resource",
+            "intent": "active_resources",
+            "query_plan": None,
+            "filters": [
+                FilterClause(field="designation", op="eq", values=["backend"]),
+            ],
+            "params": {},
+        }
+        plan_result = await update_query_plan(state)
+
+    plan_dict = plan_result["query_plan"]
+    assert plan_dict is not None
+
+    # Reconstruct QueryPlan from dict and compile to SQL
+    plan = QueryPlan.from_untrusted_dict(plan_dict)
+    sql, params = compile_query(plan)
+
+    # SQL should contain 'Backend Developer' — the normalized value
+    assert "Backend Developer" in str(params), (
+        f"Expected 'Backend Developer' in params, got: {params}"
+    )
+    # Should NOT contain the raw user value
+    assert "%backend%" not in str(params).lower()
+
+
+# ---------------------------------------------------------------------------
+# Test 8: Metric injection pipeline
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_metric_injection_pipeline(monkeypatch):
+    """Full pipeline with metric injection: MetricFragment → SUM(Hours) with GROUP BY.
+
+    Builds a QueryPlan and compiles with a MetricFragment for total hours.
+    Verifies: compiled SQL contains SUM(Hours), GROUP BY.
+    """
+    monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
+
+    import app.config
+    importlib.reload(app.config)
+
+    from app.llm.graph.nodes.sql_compiler import compile_query, MetricFragment
+    from app.llm.graph.query_plan import QueryPlan
+
+    plan = QueryPlan(
+        domain="timesheet",
+        intent="approved_timesheets",
+        filters=[],
+        base_intent_sql="",
+        schema_version=1,
+    )
+
+    metric = MetricFragment(
+        select_expr="SUM(ts.Hours) AS total_hours",
+        join_clause="",
+        requires_group_by=True,
+    )
+
+    sql, params = compile_query(plan, metrics=[metric])
+
+    # Metric should be injected into the SELECT
+    assert "SUM(ts.Hours) AS total_hours" in sql, f"Expected SUM(ts.Hours) in SQL: {sql[:200]}"
+    # GROUP BY should be appended
+    assert "GROUP BY" in sql, f"Expected GROUP BY in SQL: {sql[:300]}"
+
+
+# ---------------------------------------------------------------------------
+# Test 9: Full semantic pipeline — glossary + value_map + metrics
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_full_semantic_pipeline(monkeypatch):
+    """Full pipeline combining glossary hints, value_map normalization, and metric injection.
+
+    Mocks all three semantic layer components:
+    1. Glossary hints resolve Python → skill field
+    2. value_map normalizes 'backend' → 'Backend Developer'
+    3. MetricFragment injects SUM(Hours) with GROUP BY
+
+    Verifies: all three work together in the end-to-end pipeline.
+    """
+    monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
+
+    import app.config
+    importlib.reload(app.config)
+
+    from app.llm.graph.nodes.filter_extractor import extract_filters
+    from app.llm.graph.nodes.plan_updater import update_query_plan
+    from app.llm.graph.nodes.sql_compiler import compile_query, MetricFragment
+    from app.llm.graph.query_plan import FilterClause, QueryPlan
+
+    mock_db = MagicMock()
+
+    # Step 1: Extract filters with glossary hints
+    with patch(
+        "app.llm.graph.nodes.filter_extractor.resolve_glossary_hints",
+        new=AsyncMock(return_value=["skill", "designation"]),
+    ):
+        extract_state = {
+            "question": "resources with Python skill",
+            "domain": "resource",
+            "intent": "active_resources",
+            "last_turn_context": None,
+            "db": mock_db,
+            "connection_id": "conn-001",
+        }
+        extract_result = await extract_filters(extract_state)
+
+    filters = extract_result["filters"]
+    skill_filters = [f for f in filters if f.field == "skill"]
+    assert len(skill_filters) >= 1
+
+    # Step 2: Plan updater normalizes via value_map (add designation filter to test normalization)
+    value_map = {
+        "designation": {"backend": "Backend Developer"},
+        "status": {"active": "Active"},
+    }
+    all_filters = filters + [FilterClause(field="designation", op="eq", values=["backend"])]
+
+    with patch(
+        "app.llm.graph.nodes.plan_updater.get_cached_value_map",
+        return_value=value_map,
+    ):
+        plan_state = {
+            "domain": "resource",
+            "intent": "active_resources",
+            "query_plan": None,
+            "filters": all_filters,
+            "params": {},
+        }
+        plan_result = await update_query_plan(plan_state)
+
+    plan_dict = plan_result["query_plan"]
+    assert plan_dict is not None
+
+    # Check designation was normalized
+    desig_filters = [f for f in plan_dict["filters"] if f["field"] == "designation"]
+    assert len(desig_filters) == 1
+    assert desig_filters[0]["values"] == ["Backend Developer"]
+
+    # Step 3: Compile SQL with MetricFragment
+    plan = QueryPlan.from_untrusted_dict(plan_dict)
+    metric = MetricFragment(
+        select_expr="SUM(Hours) AS total_hours",
+        join_clause="",
+        requires_group_by=True,
+    )
+
+    sql, params = compile_query(plan, metrics=[metric])
+
+    # All three effects should be present:
+    # 1. Skill filter → WHERE clause
+    assert "WHERE" in sql
+    # 2. Designation normalized to Backend Developer
+    assert "Backend Developer" in str(params)
+    # 3. Metric injection → SUM and GROUP BY
+    assert "SUM(Hours) AS total_hours" in sql
+    assert "GROUP BY" in sql
