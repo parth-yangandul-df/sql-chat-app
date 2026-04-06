@@ -56,4 +56,5 @@ class GraphState(TypedDict):
     error: str | None
 
     # ── QueryPlan Compiler (set by update_query_plan node) ─────────────
+    filters: list  # FilterClause objects extracted by filter_extractor node
     query_plan: dict | None  # QueryPlan serialized as dict (follows Phase 6 pattern)

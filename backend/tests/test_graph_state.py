@@ -13,6 +13,7 @@ def test_graph_state_keys():
         # Phase 6 context passing
         "last_turn_context",
         # Phase 7 QueryPlan compiler
+        "filters",
         "query_plan",
     }
     assert required == set(GraphState.__annotations__.keys())
