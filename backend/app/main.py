@@ -59,6 +59,18 @@ async def lifespan(app: FastAPI):
             exc_info=True,
         )
 
+    # Validate FieldRegistry completeness before traffic starts
+    # Uses StartupIntegrityError (not assert) so it survives Python -O optimization
+    from app.llm.graph.nodes.field_registry import validate_registry_completeness, StartupIntegrityError
+
+    logger.info("QueryWise startup: validating field registry completeness")
+    try:
+        validate_registry_completeness()
+        logger.info("QueryWise startup: field registry validated OK")
+    except StartupIntegrityError as e:
+        logger.error("QueryWise startup: field registry validation FAILED — %s", e)
+        raise
+
     if settings.auto_setup_sample_db:
         from app.services.setup_service import auto_setup_sample_db
 
