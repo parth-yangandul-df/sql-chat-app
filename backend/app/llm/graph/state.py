@@ -54,3 +54,6 @@ class GraphState(TypedDict):
 
     # ── Error propagation ────────────────────────────────────────────────
     error: str | None
+
+    # ── QueryPlan Compiler (set by update_query_plan node) ─────────────
+    query_plan: dict | None  # QueryPlan serialized as dict (follows Phase 6 pattern)

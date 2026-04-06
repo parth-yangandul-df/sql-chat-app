@@ -151,3 +151,33 @@ class TestQueryPlan:
             schema_version=1,
         )
         assert plan.base_intent_sql == ""
+
+
+class TestSettings:
+    """Settings feature flag tests."""
+
+    def test_use_query_plan_compiler_defaults_to_false(self):
+        """Settings.use_query_plan_compiler defaults to False."""
+        from app.config import settings
+
+        assert settings.use_query_plan_compiler is False
+
+    def test_use_query_plan_compiler_reads_env_var(self, monkeypatch):
+        """USE_QUERY_PLAN_COMPILER=true env var sets use_query_plan_compiler to True."""
+        from app.config import Settings
+
+        monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
+        new_settings = Settings()
+        assert new_settings.use_query_plan_compiler is True
+
+
+class TestGraphState:
+    """GraphState structural tests."""
+
+    def test_graph_state_accepts_query_plan_field(self):
+        """GraphState TypedDict includes query_plan: dict | None field."""
+        from app.llm.graph.state import GraphState
+        import typing
+
+        hints = typing.get_type_hints(GraphState)
+        assert "query_plan" in hints

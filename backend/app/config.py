@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     auto_setup_sample_db: bool = True
     sample_db_connection_string: str = "postgresql://sample:sample_dev@sample-db:5432/sampledb"
 
+    # QueryPlan compiler feature flag (Phase 7)
+    use_query_plan_compiler: bool = False  # MIGRATION FLAG: remove after phase validation
+
     # Logging
     log_level: str = "INFO"
     log_file_enabled: bool = True
