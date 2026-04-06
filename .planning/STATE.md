@@ -2,23 +2,23 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 07-02 complete
-status: unknown
-stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-04-06T07:41:21.546Z"
+current_plan: 07-04 complete
+status: phase_complete
+stopped_at: Phase 07 complete
+last_updated: "2026-04-06T00:00:00.000Z"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 19
-  completed_plans: 14
+  completed_plans: 19
 ---
 
 # QueryWise Project State
 
-**Current State:** Phase 07 in progress — 07-02 complete
+**Current State:** Phase 07 complete — QueryPlan Compiler 4/4 plans executed
 **Last Updated:** 2026-04-06
-**Phase Focus:** Phase 7 — QueryPlan Compiler 🔄 IN PROGRESS
-**Current Plan:** 07-02 complete
+**Phase Focus:** Phase 7 — QueryPlan Compiler ✅ COMPLETE
+**Current Plan:** 07-04 complete
 
 ## Project Architecture
 
@@ -64,6 +64,14 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 - [Phase 07-queryplan-compiler]: param_extractor.py kept at original path for test compatibility; archived to _deprecated/ for audit trail
 - [Phase 07-04]: semantic_resolver uses module-level value_map cache loaded at startup via load_value_map(); get_cached_value_map() returns synchronously for zero per-query DB hits
 - [Phase 07-04]: MetricFragment is a dataclass (not Pydantic) in sql_compiler.py; detect_metrics() returns [] stub — LLM-based detection deferred to future phase
+
+### Phase 07 Post-Execution Decisions (2026-04-06)
+- [QueryPlan]: QueryPlan + FilterClause Pydantic v2 models with SQL injection guards and schema_version=1
+- [FieldRegistry]: 22 canonical fields across 5 domains; `skill` is the only `multi_value=True` field — all others are last-wins
+- [Graph Rewiring]: `route_after_classify` returns "extract_params" key — remapped in `add_conditional_edges` to `extract_filters` node (no change needed in classifier)
+- [Feature Flag]: `USE_QUERY_PLAN_COMPILER=false` (default); flag=ON routes through `sql_compiler.py`, flag=OFF preserves `_try_refinement()` path
+- [Retirement]: `refinement_registry.py` kept with DEPRECATED header for rollback safety; `param_extractor.py` moved to `_deprecated/` with README
+- [Semantic Layer]: `semantic_resolver.py` has module-level `value_map` cache loaded at startup via `load_value_map()`; all DB calls degrade gracefully; `MetricFragment` is a dataclass (not Pydantic); `detect_metrics()` returns [] stub — LLM-based detection deferred
 
 ### Phase 06 Post-Execution Decisions (2026-04-02)
 - [Refinement Registry]: 61 declarative refinement templates across 5 domains (resource, client, project, timesheet, user_self) covering skill, name, date range, status, numeric, boolean, text filter types
@@ -149,7 +157,7 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 | 07-01 | QueryPlan + FilterClause models, GraphState field, query_service wiring | ✅ Complete (2026-04-06) |
 | 07-02 | FieldRegistry, filter_extractor, plan_updater, graph rewiring | ✅ Complete (2026-04-06) |
 | 07-03 | param_extractor retirement + SQL template migration | ✅ Complete (2026-04-06) |
-| 07-04 | LLM filter extraction fallback | 🔜 Next |
+| 07-04 | LLM filter extraction fallback | ✅ Complete (2026-04-06) |
 
 ## Accumulated Context
 
@@ -162,5 +170,5 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 - **Build standalone dedicated chatbot page for Angular redirect** (`ui`) — `2026-03-31-build-standalone-dedicated-chatbot-page-for-angular-redirect.md`
 
 ## Last Session
-- **Stopped at:** Completed 07-04-PLAN.md
+- **Stopped at:** Phase 07 complete
 - **Resume file:** None
