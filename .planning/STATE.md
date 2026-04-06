@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: unknown
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-04-06T06:38:14.984Z"
+current_plan: 07-02 complete
+status: in_progress
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-04-06"
 progress:
   total_phases: 5
   completed_phases: 2
@@ -15,10 +15,10 @@ progress:
 
 # QueryWise Project State
 
-**Current State:** Phase 06 complete, all 15 plans executed
-**Last Updated:** 2026-04-02
-**Phase Focus:** Phase 6 — Context-Aware Domain Tools ✅ COMPLETE
-**Current Plan:** Not started
+**Current State:** Phase 07 in progress — 07-02 complete
+**Last Updated:** 2026-04-06
+**Phase Focus:** Phase 7 — QueryPlan Compiler 🔄 IN PROGRESS
+**Current Plan:** 07-02 complete
 
 ## Project Architecture
 
@@ -32,7 +32,7 @@ QueryWise is a text-to-SQL application with semantic metadata layer. Users ask n
 - **Embeddings:** Ollama nomic-embed-text (768-dim)
 
 ### Current Request Flow
-User → FastAPI → LangGraph pipeline → classify_intent → extract_params → [domain tool | llm_fallback] → interpret_result → write_history → Response
+User → FastAPI → LangGraph pipeline → classify_intent → extract_filters → update_query_plan → [domain tool | llm_fallback] → interpret_result → write_history → Response
 
 ## Decisions Made
 
@@ -55,6 +55,10 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_params �
 - [Phase 06-04]: _run_refinement() default in BaseDomainAgent falls back to _run_intent() — ProjectAgent, ClientAgent, TimesheetAgent, UserSelfAgent require zero changes
 - [Phase 07-01]: QueryPlan stored as dict in GraphState (consistent with Phase 6 last_turn_context pattern)
 - [Phase 07-01]: query_service passes through QueryPlan without checking feature flag — flag is for upstream graph nodes to check
+- [Phase 07-02]: route_after_classify returns "extract_params" key — remapped in add_conditional_edges to "extract_filters" node (no change needed in classifier)
+- [Phase 07-02]: filters stored as list[FilterClause] in GraphState (not serialized to dict — only query_plan is dict)
+- [Phase 07-02]: skill is the only multi_value=True field — all others are last-wins
+- [Phase 07-02]: _SKILL_WORD_BEFORE_RE added beyond param_extractor patterns: catches "Python skill" phrasing
 
 ### Phase 06 Post-Execution Decisions (2026-04-02)
 - [Refinement Registry]: 61 declarative refinement templates across 5 domains (resource, client, project, timesheet, user_self) covering skill, name, date range, status, numeric, boolean, text filter types
@@ -133,6 +137,15 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_params �
 | 06-04 | Domain tool subquery refinement | ✅ Complete (2026-04-02) |
 | 06-05 | Frontend TurnContext tracking | ✅ Complete (2026-04-02) |
 
+## Phase 7 Progress
+
+| Plan | Description | Status |
+|------|-------------|--------|
+| 07-01 | QueryPlan + FilterClause models, GraphState field, query_service wiring | ✅ Complete (2026-04-06) |
+| 07-02 | FieldRegistry, filter_extractor, plan_updater, graph rewiring | ✅ Complete (2026-04-06) |
+| 07-03 | param_extractor retirement + SQL template migration | 🔜 Next |
+| 07-04 | LLM filter extraction fallback | 🔜 Planned |
+
 ## Accumulated Context
 
 ### Pending Todos (5)
@@ -144,5 +157,5 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_params �
 - **Build standalone dedicated chatbot page for Angular redirect** (`ui`) — `2026-03-31-build-standalone-dedicated-chatbot-page-for-angular-redirect.md`
 
 ## Last Session
-- **Stopped at:** Completed 07-01-PLAN.md
+- **Stopped at:** Completed 07-02-PLAN.md
 - **Resume file:** None
