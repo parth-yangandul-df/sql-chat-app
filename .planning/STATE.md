@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 07-03 complete
-status: in_progress
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-04-06T07:25:05.755Z"
+current_plan: 07-02 complete
+status: unknown
+stopped_at: Completed 07-04-PLAN.md
+last_updated: "2026-04-06T07:41:21.546Z"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 19
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # QueryWise Project State
@@ -62,6 +62,8 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 - [Phase 07-queryplan-compiler]: Lazy imports in execute() enable test isolation via importlib.reload()
 - [Phase 07-queryplan-compiler]: Text field IN filter uses OR chain of LIKE clauses (not IN) — text search requires wildcard matching
 - [Phase 07-queryplan-compiler]: param_extractor.py kept at original path for test compatibility; archived to _deprecated/ for audit trail
+- [Phase 07-04]: semantic_resolver uses module-level value_map cache loaded at startup via load_value_map(); get_cached_value_map() returns synchronously for zero per-query DB hits
+- [Phase 07-04]: MetricFragment is a dataclass (not Pydantic) in sql_compiler.py; detect_metrics() returns [] stub — LLM-based detection deferred to future phase
 
 ### Phase 06 Post-Execution Decisions (2026-04-02)
 - [Refinement Registry]: 61 declarative refinement templates across 5 domains (resource, client, project, timesheet, user_self) covering skill, name, date range, status, numeric, boolean, text filter types
@@ -160,5 +162,5 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 - **Build standalone dedicated chatbot page for Angular redirect** (`ui`) — `2026-03-31-build-standalone-dedicated-chatbot-page-for-angular-redirect.md`
 
 ## Last Session
-- **Stopped at:** Completed 07-03-PLAN.md
+- **Stopped at:** Completed 07-04-PLAN.md
 - **Resume file:** None
