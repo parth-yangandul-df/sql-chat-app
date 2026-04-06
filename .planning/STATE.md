@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 07-02 complete
+current_plan: 07-03 complete
 status: in_progress
-stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-04-06"
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-04-06T07:25:05.755Z"
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 19
-  completed_plans: 11
+  completed_plans: 13
 ---
 
 # QueryWise Project State
@@ -59,6 +59,9 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 - [Phase 07-02]: filters stored as list[FilterClause] in GraphState (not serialized to dict — only query_plan is dict)
 - [Phase 07-02]: skill is the only multi_value=True field — all others are last-wins
 - [Phase 07-02]: _SKILL_WORD_BEFORE_RE added beyond param_extractor patterns: catches "Python skill" phrasing
+- [Phase 07-queryplan-compiler]: Lazy imports in execute() enable test isolation via importlib.reload()
+- [Phase 07-queryplan-compiler]: Text field IN filter uses OR chain of LIKE clauses (not IN) — text search requires wildcard matching
+- [Phase 07-queryplan-compiler]: param_extractor.py kept at original path for test compatibility; archived to _deprecated/ for audit trail
 
 ### Phase 06 Post-Execution Decisions (2026-04-02)
 - [Refinement Registry]: 61 declarative refinement templates across 5 domains (resource, client, project, timesheet, user_self) covering skill, name, date range, status, numeric, boolean, text filter types
@@ -143,8 +146,8 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 |------|-------------|--------|
 | 07-01 | QueryPlan + FilterClause models, GraphState field, query_service wiring | ✅ Complete (2026-04-06) |
 | 07-02 | FieldRegistry, filter_extractor, plan_updater, graph rewiring | ✅ Complete (2026-04-06) |
-| 07-03 | param_extractor retirement + SQL template migration | 🔜 Next |
-| 07-04 | LLM filter extraction fallback | 🔜 Planned |
+| 07-03 | param_extractor retirement + SQL template migration | ✅ Complete (2026-04-06) |
+| 07-04 | LLM filter extraction fallback | 🔜 Next |
 
 ## Accumulated Context
 
@@ -157,5 +160,5 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 - **Build standalone dedicated chatbot page for Angular redirect** (`ui`) — `2026-03-31-build-standalone-dedicated-chatbot-page-for-angular-redirect.md`
 
 ## Last Session
-- **Stopped at:** Completed 07-02-PLAN.md
+- **Stopped at:** Completed 07-03-PLAN.md
 - **Resume file:** None
