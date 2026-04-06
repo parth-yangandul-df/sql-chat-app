@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: unknown
-stopped_at: Phase 07 context gathered
-last_updated: "2026-04-02T18:00:00Z"
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-04-06T06:38:14.984Z"
 progress:
-  total_phases: 6
-  completed_phases: 3
-  total_plans: 15
-  completed_plans: 15
+  total_phases: 5
+  completed_phases: 2
+  total_plans: 19
+  completed_plans: 11
 ---
 
 # QueryWise Project State
@@ -53,6 +53,8 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_params �
 - [Phase 06-03]: _refine_mode only set on same-intent follow-up — intent switch carries params forward but runs fresh classification (not refinement)
 - [Phase 06-04]: ORDER BY stripped with re.DOTALL flag — regex strips from first ORDER BY to end of string, correct for simple resource queries used as prior SQL
 - [Phase 06-04]: _run_refinement() default in BaseDomainAgent falls back to _run_intent() — ProjectAgent, ClientAgent, TimesheetAgent, UserSelfAgent require zero changes
+- [Phase 07-01]: QueryPlan stored as dict in GraphState (consistent with Phase 6 last_turn_context pattern)
+- [Phase 07-01]: query_service passes through QueryPlan without checking feature flag — flag is for upstream graph nodes to check
 
 ### Phase 06 Post-Execution Decisions (2026-04-02)
 - [Refinement Registry]: 61 declarative refinement templates across 5 domains (resource, client, project, timesheet, user_self) covering skill, name, date range, status, numeric, boolean, text filter types
@@ -142,5 +144,5 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_params �
 - **Build standalone dedicated chatbot page for Angular redirect** (`ui`) — `2026-03-31-build-standalone-dedicated-chatbot-page-for-angular-redirect.md`
 
 ## Last Session
-- **Stopped at:** Phase 07 context gathered
-- **Resume file:** .planning/phases/07-queryplan-compiler/07-CONTEXT.md
+- **Stopped at:** Completed 07-01-PLAN.md
+- **Resume file:** None
