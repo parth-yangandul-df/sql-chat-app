@@ -2,7 +2,7 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 08-01 complete
+current_plan: 08-06 complete
 status: phase_in_progress
 stopped_at: Phase 08 in progress
 last_updated: "2026-04-07T00:00:00.000Z"
@@ -168,11 +168,11 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 | Plan | Description | Status |
 |------|-------------|--------|
 | 08-01 | GraphState Extension + Follow-up Detection | ✅ Complete (2026-04-07) |
-| 08-02 | LLM Structured Extraction + Confidence Scoring | ⬜ Pending |
-| 08-03 | Deterministic Override + Conflict Resolution | ⬜ Pending |
-| 08-04 | 6-Level Fallback Ladder + Context Recovery | ⬜ Pending |
-| 08-05 | Query Caching + Observability | ⬜ Pending |
-| 08-06 | Semantic Integration + E2E Pipeline | ⬜ Pending |
+| 08-02 | LLM Structured Extraction + Confidence Scoring | ✅ Complete (2026-04-07) |
+| 08-03 | Deterministic Override + Conflict Resolution | ✅ Complete (2026-04-07) |
+| 08-04 | 6-Level Fallback Ladder + Context Recovery | ✅ Complete (2026-04-07) |
+| 08-05 | Query Caching + Observability | ✅ Complete (2026-04-07) |
+| 08-06 | Semantic Integration + E2E Pipeline | ✅ Complete (2026-04-07) |
 
 ## Accumulated Context
 
