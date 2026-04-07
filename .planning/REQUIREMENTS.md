@@ -132,6 +132,142 @@
 
 ---
 
+## Phase 8: Context-Aware Hybrid AI Query System
+
+### HYB-01: GraphState Extension for Hybrid Mode
+- Extend `GraphState` TypedDict with: session_id, last_query, last_query_embedding, current_query_embedding, semantic_similarity, follow_up_type, confidence_breakdown
+- Store as dict (following Phase 6/7 pattern), not raw Pydantic
+
+### HYB-02: Session and Embedding Storage
+- Store session_id across conversation turns
+- Store last_query_embedding for similarity comparison
+- Compute current_query_embedding at classify_intent
+
+### HYB-03: Follow-up Detection Node
+- Create `detect_followup_type()` function
+- Inputs: current_query_embedding, last_query_embedding, current_intent, last_intent
+- Returns: "refine" | "replace" | "new"
+- Semantic similarity > 0.7 = "refine"
+- Intent mismatch = "new"
+
+### HYB-04: Semantic Similarity Calculation
+- Use cosine similarity between embeddings
+- Store semantic_similarity in GraphState for observability
+
+### HYB-05: Follow-up Type Classification
+- "refine": semantic_similarity > 0.7 and same intent
+- "replace": same field detected in filters
+- "new": intent mismatch or low similarity
+
+### HYB-06: LLM Structured Extraction (Single Call)
+- Single LLM call per query (not per filter)
+- Strict JSON output: {filters, sort, limit, follow_up_type}
+- No explanation, no hallucinated fields
+- Uses Llama 3.3 70B (already configured as DEFAULT_LLM_MODEL)
+
+### HYB-07: JSON Extraction with Field Validation
+- Validate extracted fields against FieldRegistry
+- Drop unknown fields safely
+- Use semantic_resolver to map user terms to canonical names
+
+### HYB-08: Confidence Scoring
+- calculate_confidence(extracted, valid_fields, matches_schema) returns float
+- Formula: valid_json (+0.3) + valid_fields (+0.3) + matches_schema (+0.4)
+- Thresholds: >= 0.7 = accept, >= 0.4 = partial fallback, < 0.4 = full ladder
+
+### HYB-09: Confidence Decision Routing
+- >= 0.7: Use LLM extraction directly
+- >= 0.4: Partial fallback (use some filters, heuristic for others)
+- < 0.4: Trigger full fallback ladder
+
+### HYB-10: Deterministic Override Layer
+- Deterministic rules ALWAYS override LLM output
+- Intent mismatch: current_intent != last_intent → force follow_up_type = "new"
+- Created function: apply_overrides(extracted, state)
+
+### HYB-11: Override Observability
+- Log when overrides are applied for debugging
+- Mark overrides_applied flag in state
+
+### HYB-12: Conflict Resolution
+- resolve_conflicts(new_filters, existing_filters) returns merged filters
+- Same field → REPLACE (remove existing, add new)
+- Different field → ADD (append new)
+- Validate against FieldRegistry
+
+### HYB-13: Field Validation in Conflict Resolution
+- All fields must exist in semantic layer (FieldRegistry)
+- All fields must match intent schema (domain compatibility)
+
+### HYB-14: 6-Level Fallback Ladder
+- execute_fallback_ladder(question, state, current_filters, failure_reason)
+- Level 1: Retry LLM (stronger prompt)
+- Level 2: Heuristic extraction (KNOWN_* constants)
+- Level 3: Context recovery (infer from tokens)
+- Level 4: Partial execution (run with partial filters)
+- Level 5: Clarification (return ask_user prompt)
+- Level 6: Full LLM fallback (generate SQL)
+
+### HYB-15: Fallback Trigger Conditions
+- confidence < 0.4: Start at level 3
+- JSON parse failure: Start at level 2
+- Invalid fields: Start at level 2
+
+### HYB-16: Level 2 Heuristic Extraction
+- Reuse patterns from param_extractor.py
+- KNOWN_SKILLS, KNOWN_STATUS, KNOWN_DATES
+- Map to FilterClause with appropriate operators
+
+### HYB-17: Level 3 Context Recovery
+- recover_from_context(question, last_filters)
+- Tokenize question
+- Match against KNOWN_PATTERNS
+- Return inferred filters or empty list
+
+### HYB-18: Level 5 Clarification
+- Return structured clarification request when all levels fail
+- User-friendly prompt asking for missing information
+
+### HYB-19: Graceful Degradation
+- System never crashes
+- Always returns result or clarification request
+- Logs fallback progression for observability
+
+### HYB-20: Query Caching
+- Cache key = hash(intent + filters + sort)
+- get_cached_result(key) returns cached result or None
+- cache_result(key, result) stores with TTL
+- LRU eviction on max size (default 1000)
+
+### HYB-21: Cache Integration
+- Check cache after followup_detection, before llm_extraction
+- Cache hit → skip LLM extraction entirely
+
+### HYB-22: Observability Logging
+- log_query_context(query, intent, filters, follow_up_type, confidence, final_sql, fallback_used)
+- log_fallback_event(level, reason, extracted_filters)
+- All logs in structured JSON format
+
+### HYB-23: Semantic Integration Node
+- get_field_hints(domain): Returns available fields from glossary
+- normalize_filter_value(field, user_value): Maps user-friendly to DB values
+
+### HYB-24: Glossary Integration with Extraction
+- Use glossary hints to validate/map user terms
+- "dev" → ResourceName, "skill" → PA_Skills.Name
+
+### HYB-25: Dictionary Integration
+- Use value_map for filter value normalization
+- Load at startup (already done in Phase 7)
+
+### HYB-26: End-to-End Hybrid Pipeline
+- Full graph wiring: classify → followup_detection → llm_extraction → confidence_scoring → deterministic_override → conflict_resolution → plan_updater → run_domain_tool
+- Fallback ladder at appropriate points
+- Cache check before LLM extraction
+- Observability at pipeline end
+
+---
+
 ## Traceability
 
 | Requirement | Phase | Status |
@@ -156,3 +292,29 @@
 | QP-02 | Phase 7 | Planned |
 | QP-03 | Phase 7 | Planned |
 | QP-04 | Phase 7 | Planned |
+| HYB-01 | Phase 8 | Planned |
+| HYB-02 | Phase 8 | Planned |
+| HYB-03 | Phase 8 | Planned |
+| HYB-04 | Phase 8 | Planned |
+| HYB-05 | Phase 8 | Planned |
+| HYB-06 | Phase 8 | Planned |
+| HYB-07 | Phase 8 | Planned |
+| HYB-08 | Phase 8 | Planned |
+| HYB-09 | Phase 8 | Planned |
+| HYB-10 | Phase 8 | Planned |
+| HYB-11 | Phase 8 | Planned |
+| HYB-12 | Phase 8 | Planned |
+| HYB-13 | Phase 8 | Planned |
+| HYB-14 | Phase 8 | Planned |
+| HYB-15 | Phase 8 | Planned |
+| HYB-16 | Phase 8 | Planned |
+| HYB-17 | Phase 8 | Planned |
+| HYB-18 | Phase 8 | Planned |
+| HYB-19 | Phase 8 | Planned |
+| HYB-20 | Phase 8 | Planned |
+| HYB-21 | Phase 8 | Planned |
+| HYB-22 | Phase 8 | Planned |
+| HYB-23 | Phase 8 | Planned |
+| HYB-24 | Phase 8 | Planned |
+| HYB-25 | Phase 8 | Planned |
+| HYB-26 | Phase 8 | Planned |

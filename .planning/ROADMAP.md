@@ -86,6 +86,25 @@ Plans:
 
 ---
 
+### Phase 8: Context-Aware Hybrid AI Query System
+
+**Goal:** Upgrade QueryWise into a production-grade conversational query engine that maintains robust multi-turn context, uses deterministic logic wherever possible, uses LLM only where necessary (controlled + structured), minimizes cost and failure propagation, and compiles syntactically correct SQL via structured query plans (NOT raw LLM SQL).
+**Status:** Planned
+**Depends on:** Phase 7
+**Requirements**: HYB-01, HYB-02, HYB-03, HYB-04, HYB-05, HYB-06, HYB-07, HYB-08, HYB-09, HYB-10, HYB-11, HYB-12, HYB-13, HYB-14, HYB-15, HYB-16, HYB-17, HYB-18, HYB-19, HYB-20, HYB-21, HYB-22, HYB-23, HYB-24, HYB-25, HYB-26
+
+**Plans:** 6/6 planned
+
+Plans:
+- [ ] 08-01-PLAN.md — GraphState Extension + Follow-up Detection
+- [ ] 08-02-PLAN.md — LLM Structured Extraction + Confidence Scoring
+- [ ] 08-03-PLAN.md — Deterministic Override + Conflict Resolution
+- [ ] 08-04-PLAN.md — 6-Level Fallback Ladder + Context Recovery
+- [ ] 08-05-PLAN.md — Query Caching + Observability
+- [ ] 08-06-PLAN.md — Semantic Integration + E2E Pipeline
+
+---
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -94,3 +113,4 @@ Plans:
 | 5. LangGraph Domain Tool Pipeline | 5/5 | Complete | 2026-03-26 |
 | 6. Context-Aware Domain Tools | 5/5 | Complete | 2026-04-02 |
 | 7. QueryPlan Compiler | 4/4 | Complete | 2026-04-06 |
+| 8. Context-Aware Hybrid | 0/6 | Planned | — |
