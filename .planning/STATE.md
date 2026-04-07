@@ -2,23 +2,23 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 07-04 complete
-status: phase_complete
-stopped_at: Phase 07 complete
-last_updated: "2026-04-06T00:00:00.000Z"
+current_plan: 08-01 complete
+status: phase_in_progress
+stopped_at: Phase 08 in progress
+last_updated: "2026-04-07T00:00:00.000Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 4
-  total_plans: 19
-  completed_plans: 19
+  total_plans: 25
+  completed_plans: 20
 ---
 
 # QueryWise Project State
 
-**Current State:** Phase 07 complete — QueryPlan Compiler 4/4 plans executed
-**Last Updated:** 2026-04-06
-**Phase Focus:** Phase 7 — QueryPlan Compiler ✅ COMPLETE
-**Current Plan:** 07-04 complete
+**Current State:** Phase 08 in progress — Context-Aware Hybrid AI Query System
+**Last Updated:** 2026-04-07
+**Phase Focus:** Phase 8 — Context-Aware Hybrid AI Query System
+**Current Plan:** 08-01 complete
 
 ## Project Architecture
 
@@ -72,6 +72,10 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 - [Feature Flag]: `USE_QUERY_PLAN_COMPILER=false` (default); flag=ON routes through `sql_compiler.py`, flag=OFF preserves `_try_refinement()` path
 - [Retirement]: `refinement_registry.py` kept with DEPRECATED header for rollback safety; `param_extractor.py` moved to `_deprecated/` with README
 - [Semantic Layer]: `semantic_resolver.py` has module-level `value_map` cache loaded at startup via `load_value_map()`; all DB calls degrade gracefully; `MetricFragment` is a dataclass (not Pydantic); `detect_metrics()` returns [] stub — LLM-based detection deferred
+
+### Phase 08 Decisions (2026-04-07)
+- [GraphState Extension]: Added hybrid mode fields (last_query, embeddings, follow_up_type, confidence_breakdown) — follows Phase 7 pattern of storing as dict
+- [Follow-up Detection]: Implemented cosine similarity + intent mismatch + same-field detection; threshold 0.7 for "refine" classification
 
 ### Phase 06 Post-Execution Decisions (2026-04-02)
 - [Refinement Registry]: 61 declarative refinement templates across 5 domains (resource, client, project, timesheet, user_self) covering skill, name, date range, status, numeric, boolean, text filter types
@@ -158,6 +162,17 @@ User → FastAPI → LangGraph pipeline → classify_intent → extract_filters 
 | 07-02 | FieldRegistry, filter_extractor, plan_updater, graph rewiring | ✅ Complete (2026-04-06) |
 | 07-03 | param_extractor retirement + SQL template migration | ✅ Complete (2026-04-06) |
 | 07-04 | LLM filter extraction fallback | ✅ Complete (2026-04-06) |
+
+## Phase 8 Progress
+
+| Plan | Description | Status |
+|------|-------------|--------|
+| 08-01 | GraphState Extension + Follow-up Detection | ✅ Complete (2026-04-07) |
+| 08-02 | LLM Structured Extraction + Confidence Scoring | ⬜ Pending |
+| 08-03 | Deterministic Override + Conflict Resolution | ⬜ Pending |
+| 08-04 | 6-Level Fallback Ladder + Context Recovery | ⬜ Pending |
+| 08-05 | Query Caching + Observability | ⬜ Pending |
+| 08-06 | Semantic Integration + E2E Pipeline | ⬜ Pending |
 
 ## Accumulated Context
 
