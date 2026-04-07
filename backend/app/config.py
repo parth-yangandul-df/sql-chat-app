@@ -78,10 +78,6 @@ class Settings(BaseSettings):
     max_sample_queries: int = 3
     embedding_dimension: int = 1536
 
-    # Auto-setup sample database on startup
-    auto_setup_sample_db: bool = True
-    sample_db_connection_string: str = "postgresql://sample:sample_dev@sample-db:5432/sampledb"
-
     # QueryPlan compiler feature flag (Phase 7)
     use_query_plan_compiler: bool = False  # MIGRATION FLAG: remove after phase validation
 

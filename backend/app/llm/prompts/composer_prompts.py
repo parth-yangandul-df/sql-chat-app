@@ -36,8 +36,6 @@ Dialect-specific rules (apply based on the SQL dialect in CONSTRAINTS):
 - postgresql: Use LIMIT N to restrict rows. Quote identifiers with double-quotes if needed.
 - sqlserver:  Use SELECT TOP N instead of LIMIT. Quote identifiers with [square brackets]. Do NOT use LIMIT. Do NOT use RETURNING. Use GETDATE() instead of NOW(). Use LEN() instead of LENGTH(). Use ISNULL() instead of COALESCE where appropriate.
 - mysql:      Use LIMIT N. Use backtick quoting. Use IFNULL() instead of COALESCE where needed.
-- bigquery:   Use LIMIT N. Use backtick quoting for identifiers. Use STRUCT and ARRAY syntax when appropriate.
-- databricks: Use LIMIT N. Use backtick quoting. Spark SQL syntax applies.
 - snowflake:  Use LIMIT N. Use double-quote quoting. Use ILIKE for case-insensitive matching.
 
 Output format:

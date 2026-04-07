@@ -71,12 +71,6 @@ async def lifespan(app: FastAPI):
         logger.error("QueryWise startup: field registry validation FAILED — %s", e)
         raise
 
-    if settings.auto_setup_sample_db:
-        from app.services.setup_service import auto_setup_sample_db
-
-        logger.info("QueryWise startup: running auto-setup for sample DB")
-        await auto_setup_sample_db()
-
     logger.info("QueryWise startup complete")
     yield
     # Shutdown

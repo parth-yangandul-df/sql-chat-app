@@ -1,750 +1,484 @@
-# QueryWise V2 — Full Implementation Prompt (Production-Grade)
+# 🚀 QueryWise v2 — Context-Aware Hybrid AI Query System (Implementation Prompt)
+
+## 🎯 Objective
+
+Upgrade the existing QueryWise system into a **production-grade conversational query engine** that:
+
+* Maintains **robust multi-turn context**
+* Uses **deterministic logic wherever possible**
+* Uses **LLM only where necessary (controlled + structured)**
+* Minimizes **cost and failure propagation**
+* Handles **follow-ups, refinements, and new queries intelligently**
+* Compiles **syntactically correct SQL via structured query plans (NOT raw LLM SQL)**
 
 ---
 
-# 1. Objective
+# 🧠 Core Design Principles
 
-Implement a **context-aware conversational query system** that:
-
-* Supports **multi-turn refinement**
-* Uses **deterministic SQL compilation (primary path)**
-* Uses **LLM fallback only when required**
-* Produces **valid, optimized SQL always**
-* Scales across domains without exponential complexity
+1. **LLM = Parser, NOT decision maker**
+2. **System state = source of truth**
+3. **Deterministic layers override LLM outputs**
+4. **Graceful degradation > hard failure**
+5. **Structured query plan → SQL compilation**
+6. **Context = structured state, NOT raw chat**
 
 ---
 
-# 2. System Architecture
+# ⚙️ System Architecture Overview
 
-## 2.1 Execution Flow
-
-### Primary Path (Deterministic)
-
-```id="flow1"
+```
 User Query
-→ Intent Classification
-→ Structured Filter Extraction (LLM-assisted + rules)
-→ QueryPlan Update
-→ Conflict Resolution
-→ Validation
-→ SQL Compilation
-→ Execution
+   ↓
+[Preprocessing]
+   ↓
+[Intent Classification (Embeddings)]
+   ↓
+[Follow-up Detection (Deterministic + Embedding)]
+   ↓
+[LLM Structured Extraction (Single Call)]
+   ↓
+[Validation + Override Layer]
+   ↓
+[Query Plan Builder]
+   ↓
+[SQL Compiler]
+   ↓
+[Execution]
 ```
 
 ---
 
-### Fallback Path (LLM)
+# 🔷 1. State Management (`GraphState`)
 
-```id="flow2"
-User Query
-→ No intent OR low confidence
-→ Context enrichment
-→ LLM SQL generation
-→ SQL validation
-→ Execution
-```
-
----
-
-# 3. Core Design Principle
-
-> SQL is **compiled from state**, never mutated or wrapped.
-
----
-
-# 4. State Model
-
-## 4.1 QueryPlan
+### MUST include:
 
 ```python
-class QueryPlan:
-    domain: str
-    intent: str
-    filters: list[Filter]
-    sort: list[Sort]
-    limit: int | None
-```
-
----
-
-## 4.2 Filter Object
-
-```python
-class Filter:
-    field: str
-    op: str          # =, LIKE, >=, <=, BETWEEN, IN
-    value: Any       # str | int | list | tuple
-```
-
----
-
-## 4.3 Sort Object
-
-```python
-class Sort:
-    field: str
-    direction: str   # "asc" | "desc"
-```
-
----
-
-# 5. Metadata Layer (MANDATORY)
-
----
-
-## 5.1 Base Query Registry
-
-```python
-BASE_QUERIES = {
-    "active_resources": {
-        "select": [...],
-        "from": "...",
-        "joins": {...},
-        "base_filters": [...],
-        "default_sort": [...]
-    }
+GraphState = {
+    "session_id": str,
+    "last_query": str,
+    "last_query_embedding": list[float],
+    "last_intent": str,
+    "last_filters": list[dict],
+    "last_query_plan": dict,
+    "last_base_sql": str,
 }
 ```
 
 ---
 
-## 5.2 Field Registry
+# 🔷 2. Intent Classification (Embedding-Based)
+
+### Model:
+
+* `nomic-embed-text` (local via Ollama)
+
+### Steps:
+
+1. Precompute embeddings for:
+
+   * intent descriptions
+2. Compute cosine similarity with query
+3. Select best match
 
 ```python
-FIELD_REGISTRY = {
-    "skill": {
-        "column": "s.Name",
-        "type": "string",
-        "joins": ["resource_skills", "skills"]
-    }
-}
+if similarity < 0.6:
+    intent = "unknown"
 ```
 
 ---
 
-## 5.3 Join Registry
+# 🔷 3. Follow-up Detection (CRITICAL)
+
+### Inputs:
+
+* current query embedding
+* previous query embedding
+* previous intent
+
+---
+
+### Logic:
 
 ```python
-JOIN_REGISTRY = {
-    "skills": "JOIN PA_Skills s ON ..."
-}
+if intent != last_intent:
+    follow_up_type = "new"
+
+elif same_field_detected:
+    follow_up_type = "replace"
+
+elif semantic_similarity > 0.7:
+    follow_up_type = "refine"
+
+else:
+    follow_up_type = "new"
 ```
 
 ---
 
-## 5.4 Operator Rules
+### Definitions:
 
-```python
-ALLOWED_OPERATORS = {"=", "LIKE", ">=", "<=", "BETWEEN", "IN"}
-```
-
----
-
-# 6. Structured Filter Extraction (LLM-Assisted)
+| Type    | Meaning                  |
+| ------- | ------------------------ |
+| refine  | add new filters          |
+| replace | replace existing filters |
+| new     | discard previous context |
 
 ---
 
-## 6.1 Objective
+# 🔷 4. LLM Extraction (Single Call Only)
 
-Convert natural language into structured filters **strictly aligned with schema**.
+### Model:
 
----
-
-## 6.2 Input
-
-```python
-{
-    "question": str,
-    "available_fields": list[str],
-    "conversation_history": list[dict]
-}
-```
+* Llama 3.3 70B Versatile
 
 ---
 
-## 6.3 Output (STRICT)
+### Prompt Requirements:
+
+* STRICT JSON output
+* NO explanation
+* NO hallucinated fields
+
+---
+
+### Output Schema:
 
 ```json
-[
-  {"field": "skill", "op": "LIKE", "value": "python"}
-]
+{
+  "filters": [
+    {
+      "field": "skill",
+      "operator": "contains",
+      "value": "python"
+    }
+  ],
+  "sort": [
+    {"field": "experience", "order": "desc"}
+  ],
+  "limit": 50,
+  "follow_up_type": "refine"
+}
 ```
 
 ---
 
-## 6.4 LLM Prompt Requirements
+# 🔷 5. Deterministic Override Layer
 
-The LLM MUST:
-
-* Only use fields from `available_fields`
-* Only use allowed operators
-* Normalize values (case-insensitive)
-* Avoid hallucinating fields
+### NEVER trust LLM blindly
 
 ---
 
-## 6.5 Post-Processing (MANDATORY)
+### Rules:
+
+#### 1. Intent mismatch override
 
 ```python
-def normalize_filters(filters):
-    for f in filters:
-        f["field"] = f["field"].lower().strip()
-        if isinstance(f["value"], str):
-            f["value"] = f["value"].lower().strip()
-    return filters
+if current_intent != last_intent:
+    follow_up_type = "new"
 ```
 
 ---
 
-## 6.6 Validation
-
-Reject filter if:
-
-* field not in FIELD_REGISTRY
-* operator not allowed
-
----
-
-## 6.7 Fallback
+#### 2. Same field → REPLACE
 
 ```python
-try:
-    filters = llm_extract(...)
-    validate(filters)
-except:
-    filters = regex_extract(...)
+if new_filter.field == existing_filter.field:
+    remove(existing_filter)
 ```
 
 ---
 
-# 7. QueryPlan Update Logic
-
----
-
-## 7.1 Rules
-
-| Case              | Action          |
-| ----------------- | --------------- |
-| No previous state | Create new plan |
-| Same intent       | Merge filters   |
-| Different intent  | Reset plan      |
-
----
-
-## 7.2 Implementation
+#### 3. Different field → ADD
 
 ```python
-def update_plan(existing, intent, filters):
-    if not existing or existing.intent != intent:
-        plan = QueryPlan()
-        plan.intent = intent
-        plan.filters = filters
-        return plan
-
-    existing.filters.extend(filters)
-    return existing
+filters.append(new_filter)
 ```
 
 ---
 
-# 8. Conflict Resolution Layer
+#### 4. Field validation
+
+* Must exist in semantic layer
+* Must match intent schema
 
 ---
 
-## 8.1 Problem
+# 🔷 6. Query Plan Builder
 
-Multiple values for same field:
+### Build structured plan:
 
-* "Python and Java developers"
-* "Mumbai and Pune"
-
----
-
-## 8.2 Rules
-
-| Field Type | Strategy    |
-| ---------- | ----------- |
-| string     | OR          |
-| numeric    | range / AND |
-| date       | BETWEEN     |
-| boolean    | last wins   |
+```json
+{
+  "intent": "active_resources",
+  "filters": [...],
+  "sort": [...],
+  "limit": 50
+}
+```
 
 ---
 
-## 8.3 Implementation
+### Merge logic:
 
 ```python
-def resolve_conflicts(filters):
-    grouped = {}
+if follow_up_type == "new":
+    plan = new_plan
 
-    for f in filters:
-        grouped.setdefault(f["field"], []).append(f["value"])
+elif follow_up_type == "refine":
+    plan.filters += new_filters
 
-    resolved = []
-
-    for field, values in grouped.items():
-        if len(values) == 1:
-            resolved.append({
-                "field": field,
-                "op": "LIKE",
-                "value": values[0]
-            })
-        else:
-            resolved.append({
-                "field": field,
-                "op": "IN",
-                "value": list(set(values))
-            })
-
-    return resolved
+elif follow_up_type == "replace":
+    plan.filters = replace_same_fields(plan.filters, new_filters)
 ```
 
 ---
 
-# 9. Sorting & Ranking Layer
+# 🔷 7. SQL Compilation (CRITICAL)
+
+### DO NOT use LLM for SQL
 
 ---
 
-## 9.1 QueryPlan Extension
+### Use:
+
+* base query registry
+* join registry
+* filter mapping
+
+---
+
+### Example:
 
 ```python
-plan.sort = [
-    {"field": "name", "direction": "asc"}
-]
+SELECT r.*
+FROM Resource r
+JOIN PA_ResourceSkills rs ON ...
+WHERE r.IsActive = 1
+AND s.Name LIKE '%Python%'
 ```
 
 ---
 
-## 9.2 Natural Language Mapping
+### MUST ensure:
 
-| Query Phrase | Mapping   |
-| ------------ | --------- |
-| "top"        | DESC      |
-| "latest"     | date DESC |
-| "lowest"     | ASC       |
-
----
-
-## 9.3 Default Sorting
-
-Defined in BASE_QUERIES
+* valid joins
+* correct aliases
+* no duplicate joins
+* proper WHERE clause chaining
 
 ---
 
-## 9.4 SQL Integration
+# 🔷 8. Filter Extraction Fallback Ladder
+
+### MUST implement multi-level fallback:
+
+---
+
+## 🥇 Level 1: Retry LLM
+
+* stronger prompt
+* stricter formatting
+
+---
+
+## 🥈 Level 2: Heuristic Extraction
+
+```python
+KNOWN_SKILLS = ["python", "java", ".net"]
+
+if token in KNOWN_SKILLS:
+    extract skill filter
+```
+
+---
+
+## 🥉 Level 3: Context Recovery
+
+```python
+if no_filters and last_filters:
+    infer from query tokens
+```
+
+---
+
+## 🧠 Level 4: Partial Execution
+
+```python
+if partial filters:
+    run partial query
+```
+
+---
+
+## 🧨 Level 5: Clarification
+
+Ask user instead of failing
+
+---
+
+## 💣 Level 6: Full LLM Fallback
+
+ONLY when:
+
+* intent unknown
+* extraction completely failed
+
+---
+
+# 🔷 9. Confidence Scoring
+
+### Compute:
+
+```python
+confidence = 0
+
+if valid_json: +0.3
+if valid_fields: +0.3
+if matches_schema: +0.4
+```
+
+---
+
+### Decision:
+
+```python
+if confidence >= 0.7:
+    accept
+elif >= 0.4:
+    partial fallback
+else:
+    fallback ladder
+```
+
+---
+
+# 🔷 10. Conflict Resolution (CRITICAL)
+
+### Example:
+
+```
+Python → .NET
+```
+
+---
+
+### Rule:
+
+```python
+if same_field:
+    REPLACE
+
+if different_field:
+    ADD
+```
+
+---
+
+# 🔷 11. Sorting & Ranking Layer
+
+### Extract:
+
+* order by
+* top N
+
+---
+
+### Apply:
 
 ```sql
-ORDER BY column ASC|DESC
+ORDER BY Experience DESC
+LIMIT 10
 ```
 
 ---
 
-# 10. SQL Compiler
+# 🔷 12. Semantic Layer Integration
+
+### MUST use:
+
+* glossary
+* metrics
+* dictionary
 
 ---
 
-## 10.1 Responsibilities
+### Map:
 
-* Construct SELECT, FROM, JOIN, WHERE
-* Resolve joins
-* Apply filters
-* Handle IN, BETWEEN, LIKE
-* Deduplicate joins
+| User Term | DB Column      |
+| --------- | -------------- |
+| "dev"     | ResourceName   |
+| "skill"   | PA_Skills.Name |
 
 ---
 
-## 10.2 Implementation (Key Logic)
+### LLM must output canonical field names
+
+---
+
+# 🔷 13. Query Caching
+
+### Cache:
 
 ```python
-def compile_query(plan):
-    base = BASE_QUERIES[plan.intent]
-
-    joins = dict(base["joins"])
-    where = []
-    params = []
-
-    # base filters
-    for col, op, val in base["base_filters"]:
-        where.append(f"{col} {op} ?")
-        params.append(val)
-
-    for f in plan.filters:
-        config = FIELD_REGISTRY[f["field"]]
-
-        for j in config["joins"]:
-            joins[j] = JOIN_REGISTRY[j]
-
-        col = config["column"]
-
-        if f["op"] == "IN":
-            placeholders = ",".join(["?"] * len(f["value"]))
-            where.append(f"{col} IN ({placeholders})")
-            params.extend(f["value"])
-
-        elif f["op"] == "LIKE":
-            where.append(f"{col} LIKE ?")
-            params.append(f"%{f['value']}%")
-
-        elif f["op"] == "BETWEEN":
-            where.append(f"{col} BETWEEN ? AND ?")
-            params.extend(f["value"])
-
-        else:
-            where.append(f"{col} {f['op']} ?")
-            params.append(f["value"])
-
-    query = f"SELECT {', '.join(base['select'])} FROM {base['from']}"
-
-    if joins:
-        query += " " + " ".join(joins.values())
-
-    if where:
-        query += " WHERE " + " AND ".join(where)
-
-    return query, tuple(params)
+key = hash(intent + filters + sort)
 ```
 
 ---
 
-# 11. Validation Layer
+### Reuse:
+
+* identical queries
+* repeated follow-ups
 
 ---
 
-## Must Validate
+# 🔷 14. Observability
 
-* Intent exists
-* Fields valid
-* Operators valid
-* No empty filters
-* No SQL injection vectors
+### Log EVERYTHING:
 
----
-
-# 12. LLM Fallback
-
----
-
-## 12.1 Trigger Conditions
-
-* No intent match
-* Low confidence
-* Unsupported query type
-
----
-
-## 12.2 Flow
-
-```python
-resolved_question = enrich_with_history(question)
-
-context = retrieve_schema_context()
-
-sql = llm_generate(resolved_question, context)
-
-validate(sql)
-
-execute(sql)
-```
-
----
-
-## 12.3 Constraints
-
-* Enforce RBAC
-* Restrict tables
-* Validate SQL before execution
-
----
-
-# 13. Context Handling
-
----
-
-## Deterministic Path
-
-* Uses QueryPlan only
-
-## LLM Path
-
-* Uses conversation history
-
----
-
-# 14. Performance Rules
-
-* No nested queries
-* Prefer joins
-* Limit result size
-* Use indexed columns
-
----
-
-# 15. Migration Plan
-
-1. Move SQL → BASE_QUERIES
-2. Replace refinement → FIELD_REGISTRY
-3. Add QueryPlan
-4. Implement compiler
-5. Integrate LLM extraction
-6. Keep fallback intact
-
----
-
-# 16. Success Criteria
-
-* Follow-ups refine correctly
-* SQL always valid
-* No nested queries
-* Handles multi-value filters
-* Sorting works
-* LLM fallback works safely
-
----
-
-# Final Principle
-
-> This is a **query planner system**, not a chatbot
-
----
-
-# 17. Semantic Layer Integration
-
----
-
-## 17.1 Objective
-
-Bridge **natural language → business concepts → database schema**
-
----
-
-## 17.2 Components
-
-### 1. Glossary
-
-Maps user language → canonical concepts
-
-```python
-GLOSSARY = {
-    "developer": ["resource", "engineer"],
-    "backend": ["python", "java"],
-    "frontend": ["react", "angular"]
+```json
+{
+  "query": "...",
+  "intent": "...",
+  "filters": [...],
+  "follow_up_type": "...",
+  "confidence": 0.82,
+  "final_sql": "...",
+  "fallback_used": "heuristic"
 }
 ```
 
 ---
 
-### 2. Metrics
+# 🚨 Critical Requirements
 
-Defines computed fields
+### MUST:
 
-```python
-METRICS = {
-    "utilization": {
-        "formula": "SUM(ts.Hours) / 160",
-        "type": "numeric"
-    }
-}
-```
+* Never trust LLM output blindly
+* Never generate SQL via LLM (except fallback)
+* Always validate filters
+* Always maintain base query integrity
+* Always preserve context correctly
 
 ---
 
-### 3. Dictionary (Field Mapping)
+# 🔥 Final Goal
 
-```python
-DICTIONARY = {
-    "resource_name": {
-        "aliases": ["name", "employee", "resource"],
-        "column": "r.ResourceName"
-    },
-    "skill": {
-        "aliases": ["tech", "technology", "stack"],
-        "column": "s.Name"
-    }
-}
-```
+Transform system from:
+
+❌ rigid + fragile
+❌ regex dependent
+❌ high LLM cost
 
 ---
 
-## 17.3 Semantic Resolution Pipeline
+Into:
 
-```python
-def resolve_semantics(question):
-    tokens = tokenize(question)
-
-    resolved = []
-
-    for token in tokens:
-        # Step 1: glossary expansion
-        expanded = GLOSSARY.get(token, [token])
-
-        for term in expanded:
-            # Step 2: dictionary mapping
-            for field, config in DICTIONARY.items():
-                if term in config["aliases"]:
-                    resolved.append(field)
-
-    return resolved
-```
+✅ adaptive + context-aware
+✅ deterministic + controllable
+✅ cost-efficient
+✅ production-ready
 
 ---
 
-## 17.4 Integration with Filter Extraction
-
-```python
-fields = resolve_semantics(question)
-
-filters = llm_extract(question, fields)
-```
-
----
-
-## 17.5 Metric Handling
-
-If query contains metric:
-
-```python
-if "utilization" in question:
-    plan.metrics.append("utilization")
-```
-
-Compiler must inject:
-
-```sql
-SUM(ts.Hours) / 160 AS utilization
-```
-
----
-
-## 17.6 Key Rule
-
-> Semantic layer modifies **meaning**, not SQL directly
-
----
-
-# 18. Query Caching & Result Reuse
-
----
-
-## 18.1 Objective
-
-Avoid re-running expensive queries across conversational turns
-
----
-
-## 18.2 Cache Types
-
-### 1. Plan Cache
-
-```python
-cache_key = hash(QueryPlan)
-
-PLAN_CACHE[cache_key] = sql
-```
-
----
-
-### 2. Result Cache
-
-```python
-RESULT_CACHE[cache_key] = result_dataframe
-```
-
----
-
-## 18.3 Cache Key Design
-
-```python
-def build_cache_key(plan):
-    return hash((
-        plan.intent,
-        tuple(sorted([(f["field"], str(f["value"])) for f in plan.filters]))
-    ))
-```
-
----
-
-## 18.4 Reuse Strategy
-
-### Case 1: Exact Match
-
-```python
-if cache_key in RESULT_CACHE:
-    return RESULT_CACHE[cache_key]
-```
-
----
-
-### Case 2: Refinement (IMPORTANT)
-
-If new plan = old plan + extra filters:
-
-```python
-if previous_result_exists:
-    filtered = apply_in_memory_filter(previous_result, new_filters)
-    return filtered
-```
-
----
-
-## 18.5 In-Memory Filtering
-
-```python
-def apply_in_memory_filter(df, filters):
-    for f in filters:
-        if f["op"] == "LIKE":
-            df = df[df[f["field"]].str.contains(f["value"], case=False)]
-    return df
-```
-
----
-
-## 18.6 When NOT to Cache
-
-* Large datasets (> threshold)
-* Queries with volatile data
-* LLM fallback queries
-
----
-
-## 18.7 Cache Invalidation
-
-* TTL (e.g., 5 minutes)
-* Data update trigger
-* Manual clear
-
----
-
-# 19. Combined Flow with Enhancements
-
-```id="flow3"
-User Query
-→ Semantic Resolution
-→ Filter Extraction
-→ QueryPlan Update
-→ Conflict Resolution
-→ Cache Check
-   → hit → return
-   → miss → compile SQL
-→ Execute
-→ Store in cache
-```
-
----
-
-# 20. Performance Impact
-
-| Feature        | Impact            |
-| -------------- | ----------------- |
-| Semantic Layer | + usability       |
-| QueryPlan      | + correctness     |
-| Caching        | + speed (10–100x) |
-
----
-
-# Final Principle
-
-> Semantic layer understands the user
-> QueryPlan understands the query
-> Compiler understands the database
-
----
+# 🚀 End of Prompt
