@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends
@@ -15,6 +16,8 @@ from app.db.models.glossary import GlossaryTerm
 from app.db.models.user import User
 from app.db.session import get_db
 from app.services.embedding_service import embed_glossary_term
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["glossary"])
 
@@ -61,7 +64,7 @@ async def create_glossary_term(
     try:
         term.term_embedding = await embed_glossary_term(term)
     except Exception:
-        pass
+        logger.warning("Failed to embed glossary term %s", term.id, exc_info=True)
     return term
 
 
@@ -103,7 +106,7 @@ async def update_glossary_term(
     try:
         term.term_embedding = await embed_glossary_term(term)
     except Exception:
-        pass
+        logger.warning("Failed to embed glossary term %s", term_id, exc_info=True)
     return term
 
 

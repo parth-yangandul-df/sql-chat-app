@@ -18,6 +18,7 @@ from app.llm.agents.result_interpreter import ResultInterpreterAgent
 from app.llm.agents.sql_validator import SQLValidatorAgent, ValidationStatus
 from app.llm.graph.graph import get_compiled_graph
 from app.llm.graph.nodes.intent_classifier import _is_topic_switch
+from app.llm.graph.query_plan import QueryPlan
 from app.llm.graph.state import GraphState
 from app.llm.router import route
 from app.semantic.context_builder import build_context
@@ -89,6 +90,9 @@ async def execute_nl_query(
         "execution_time_ms": None,
         # Error propagation
         "error": None,
+        # QueryPlan compiler
+        "filters": [],
+        "query_plan": None,
     }
 
     final_state = await get_compiled_graph().ainvoke(initial_state)
@@ -126,12 +130,29 @@ async def execute_nl_query(
     if topic_switch_detected:
         turn_context = None
     elif final_state.get("intent") and final_state.get("domain"):
+        final_params = final_state.get("params") or {}
+        # Always store the base (original) SQL, not the refinement-wrapped SQL.
+        # When _prior_sql is present, final_state["sql"] holds the refinement
+        # wrapper (e.g. "SELECT prev.* FROM (base) AS prev JOIN ... WHERE ... LIKE ?")
+        # which accumulates parameter markers on chained refinements.
+        # Storing the base SQL ensures subsequent refinements always start clean.
+        query_plan_dict = final_state.get("query_plan")
+        if query_plan_dict:
+            try:
+                plan = QueryPlan.from_untrusted_dict(query_plan_dict)
+                base_sql = plan.base_intent_sql
+            except Exception:
+                base_sql = final_params.get("_prior_sql") or final_state.get("sql") or ""
+        else:
+            base_sql = final_params.get("_prior_sql") or final_state.get("sql") or ""
         turn_context = {
             "intent": final_state.get("intent"),
             "domain": final_state.get("domain"),
-            "params": final_state.get("params") or {},
+            "params": final_params,
             "columns": final_state["result"].columns if final_state.get("result") else [],
-            "sql": final_state.get("sql") or "",
+            "sql": base_sql,
+            "query_plan": final_state.get("query_plan"),
+            "question": question,  # Store for semantic follow-up detection
         }
     else:
         turn_context = None

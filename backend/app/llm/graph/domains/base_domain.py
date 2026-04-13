@@ -5,6 +5,10 @@ When a follow-up query is detected (_refine_mode=True), the agent attempts to
 find a matching refinement template and execute it as a subquery with additional
 filter conditions. If no template matches or refinement fails, falls back to
 the base intent.
+
+Feature flag: when settings.use_query_plan_compiler is True, execute() routes
+through the QueryPlan SQL compiler instead of the subquery-based refinement path.
+The flag=OFF path (_try_refinement) is preserved unchanged for rollback safety.
 """
 
 from __future__ import annotations
@@ -73,11 +77,19 @@ class BaseDomainAgent(ABC):
     async def execute(self, state: GraphState) -> dict[str, Any]:
         """Dispatch to the correct SQL template and execute against the connector.
 
-        Flow:
-        1. If _refine_mode is set, try registry-based refinement
-        2. If registry has no matching template, try subclass _run_refinement()
-        3. Fall back to _run_intent() if neither works
+        Feature flag routing:
+        - settings.use_query_plan_compiler = True (NEW PATH):
+            If query_plan is present → compile_query() → execute against connector
+            If query_plan is None (LLM fallback turn) → _run_intent() fallback
+        - settings.use_query_plan_compiler = False (EXISTING PATH, unchanged):
+            If _refine_mode is set → _try_refinement()
+            Otherwise → _run_intent()
         """
+        # Lazy imports allow importlib.reload() in tests to pick up updated settings
+        from app.config import settings
+        from app.llm.graph.query_plan import QueryPlan
+        from app.llm.graph.nodes.sql_compiler import compile_query
+
         intent = state["intent"] or ""
         params = state.get("params") or {}
         domain = self.domain
@@ -88,13 +100,54 @@ class BaseDomainAgent(ABC):
             state["connection_string"],
         )
 
-        if _is_refine_mode(params):
-            prior_sql = _get_prior_sql(params)
-            sql, result = await self._try_refinement(
-                prior_sql, params, connector, state, domain, intent,
-            )
+        if settings.use_query_plan_compiler:
+            # NEW PATH: QueryPlan compiler
+            query_plan_dict = state.get("query_plan")
+            if query_plan_dict:
+                plan = QueryPlan.from_untrusted_dict(query_plan_dict)
+                sql, sql_params = compile_query(plan, resource_id=state.get("resource_id"))
+                
+                # ── Log generated SQL ─────────────────────────────────────────
+                logger.info(
+                    "domain_sql: domain=%s intent=%s sql=[%s] params=%s",
+                    domain, intent, sql[:200] if sql else "none", sql_params,
+                )
+                
+                result = await connector.execute_query(
+                    sql,
+                    params=sql_params,
+                    timeout_seconds=state["timeout_seconds"],
+                    max_rows=state["max_rows"],
+                )
+            else:
+                # No query_plan (LLM fallback turn) → run base intent
+                logger.debug(
+                    "execute: flag=ON but query_plan=None for domain=%s intent=%s — "
+                    "falling back to _run_intent",
+                    domain, intent,
+                )
+                sql, result = await self._run_intent(intent, params, connector, state)
+                
+                # ── Log fallback SQL ─────────────────────────────────────────
+                logger.info(
+                    "domain_sql: domain=%s intent=%s (fallback intent sql)",
+                    domain, intent,
+                )
         else:
-            sql, result = await self._run_intent(intent, params, connector, state)
+            # EXISTING PATH: subquery refinement (unchanged)
+            if _is_refine_mode(params):
+                prior_sql = _get_prior_sql(params)
+                sql, result = await self._try_refinement(
+                    prior_sql, params, connector, state, domain, intent,
+                )
+            else:
+                sql, result = await self._run_intent(intent, params, connector, state)
+            
+            # ── Log old path SQL ─────────────────────────────────────────────
+            logger.info(
+                "domain_sql: domain=%s intent=%s (old path)",
+                domain, intent,
+            )
 
         return {
             "sql": sql,
@@ -122,6 +175,12 @@ class BaseDomainAgent(ABC):
         2. Subclass _run_refinement() (custom logic like ResourceAgent)
         3. Base intent (safe fallback)
         """
+        logger.warning(
+            "refinement path is DEPRECATED — enable USE_QUERY_PLAN_COMPILER=true "
+            "(domain=%s intent=%s)",
+            domain, intent,
+        )
+
         t = state["timeout_seconds"]
         m = state["max_rows"]
         stripped = _strip_order_by(prior_sql)

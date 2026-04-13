@@ -8,8 +8,6 @@ class ConnectorType(str, Enum):
     POSTGRESQL = "postgresql"
     MYSQL = "mysql"
     SNOWFLAKE = "snowflake"
-    BIGQUERY = "bigquery"
-    DATABRICKS = "databricks"
     SQLSERVER = "sqlserver"
 
 

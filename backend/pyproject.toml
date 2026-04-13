@@ -20,6 +20,8 @@ dependencies = [
     "passlib[bcrypt]>=1.7",
     "bcrypt>=4.0",
     "email-validator>=2.0",
+    "loguru>=0.7",
+    "platformdirs>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -28,12 +30,6 @@ llm = [
     "openai>=1.50",
     "langgraph>=0.2",
     "langchain-core>=0.3",
-]
-bigquery = [
-    "google-cloud-bigquery>=3.0",
-]
-databricks = [
-    "databricks-sql-connector[pyarrow]>=3.0",
 ]
 sqlserver = [
     "aioodbc>=0.5",

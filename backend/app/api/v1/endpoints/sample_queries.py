@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends
@@ -11,6 +12,8 @@ from app.db.models.sample_query import SampleQuery
 from app.db.models.user import User
 from app.db.session import get_db
 from app.services.embedding_service import embed_sample_query
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["sample_queries"])
 
@@ -79,7 +82,7 @@ async def create_sample_query(
     try:
         sq.question_embedding = await embed_sample_query(sq)
     except Exception:
-        pass
+        logger.warning("Failed to embed sample query %s", sq.id, exc_info=True)
     return sq
 
 
@@ -103,7 +106,7 @@ async def update_sample_query(
     try:
         sq.question_embedding = await embed_sample_query(sq)
     except Exception:
-        pass
+        logger.warning("Failed to embed sample query %s", sq_id, exc_info=True)
     return sq
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict, Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,15 @@ class GraphState(TypedDict):
     session_id: str | None       # UUID as str — chat thread identifier
     conversation_history: list[dict]  # [{role: "user"|"assistant", content: str}, ...]
     last_turn_context: dict | None  # Structured context from prior turn (TurnContext as dict)
+
+    # ── Hybrid Mode (Phase 8) ─────────────────────────────────────────────
+    last_query: str | None                  # Previous user question for similarity comparison
+    last_query_embedding: list[float] | None  # Embedding of previous question
+    current_query_embedding: list[float] | None  # Embedding of current question
+    semantic_similarity: float | None       # Cosine similarity between current and last query
+    follow_up_type: Literal["refine", "replace", "new"] | None  # Classification result
+    confidence_breakdown: dict | None       # {valid_json, valid_fields, matches_schema} scores
+    last_intent: str | None                 # Intent from previous turn for override logic
 
     # ── Auth / RBAC (set by query_service from current_user) ─────────────
     user_id: str | None          # UUID as str — authenticated user's ID; None if unauthenticated
@@ -54,3 +63,7 @@ class GraphState(TypedDict):
 
     # ── Error propagation ────────────────────────────────────────────────
     error: str | None
+
+    # ── QueryPlan Compiler (set by update_query_plan node) ─────────────
+    filters: list  # FilterClause objects extracted by filter_extractor node
+    query_plan: dict | None  # QueryPlan serialized as dict (follows Phase 6 pattern)

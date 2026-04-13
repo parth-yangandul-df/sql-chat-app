@@ -2,7 +2,6 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 WORKSPACE_DIR = BACKEND_DIR.parent
 
@@ -25,13 +24,17 @@ class Settings(BaseSettings):
 
     # Security
     encryption_key: str = "dev-encryption-key-change-in-production"
-    cors_origins: list[str] = ["http://localhost:5173","http://localhost:5174","http://localhost:4200","http://localhost:4000"]
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:4200",
+        "http://localhost:4000",
+    ]
 
     # JWT authentication
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     jwt_expiry_seconds: int = 3600
-
 
     # Query defaults
     default_query_timeout_seconds: int = 30
@@ -60,7 +63,7 @@ class Settings(BaseSettings):
 
     # Groq settings (used when default_llm_provider = "groq")
     groq_api_key: str = ""
-    groq_model: str = "moonshotai/kimi-k2-instruct"
+    groq_model: str = "meta-llama/llama-3.1-70b-versatile"  # Upgraded from kimi-k2 for better tool calling
 
     # Embedding provider override (leave empty to auto-derive from default_llm_provider)
     # Set to "ollama" to use Ollama for embeddings while using a different provider for LLM.
@@ -75,11 +78,20 @@ class Settings(BaseSettings):
     max_sample_queries: int = 3
     embedding_dimension: int = 1536
 
-    # Auto-setup sample database on startup
-    auto_setup_sample_db: bool = True
-    sample_db_connection_string: str = (
-        "postgresql://sample:sample_dev@sample-db:5432/sampledb"
-    )
+    # QueryPlan compiler feature flag (Phase 7)
+    use_query_plan_compiler: bool   # MIGRATION FLAG: remove after phase validation
+
+    # Groq unified intent + filter extractor (replaces embedding classifier + regex filter_extractor)
+    use_groq_extractor: bool = False  # Enable via USE_GROQ_EXTRACTOR=true in .env
+
+    # Hybrid Mode (Phase 8) — context-aware query system with deterministic override
+    use_hybrid_mode: bool = False  # Enable via USE_HYBRID_MODE=true in .env
+
+    # Logging
+    log_level: str = "INFO"
+    log_file_enabled: bool = True
+    log_rotation: str = "10 MB"
+    log_retention: str = "7 days"
 
 
 settings = Settings()

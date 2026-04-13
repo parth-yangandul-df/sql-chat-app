@@ -7,22 +7,6 @@ _CONNECTOR_CLASSES: dict[ConnectorType, type[BaseConnector]] = {
     ConnectorType.POSTGRESQL: PostgreSQLConnector,
 }
 
-# Lazy-register BigQuery only when google-cloud-bigquery is installed
-try:
-    from app.connectors.bigquery.connector import BigQueryConnector
-
-    _CONNECTOR_CLASSES[ConnectorType.BIGQUERY] = BigQueryConnector
-except ImportError:
-    pass
-
-# Lazy-register Databricks only when databricks-sql-connector is installed
-try:
-    from app.connectors.databricks.connector import DatabricksConnector
-
-    _CONNECTOR_CLASSES[ConnectorType.DATABRICKS] = DatabricksConnector
-except ImportError:
-    pass
-
 # Lazy-register SQL Server only when aioodbc is installed
 try:
     from app.connectors.sqlserver.connector import SQLServerConnector

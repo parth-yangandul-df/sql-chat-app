@@ -17,8 +17,7 @@ class ClientAgent(BaseDomainAgent):
             sql = (
                 "SELECT distinct c.ClientName, c.Description, c.CountryId "
                 "FROM Client c "
-                "JOIN Status st ON c.StatusId = st.StatusId AND st.ReferenceId = 1 "
-                "WHERE st.StatusName = 'Active'"
+                "WHERE c.IsActive = 1 AND c.StatusId = 2"
             )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
 

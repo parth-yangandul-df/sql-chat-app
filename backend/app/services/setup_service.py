@@ -27,7 +27,7 @@ from app.db.models.schema_cache import CachedColumn, CachedTable
 from app.db.session import async_session_factory
 from app.services import connection_service, schema_service
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Vector dimension check — runs on every startup
@@ -54,11 +54,13 @@ async def ensure_embedding_dimensions() -> None:
 
     async with async_session_factory() as db:
         # Check the first embedding column's dimension as a proxy for all
-        result = await db.execute(text(
-            "SELECT atttypmod FROM pg_attribute "
-            "WHERE attrelid = 'cached_tables'::regclass "
-            "AND attname = 'description_embedding'"
-        ))
+        result = await db.execute(
+            text(
+                "SELECT atttypmod FROM pg_attribute "
+                "WHERE attrelid = 'cached_tables'::regclass "
+                "AND attname = 'description_embedding'"
+            )
+        )
         row = result.scalar_one_or_none()
 
         if row is None:
@@ -72,18 +74,18 @@ async def ensure_embedding_dimensions() -> None:
         logger.info(
             "Embedding dimension mismatch: DB has %d, config wants %d. "
             "Resizing columns and clearing stale embeddings...",
-            current_dim, target_dim,
+            current_dim,
+            target_dim,
         )
         for table, column in EMBEDDING_COLUMNS:
-            await db.execute(text(
-                f"UPDATE {table} SET {column} = NULL "
-                f"WHERE {column} IS NOT NULL"
-            ))
-            await db.execute(text(
-                f"ALTER TABLE {table} "
-                f"ALTER COLUMN {column} TYPE vector({target_dim}) "
-                f"USING {column}::vector({target_dim})"
-            ))
+            await db.execute(text(f"UPDATE {table} SET {column} = NULL WHERE {column} IS NOT NULL"))
+            await db.execute(
+                text(
+                    f"ALTER TABLE {table} "
+                    f"ALTER COLUMN {column} TYPE vector({target_dim}) "
+                    f"USING {column}::vector({target_dim})"
+                )
+            )
         await db.commit()
         logger.info(
             "Embedding columns resized to %d dimensions. "
@@ -112,8 +114,9 @@ GLOSSARY_TERMS = [
     {
         "term": "PD",
         "definition": (
-            "Probability of Default - the likelihood that a borrower will default on their "
-            "obligations within a given time horizon (12 months for Stage 1, lifetime for Stage 2/3)."
+            "Probability of Default - the likelihood that a borrower will default on "
+            "their obligations within a given time horizon (12 months for Stage 1, "
+            "lifetime for Stage 2/3)."
         ),
         "sql_expression": "ecl_provisions.pd",
         "related_tables": ["ecl_provisions"],
@@ -292,8 +295,7 @@ METRICS = [
         "display_name": "NPL Ratio",
         "description": "Non-Performing Loan ratio — Stage 3 EAD as a percentage of total EAD",
         "sql_expression": (
-            "SUM(exposures.ead) FILTER (WHERE exposures.stage = 3) "
-            "/ NULLIF(SUM(exposures.ead), 0)"
+            "SUM(exposures.ead) FILTER (WHERE exposures.stage = 3) / NULLIF(SUM(exposures.ead), 0)"
         ),
         "aggregation_type": "ratio",
         "related_tables": ["exposures"],
@@ -306,71 +308,289 @@ METRICS = [
 # ---------------------------------------------------------------------------
 DICTIONARY_ENTRIES: dict[tuple[str, str], list[dict]] = {
     ("exposures", "stage"): [
-        {"raw_value": "1", "display_value": "Stage 1 - Performing", "description": "No significant increase in credit risk; 12-month ECL", "sort_order": 1},
-        {"raw_value": "2", "display_value": "Stage 2 - SICR", "description": "Significant increase in credit risk; lifetime ECL", "sort_order": 2},
-        {"raw_value": "3", "display_value": "Stage 3 - Credit-Impaired", "description": "Credit-impaired / defaulted; lifetime ECL", "sort_order": 3},
+        {
+            "raw_value": "1",
+            "display_value": "Stage 1 - Performing",
+            "description": "No significant increase in credit risk; 12-month ECL",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "2",
+            "display_value": "Stage 2 - SICR",
+            "description": "Significant increase in credit risk; lifetime ECL",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "3",
+            "display_value": "Stage 3 - Credit-Impaired",
+            "description": "Credit-impaired / defaulted; lifetime ECL",
+            "sort_order": 3,
+        },
     ],
     ("facilities", "facility_type"): [
-        {"raw_value": "mortgage", "display_value": "Mortgage Loan", "description": "Residential or commercial mortgage", "sort_order": 1},
-        {"raw_value": "corporate_loan", "display_value": "Corporate Loan", "description": "Term loan to a corporate entity", "sort_order": 2},
-        {"raw_value": "consumer_loan", "display_value": "Consumer Loan", "description": "Unsecured personal loan", "sort_order": 3},
-        {"raw_value": "credit_card", "display_value": "Credit Card", "description": "Revolving credit card facility", "sort_order": 4},
-        {"raw_value": "overdraft", "display_value": "Overdraft", "description": "Overdraft facility on current account", "sort_order": 5},
+        {
+            "raw_value": "mortgage",
+            "display_value": "Mortgage Loan",
+            "description": "Residential or commercial mortgage",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "corporate_loan",
+            "display_value": "Corporate Loan",
+            "description": "Term loan to a corporate entity",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "consumer_loan",
+            "display_value": "Consumer Loan",
+            "description": "Unsecured personal loan",
+            "sort_order": 3,
+        },
+        {
+            "raw_value": "credit_card",
+            "display_value": "Credit Card",
+            "description": "Revolving credit card facility",
+            "sort_order": 4,
+        },
+        {
+            "raw_value": "overdraft",
+            "display_value": "Overdraft",
+            "description": "Overdraft facility on current account",
+            "sort_order": 5,
+        },
     ],
     ("counterparties", "segment"): [
-        {"raw_value": "retail", "display_value": "Retail Banking", "description": "Individual consumers and households", "sort_order": 1},
-        {"raw_value": "corporate", "display_value": "Corporate Banking", "description": "Large corporate entities", "sort_order": 2},
-        {"raw_value": "sme", "display_value": "SME Banking", "description": "Small and medium enterprises", "sort_order": 3},
+        {
+            "raw_value": "retail",
+            "display_value": "Retail Banking",
+            "description": "Individual consumers and households",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "corporate",
+            "display_value": "Corporate Banking",
+            "description": "Large corporate entities",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "sme",
+            "display_value": "SME Banking",
+            "description": "Small and medium enterprises",
+            "sort_order": 3,
+        },
     ],
     ("collateral", "collateral_type"): [
-        {"raw_value": "property", "display_value": "Real Estate Property", "description": "Residential or commercial real estate", "sort_order": 1},
-        {"raw_value": "cash", "display_value": "Cash Deposit", "description": "Cash held as security", "sort_order": 2},
-        {"raw_value": "guarantee", "display_value": "Bank Guarantee", "description": "Third-party bank guarantee", "sort_order": 3},
-        {"raw_value": "securities", "display_value": "Securities", "description": "Bonds, equities, or other financial instruments", "sort_order": 4},
+        {
+            "raw_value": "property",
+            "display_value": "Real Estate Property",
+            "description": "Residential or commercial real estate",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "cash",
+            "display_value": "Cash Deposit",
+            "description": "Cash held as security",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "guarantee",
+            "display_value": "Bank Guarantee",
+            "description": "Third-party bank guarantee",
+            "sort_order": 3,
+        },
+        {
+            "raw_value": "securities",
+            "display_value": "Securities",
+            "description": "Bonds, equities, or other financial instruments",
+            "sort_order": 4,
+        },
     ],
     ("staging_history", "reason"): [
-        {"raw_value": "origination", "display_value": "New Origination", "description": "Initial recognition at Stage 1", "sort_order": 1},
-        {"raw_value": "upgrade", "display_value": "Credit Improvement", "description": "Upgrade due to improved credit quality", "sort_order": 2},
-        {"raw_value": "downgrade", "display_value": "Credit Deterioration", "description": "Downgrade due to SICR or default triggers", "sort_order": 3},
-        {"raw_value": "cure", "display_value": "Return to Performing", "description": "Recovery from impaired status", "sort_order": 4},
-        {"raw_value": "default", "display_value": "Default Event", "description": "Borrower entered default", "sort_order": 5},
+        {
+            "raw_value": "origination",
+            "display_value": "New Origination",
+            "description": "Initial recognition at Stage 1",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "upgrade",
+            "display_value": "Credit Improvement",
+            "description": "Upgrade due to improved credit quality",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "downgrade",
+            "display_value": "Credit Deterioration",
+            "description": "Downgrade due to SICR or default triggers",
+            "sort_order": 3,
+        },
+        {
+            "raw_value": "cure",
+            "display_value": "Return to Performing",
+            "description": "Recovery from impaired status",
+            "sort_order": 4,
+        },
+        {
+            "raw_value": "default",
+            "display_value": "Default Event",
+            "description": "Borrower entered default",
+            "sort_order": 5,
+        },
     ],
     ("counterparties", "credit_rating"): [
-        {"raw_value": "AAA", "display_value": "AAA - Prime", "description": "Highest credit quality; minimal default risk", "sort_order": 1},
-        {"raw_value": "AA", "display_value": "AA - High Grade", "description": "Very high credit quality; very low default risk", "sort_order": 2},
-        {"raw_value": "A", "display_value": "A - Upper Medium", "description": "High credit quality; low default risk", "sort_order": 3},
-        {"raw_value": "BBB", "display_value": "BBB - Lower Medium", "description": "Good credit quality; moderate default risk (investment grade floor)", "sort_order": 4},
-        {"raw_value": "BB", "display_value": "BB - Speculative", "description": "Speculative; substantial credit risk (sub-investment grade)", "sort_order": 5},
-        {"raw_value": "B", "display_value": "B - Highly Speculative", "description": "Highly speculative; high default risk", "sort_order": 6},
-        {"raw_value": "CCC", "display_value": "CCC - Substantial Risk", "description": "Very high credit risk; near default", "sort_order": 7},
+        {
+            "raw_value": "AAA",
+            "display_value": "AAA - Prime",
+            "description": "Highest credit quality; minimal default risk",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "AA",
+            "display_value": "AA - High Grade",
+            "description": "Very high credit quality; very low default risk",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "A",
+            "display_value": "A - Upper Medium",
+            "description": "High credit quality; low default risk",
+            "sort_order": 3,
+        },
+        {
+            "raw_value": "BBB",
+            "display_value": "BBB - Lower Medium",
+            "description": "Good credit quality; moderate default risk (investment grade floor)",
+            "sort_order": 4,
+        },
+        {
+            "raw_value": "BB",
+            "display_value": "BB - Speculative",
+            "description": "Speculative; substantial credit risk (sub-investment grade)",
+            "sort_order": 5,
+        },
+        {
+            "raw_value": "B",
+            "display_value": "B - Highly Speculative",
+            "description": "Highly speculative; high default risk",
+            "sort_order": 6,
+        },
+        {
+            "raw_value": "CCC",
+            "display_value": "CCC - Substantial Risk",
+            "description": "Very high credit risk; near default",
+            "sort_order": 7,
+        },
     ],
     ("counterparties", "is_defaulted"): [
-        {"raw_value": "true", "display_value": "Defaulted", "description": "Counterparty has defaulted on obligations", "sort_order": 1},
-        {"raw_value": "false", "display_value": "Performing", "description": "Counterparty is current on obligations", "sort_order": 2},
+        {
+            "raw_value": "true",
+            "display_value": "Defaulted",
+            "description": "Counterparty has defaulted on obligations",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "false",
+            "display_value": "Performing",
+            "description": "Counterparty is current on obligations",
+            "sort_order": 2,
+        },
     ],
     ("facilities", "currency"): [
-        {"raw_value": "EUR", "display_value": "Euro", "description": "European single currency", "sort_order": 1},
-        {"raw_value": "USD", "display_value": "US Dollar", "description": "United States dollar", "sort_order": 2},
-        {"raw_value": "GBP", "display_value": "British Pound", "description": "British pound sterling", "sort_order": 3},
+        {
+            "raw_value": "EUR",
+            "display_value": "Euro",
+            "description": "European single currency",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "USD",
+            "display_value": "US Dollar",
+            "description": "United States dollar",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "GBP",
+            "display_value": "British Pound",
+            "description": "British pound sterling",
+            "sort_order": 3,
+        },
     ],
     ("facilities", "is_revolving"): [
-        {"raw_value": "true", "display_value": "Revolving", "description": "Revolving credit facility (e.g. credit card, overdraft) — can be drawn and repaid repeatedly", "sort_order": 1},
-        {"raw_value": "false", "display_value": "Term / Amortising", "description": "Term facility with scheduled repayment (e.g. mortgage, term loan)", "sort_order": 2},
+        {
+            "raw_value": "true",
+            "display_value": "Revolving",
+            "description": (
+                "Revolving credit facility (e.g. credit card, overdraft) — "
+                "can be drawn and repaid repeatedly"
+            ),
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "false",
+            "display_value": "Term / Amortising",
+            "description": "Term facility with scheduled repayment (e.g. mortgage, term loan)",
+            "sort_order": 2,
+        },
     ],
     ("ecl_provisions", "stage"): [
-        {"raw_value": "1", "display_value": "Stage 1 - Performing", "description": "No significant increase in credit risk; 12-month ECL", "sort_order": 1},
-        {"raw_value": "2", "display_value": "Stage 2 - SICR", "description": "Significant increase in credit risk; lifetime ECL", "sort_order": 2},
-        {"raw_value": "3", "display_value": "Stage 3 - Credit-Impaired", "description": "Credit-impaired / defaulted; lifetime ECL", "sort_order": 3},
+        {
+            "raw_value": "1",
+            "display_value": "Stage 1 - Performing",
+            "description": "No significant increase in credit risk; 12-month ECL",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "2",
+            "display_value": "Stage 2 - SICR",
+            "description": "Significant increase in credit risk; lifetime ECL",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "3",
+            "display_value": "Stage 3 - Credit-Impaired",
+            "description": "Credit-impaired / defaulted; lifetime ECL",
+            "sort_order": 3,
+        },
     ],
     ("staging_history", "from_stage"): [
-        {"raw_value": "1", "display_value": "Stage 1 - Performing", "description": "No significant increase in credit risk", "sort_order": 1},
-        {"raw_value": "2", "display_value": "Stage 2 - SICR", "description": "Significant increase in credit risk", "sort_order": 2},
-        {"raw_value": "3", "display_value": "Stage 3 - Credit-Impaired", "description": "Credit-impaired / defaulted", "sort_order": 3},
+        {
+            "raw_value": "1",
+            "display_value": "Stage 1 - Performing",
+            "description": "No significant increase in credit risk",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "2",
+            "display_value": "Stage 2 - SICR",
+            "description": "Significant increase in credit risk",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "3",
+            "display_value": "Stage 3 - Credit-Impaired",
+            "description": "Credit-impaired / defaulted",
+            "sort_order": 3,
+        },
     ],
     ("staging_history", "to_stage"): [
-        {"raw_value": "1", "display_value": "Stage 1 - Performing", "description": "No significant increase in credit risk", "sort_order": 1},
-        {"raw_value": "2", "display_value": "Stage 2 - SICR", "description": "Significant increase in credit risk", "sort_order": 2},
-        {"raw_value": "3", "display_value": "Stage 3 - Credit-Impaired", "description": "Credit-impaired / defaulted", "sort_order": 3},
+        {
+            "raw_value": "1",
+            "display_value": "Stage 1 - Performing",
+            "description": "No significant increase in credit risk",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "2",
+            "display_value": "Stage 2 - SICR",
+            "description": "Significant increase in credit risk",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "3",
+            "display_value": "Stage 3 - Credit-Impaired",
+            "description": "Credit-impaired / defaulted",
+            "sort_order": 3,
+        },
     ],
 }
 
@@ -490,10 +710,7 @@ async def auto_setup_sample_db() -> None:
                     await _seed_knowledge(db, connection_id)
 
                     await db.commit()
-                    logger.info(
-                        "Auto-setup: completed, launching background "
-                        "embedding generation"
-                    )
+                    logger.info("Auto-setup: completed, launching background embedding generation")
                     launch_background_embeddings(connection_id)
                     return
                 except Exception:
@@ -503,14 +720,19 @@ async def auto_setup_sample_db() -> None:
             if attempt < MAX_RETRIES:
                 logger.info(
                     "Auto-setup: attempt %d/%d failed (%s), retrying in %ds...",
-                    attempt, MAX_RETRIES, e, RETRY_DELAY_SECONDS,
+                    attempt,
+                    MAX_RETRIES,
+                    e,
+                    RETRY_DELAY_SECONDS,
                 )
                 await asyncio.sleep(RETRY_DELAY_SECONDS)
             else:
                 logger.warning(
                     "Auto-setup: failed after %d attempts (%s: %s) "
                     "— server will start without sample data",
-                    MAX_RETRIES, type(e).__name__, e,
+                    MAX_RETRIES,
+                    type(e).__name__,
+                    e,
                 )
 
 
@@ -541,9 +763,9 @@ async def _ensure_connection(db):
 async def _seed_glossary(db, connection_id: uuid.UUID) -> None:
     """Seed glossary terms if none exist."""
     count = await db.scalar(
-        select(func.count()).select_from(GlossaryTerm).where(
-            GlossaryTerm.connection_id == connection_id
-        )
+        select(func.count())
+        .select_from(GlossaryTerm)
+        .where(GlossaryTerm.connection_id == connection_id)
     )
     if count and count > 0:
         logger.info("Auto-setup: glossary already has %d terms, skipping", count)
@@ -558,9 +780,9 @@ async def _seed_glossary(db, connection_id: uuid.UUID) -> None:
 async def _seed_metrics(db, connection_id: uuid.UUID) -> None:
     """Seed metric definitions if none exist."""
     count = await db.scalar(
-        select(func.count()).select_from(MetricDefinition).where(
-            MetricDefinition.connection_id == connection_id
-        )
+        select(func.count())
+        .select_from(MetricDefinition)
+        .where(MetricDefinition.connection_id == connection_id)
     )
     if count and count > 0:
         logger.info("Auto-setup: metrics already has %d definitions, skipping", count)
@@ -605,7 +827,8 @@ async def _seed_dictionary(db, connection_id: uuid.UUID) -> None:
         if not col_id:
             logger.warning(
                 "Auto-setup: column %s.%s not found, skipping dictionary entries",
-                table_name, column_name,
+                table_name,
+                column_name,
             )
             continue
         for entry_data in entries:
@@ -619,14 +842,12 @@ async def _seed_dictionary(db, connection_id: uuid.UUID) -> None:
 async def _seed_knowledge(db, connection_id: uuid.UUID) -> None:
     """Seed a sample knowledge document if none exist."""
     count = await db.scalar(
-        select(func.count()).select_from(KnowledgeDocument).where(
-            KnowledgeDocument.connection_id == connection_id
-        )
+        select(func.count())
+        .select_from(KnowledgeDocument)
+        .where(KnowledgeDocument.connection_id == connection_id)
     )
     if count and count > 0:
-        logger.info(
-            "Auto-setup: knowledge already has %d documents, skipping", count
-        )
+        logger.info("Auto-setup: knowledge already has %d documents, skipping", count)
         return
 
     from app.services.knowledge_service import import_document
@@ -639,22 +860,20 @@ async def _seed_knowledge(db, connection_id: uuid.UUID) -> None:
         content=KNOWLEDGE_DOCUMENT["content"],
         source_url=KNOWLEDGE_DOCUMENT["source_url"],
     )
-    logger.info(
-        "Auto-setup: knowledge document imported (%d chunks)", doc.chunk_count
-    )
+    logger.info("Auto-setup: knowledge document imported (%d chunks)", doc.chunk_count)
 
 
 async def _generate_embeddings_background(connection_id: uuid.UUID) -> None:
     """Run embedding generation in the background with progress tracking."""
-    from app.services.embedding_service import (
-        count_items_needing_embeddings,
-        generate_embeddings_for_connection,
-    )
     from app.services.embedding_progress import (
         increment,
         mark_completed,
         mark_failed,
         start_tracking,
+    )
+    from app.services.embedding_service import (
+        count_items_needing_embeddings,
+        generate_embeddings_for_connection,
     )
 
     cid = str(connection_id)
@@ -666,9 +885,7 @@ async def _generate_embeddings_background(connection_id: uuid.UUID) -> None:
                 return
 
             start_tracking(cid, total)
-            logger.info(
-                "Background embeddings: generating %d embeddings...", total
-            )
+            logger.info("Background embeddings: generating %d embeddings...", total)
 
             count = await generate_embeddings_for_connection(
                 db, connection_id, on_progress=lambda: increment(cid)

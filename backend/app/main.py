@@ -1,5 +1,4 @@
 import logging
-import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,27 +7,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.config import settings
 from app.core.exception_handlers import register_exception_handlers
+from app.core.logging_config import setup_logging
 from app.db.session import engine
 
 logger = logging.getLogger(__name__)
 
 
 def _configure_logging() -> None:
-    """Attach a StreamHandler to the root logger so app.* messages reach stdout.
+    """Delegate to centralized loguru configuration.
 
-    Uvicorn only configures its own loggers (uvicorn, uvicorn.access). Without
-    this, any logger under the 'app' namespace silently drops messages because
-    the root logger has no handler.  We add one only if none is present yet
-    (idempotent — safe to call in --reload mode).
+    Idempotent — safe to call in --reload mode.
     """
-    root = logging.getLogger()
-    has_stream = any(isinstance(h, logging.StreamHandler) and h.stream in (sys.stdout, sys.stderr) for h in root.handlers)
-    if not has_stream:
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
-        root.addHandler(handler)
-    # Ensure all app.* loggers emit INFO and above
-    logging.getLogger("app").setLevel(logging.INFO)
+    setup_logging(
+        app_name=settings.app_name.lower(),
+        level="DEBUG" if settings.debug else settings.log_level,
+        file_enabled=settings.log_file_enabled,
+        rotation=settings.log_rotation,
+        retention=settings.log_retention,
+    )
 
 
 @asynccontextmanager
@@ -63,11 +59,17 @@ async def lifespan(app: FastAPI):
             exc_info=True,
         )
 
-    if settings.auto_setup_sample_db:
-        from app.services.setup_service import auto_setup_sample_db
+    # Validate FieldRegistry completeness before traffic starts
+    # Uses StartupIntegrityError (not assert) so it survives Python -O optimization
+    from app.llm.graph.nodes.field_registry import validate_registry_completeness, StartupIntegrityError
 
-        logger.info("QueryWise startup: running auto-setup for sample DB")
-        await auto_setup_sample_db()
+    logger.info("QueryWise startup: validating field registry completeness")
+    try:
+        validate_registry_completeness()
+        logger.info("QueryWise startup: field registry validated OK")
+    except StartupIntegrityError as e:
+        logger.error("QueryWise startup: field registry validation FAILED — %s", e)
+        raise
 
     logger.info("QueryWise startup complete")
     yield

@@ -52,6 +52,55 @@ class GroqProvider(BaseLLMProvider):
             latency_ms=elapsed_ms,
         )
 
+    async def complete_with_tools(
+        self,
+        messages: list[LLMMessage],
+        tools: list[dict],
+        config: LLMConfig,
+    ) -> dict:
+        """Call Groq with tool definitions and return the tool call arguments as a parsed dict.
+
+        Uses OpenAI-compatible function calling. Returns the first tool call's
+        parsed arguments dict, or raises ValueError if no tool call was returned.
+        """
+        import json as _json
+        oai_messages = [{"role": m.role, "content": m.content} for m in messages]
+
+        start = time.monotonic()
+        response = await self._client.chat.completions.create(
+            model=config.model,
+            messages=oai_messages,
+            tools=tools,
+            tool_choice="required",
+            temperature=config.temperature,
+            max_completion_tokens=config.max_tokens,
+            top_p=config.top_p,
+        )
+        elapsed_ms = (time.monotonic() - start) * 1000
+
+        choice = response.choices[0]
+        tool_calls = choice.message.tool_calls
+
+        if not tool_calls:
+            raise ValueError(
+                f"Groq returned no tool calls (finish_reason={choice.finish_reason!r}). "
+                "Model may not support tool calling or the prompt needs adjustment."
+            )
+
+        raw_args = tool_calls[0].function.arguments
+        try:
+            parsed = _json.loads(raw_args)
+        except _json.JSONDecodeError as e:
+            raise ValueError(f"Groq tool call returned invalid JSON: {e}. Raw: {raw_args!r}") from e
+
+        return {
+            "arguments": parsed,
+            "tool_name": tool_calls[0].function.name,
+            "latency_ms": elapsed_ms,
+            "input_tokens": response.usage.prompt_tokens if response.usage else 0,
+            "output_tokens": response.usage.completion_tokens if response.usage else 0,
+        }
+
     async def stream(
         self,
         messages: list[LLMMessage],

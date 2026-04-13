@@ -1,4 +1,4 @@
-# Saras
+# QueryWise
 
 A full-stack application that translates natural language questions into SQL queries. It uses a **semantic metadata layer** — business glossary, metrics definitions, data dictionary, and schema context — to give LLMs the context they need to generate accurate SQL against your databases.
 
@@ -8,30 +8,33 @@ A full-stack application that translates natural language questions into SQL que
 ┌─────────────────────────────────────────────┐
 │        FRONTEND (React + TypeScript)        │
 │  Query Interface │ Semantic Layer Mgmt UI   │
+│  Mantine UI (port 5173)                     │
 └────────────────────┬────────────────────────┘
                      │ REST API
 ┌────────────────────▼────────────────────────┐
 │           BACKEND (FastAPI)                 │
 │                                             │
 │  ┌─────────────────────────────────────┐    │
+│  │  LANGGRAPH ORCHESTRATION            │    │
+│  │  QueryPlan → Intent → Semantic →    │    │
+│  │  SQL Compiler → Interpreter         │    │
+│  └──────────────┬──────────────────────┘    │
+│                 │                            │
+│  ┌──────────────▼──────────────────────┐    │
 │  │  SEMANTIC LAYER                     │    │
 │  │  Context Builder → Prompt Assembler │    │
 │  │  (embedding search + keyword match) │    │
 │  └──────────────┬──────────────────────┘    │
 │                 │                            │
 │  ┌──────────────▼──────────────────────┐    │
-│  │  LLM ORCHESTRATION                  │    │
-│  │  Router → Composer → Validator →    │    │
-│  │  Executor → Interpreter → ErrorLoop │    │
-│  └──────────────┬──────────────────────┘    │
-│                 │                            │
-│  ┌──────────────▼──────────────────────┐    │
 │  │  CONNECTOR LAYER (plugin system)    │    │
-│  │  BaseConnector → PG, SQL Server,    │    │
-│  │  BigQuery, Databricks               │    │
+│  │  BaseConnector → PostgreSQL,        │    │
+│  │  SQL Server                        │    │
 │  └─────────────────────────────────────┘    │
 └─────────────────────────────────────────────┘
 ```
+
+**Also available:** Chatbot UI (React + Tailwind + shadcn/ui) at http://localhost:5174
 
 ## Features
 
@@ -39,10 +42,11 @@ A full-stack application that translates natural language questions into SQL que
 - **Semantic metadata layer** — business glossary, metric definitions, data dictionary, knowledge base, sample queries
 - **Knowledge import** — import documentation (Confluence, wikis, HTML pages) to inject relevant business context into SQL generation
 - **Hybrid context selection** — embedding similarity + keyword matching + foreign key graph traversal
-- **Multi-provider LLM** — Anthropic Claude, OpenAI, Ollama (provider-agnostic design)
+- **Multi-provider LLM** — Anthropic Claude, OpenAI, Ollama, OpenRouter, Groq (provider-agnostic design)
+- **LangGraph orchestration** — stateful graph with query plan, intent classification, semantic resolution, and SQL compilation
 - **4 specialized LLM agents** — Query Composer, SQL Validator, Result Interpreter, Error Handler
 - **Intelligent routing** — routes simple/moderate/complex queries to appropriate models
-- **Plugin connector system** — PostgreSQL, SQL Server, BigQuery, and Databricks built-in, extensible to MySQL, Snowflake, and more
+- **Plugin connector system** — PostgreSQL and SQL Server built-in, extensible to other databases
 - **Security by default** — read-only query execution, SQL blocklist, encrypted connection strings
 - **Query history** — full execution log with favorites, retry counts, token usage
 - **Schema introspection** — auto-discovers tables, columns, types, relationships from target databases
@@ -73,11 +77,11 @@ docker compose up
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:5173 |
+| Frontend (Mantine) | http://localhost:5173 |
+| Chatbot UI | http://localhost:5174 |
 | Backend API | http://localhost:8000 |
 | API Docs (Swagger) | http://localhost:8000/docs |
-| Ollama | http://localhost:11434 |
-| App Database (pgvector) | localhost:5432 |
+| App Database (pgvector) | localhost:5434 |
 | Sample Database | localhost:5433 |
 
 ### Connecting to a Host Database from Docker
@@ -96,27 +100,6 @@ On Linux, if `host.docker.internal` is not resolvable in your containers, add th
 extra_hosts:
   - "host.docker.internal:host-gateway"
 ```
-
-### Connecting to BigQuery
-
-1. Select **BigQuery** as the connector type in the Add Connection form
-2. Enter your GCP **Project ID**
-3. Paste your **service account JSON key** (the full contents of the key file)
-4. Set the **Dataset** name (BigQuery's equivalent of a schema)
-5. Click Create, then Test and Introspect
-
-The service account needs the **BigQuery User** role (or equivalent) to run queries. The connection credentials are encrypted at rest using Fernet encryption.
-
-### Connecting to Databricks
-
-1. Select **Databricks** as the connector type in the Add Connection form
-2. Enter the **Server hostname** (e.g., `dbc-a1b2345c-d6e7.cloud.databricks.com`)
-3. Enter the **HTTP path** for your SQL warehouse or all-purpose cluster (e.g., `/sql/1.0/warehouses/abc123`)
-4. Enter a **Personal Access Token** (`dapi...`)
-5. Set the **Catalog** (defaults to `main`) and **Schema** (defaults to `default`)
-6. Click Create, then Test and Introspect
-
-Works with both **Unity Catalog** (full INFORMATION_SCHEMA introspection including PKs/FKs) and **Hive metastore** (falls back to SHOW/DESCRIBE commands). Credentials are encrypted at rest.
 
 ### Connecting to SQL Server
 
@@ -139,11 +122,9 @@ The backend auto-injects the best available SQL Server ODBC driver if the connec
 
 ### First Steps
 
-1. Open http://localhost:5173
-2. The IFRS 9 sample database is **auto-configured** on first startup — connection, schema introspection, glossary, metrics, dictionary, and knowledge are all seeded automatically
-3. Go to **Query** and ask a question like "What is the total ECL by stage?"
-
-> **Note:** Auto-setup is controlled by `AUTO_SETUP_SAMPLE_DB=true` (default). Set to `false` to disable. For manual seeding, use `python backend/scripts/seed_ifrs9_metadata.py`.
+1. Open http://localhost:5173 (or the Chatbot UI at http://localhost:5174)
+2. Add a database connection and run schema introspection
+3. Ask a natural language query against your connected database
 
 ### Using Ollama (Fully Local — No API Keys)
 
@@ -222,12 +203,12 @@ npm run dev
 
 ### Database Setup
 
-The application requires two PostgreSQL databases:
+The application requires:
 
-1. **App database** (with pgvector extension) — stores metadata, glossary, embeddings, query history
+1. **App database** (PostgreSQL with pgvector extension) — stores metadata, glossary, embeddings, query history
 2. **Target database** — the database you want to query with natural language
 
-For development, `docker compose up app-db sample-db` starts both databases without the full stack.
+For development, `docker compose up app-db` starts the app database without the full stack.
 
 ---
 
@@ -239,8 +220,8 @@ For development, `docker compose up app-db sample-db` starts both databases with
 | `ENVIRONMENT` | `development` | Environment name |
 | `DEBUG` | `false` | Enable debug mode |
 | `ENCRYPTION_KEY` | `dev-encryption-key-change-in-production` | Fernet key for encrypting stored connection strings |
-| `CORS_ORIGINS` | `["http://localhost:5173"]` | Allowed CORS origins (JSON list) |
-| `DEFAULT_LLM_PROVIDER` | `anthropic` | Default LLM provider (`anthropic`, `openai`, `ollama`) |
+| `CORS_ORIGINS` | `["http://localhost:5173", "http://localhost:5174"]` | Allowed CORS origins (JSON list) |
+| `DEFAULT_LLM_PROVIDER` | `anthropic` | Default LLM provider (`anthropic`, `openai`, `ollama`, `openrouter`, `groq`) |
 | `DEFAULT_LLM_MODEL` | `claude-sonnet-4-20250514` | Default model for SQL generation |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | Model for generating embeddings (OpenAI) |
 | `EMBEDDING_DIMENSION` | `1536` | Embedding vector dimension |
@@ -253,10 +234,12 @@ For development, `docker compose up app-db sample-db` starts both databases with
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
 | `OLLAMA_MODEL` | `llama3.1:8b` | Ollama model for completions |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model for embeddings (768-dim) |
+| `OPENROUTER_API_KEY` | — | OpenRouter API key (required if using OpenRouter) |
+| `OPENROUTER_MODEL` | `openai/gpt-3.5-turbo` | OpenRouter model |
+| `GROQ_API_KEY` | — | Groq API key (required if using Groq) |
+| `GROQ_MODEL` | `meta-llama/llama-3.1-70b-versatile` | Groq model |
 | `ANTHROPIC_API_KEY` | — | Anthropic API key (required if using Anthropic) |
 | `OPENAI_API_KEY` | — | OpenAI API key (required if using OpenAI) |
-| `AUTO_SETUP_SAMPLE_DB` | `true` | Auto-create sample DB connection + seed metadata on startup |
-| `SAMPLE_DB_CONNECTION_STRING` | `postgresql://sample:sample_dev@sample-db:5432/sampledb` | Connection string for the auto-setup sample database |
 | `VITE_API_URL` | `http://localhost:8000` | Frontend: backend API URL |
 
 ---
@@ -265,7 +248,7 @@ For development, `docker compose up app-db sample-db` starts both databases with
 
 ```
 querywise/
-├── docker-compose.yml              # 4 services: app-db, sample-db, backend, frontend
+├── docker-compose.yml              # 4 services: app-db, backend, frontend, chatbot-frontend
 ├── .env.example                    # Environment variable template
 ├── CLAUDE.md                       # Claude Code project conventions
 ├── README.md                       # This file
@@ -282,7 +265,8 @@ querywise/
 │   │   ├── config.py               # Pydantic BaseSettings (env vars)
 │   │   ├── core/
 │   │   │   ├── exceptions.py       # AppError, NotFoundError, ConnectionError, etc.
-│   │   │   └── exception_handlers.py
+│   │   │   ├── exception_handlers.py
+│   │   │   └── logging_config.py  # Loguru configuration
 │   │   ├── db/
 │   │   │   ├── base.py             # SQLAlchemy DeclarativeBase
 │   │   │   ├── session.py          # Async engine + session factory
@@ -294,11 +278,14 @@ querywise/
 │   │   │       ├── dictionary.py   # DictionaryEntry (value mappings)
 │   │   │       ├── knowledge.py    # KnowledgeDocument + KnowledgeChunk (with embedding vector)
 │   │   │       ├── sample_query.py # SampleQuery (with embedding vector)
-│   │   │       └── query_history.py# QueryExecution (full audit log)
+│   │   │       ├── query_history.py# QueryExecution (full audit log)
+│   │   │       ├── user.py         # User model for authentication
+│   │   │       └── chat_session.py # Chat session for chatbot
 │   │   ├── api/v1/
 │   │   │   ├── router.py           # Aggregates all endpoint routers
 │   │   │   ├── endpoints/
 │   │   │   │   ├── health.py       # GET /health
+│   │   │   │   ├── auth.py         # Authentication (login, register)
 │   │   │   │   ├── connections.py  # CRUD + test + introspect
 │   │   │   │   ├── schemas.py      # Table listing + detail
 │   │   │   │   ├── glossary.py     # Business glossary CRUD
@@ -307,13 +294,16 @@ querywise/
 │   │   │   │   ├── sample_queries.py
 │   │   │   │   ├── knowledge.py     # Knowledge document CRUD + URL fetch
 │   │   │   │   ├── query.py        # POST /query (full pipeline), POST /query/sql-only
-│   │   │   │   └── query_history.py# History list + favorite toggle
+│   │   │   │   ├── query_history.py# History list + favorite toggle
+│   │   │   │   ├── sessions.py     # Chat sessions CRUD
+│   │   │   │   └── embeddings.py   # Embedding status endpoint
 │   │   │   └── schemas/            # Pydantic request/response models
 │   │   ├── services/
 │   │   │   ├── query_service.py    # Full pipeline orchestrator
 │   │   │   ├── connection_service.py# CRUD + encryption + test
 │   │   │   ├── schema_service.py   # Introspect + cache
 │   │   │   ├── embedding_service.py# Generate embeddings (OpenAI or Ollama)
+│   │   │   ├── embedding_progress.py# Progress tracking for embeddings
 │   │   │   ├── knowledge_service.py# Knowledge import (HTML parsing, chunking, embedding)
 │   │   │   └── setup_service.py    # Auto-setup sample DB on startup
 │   │   ├── semantic/               # *** Core IP ***
@@ -321,16 +311,26 @@ querywise/
 │   │   │   ├── schema_linker.py    # Vector + keyword search for relevant tables
 │   │   │   ├── glossary_resolver.py# Resolves business terms, metrics, dictionary, knowledge
 │   │   │   ├── prompt_assembler.py # Formats context into structured LLM prompt
-│   │   │   └── relevance_scorer.py # Weighted scoring (embedding + keyword + FK)
+│   │   │   ├── relevance_scorer.py # Weighted scoring (embedding + keyword + FK)
+│   │   │   └── relationship_inference.py # FK inference from data
 │   │   ├── llm/
 │   │   │   ├── base_provider.py    # BaseLLMProvider ABC
 │   │   │   ├── provider_registry.py# Factory + caching for providers
 │   │   │   ├── router.py           # Complexity estimation + model routing
-│   │   │   ├── utils.py                # JSON repair for local model output
+│   │   │   ├── utils.py           # JSON repair for local model output
+│   │   │   ├── graph/             # LangGraph stateful graph
+│   │   │   │   ├── graph.py       # Main graph definition
+│   │   │   │   ├── state.py       # Graph state schema
+│   │   │   │   ├── query_plan.py  # QueryPlan data class
+│   │   │   │   ├── intent_catalog.py# Intent classification catalog
+│   │   │   │   ├── nodes/         # Graph nodes (intent, semantic, compiler, etc.)
+│   │   │   │   └── domains/       # Domain-specific refinement
 │   │   │   ├── providers/
 │   │   │   │   ├── anthropic_provider.py # Claude (complete + stream)
 │   │   │   │   ├── openai_provider.py    # GPT (complete + stream + embeddings)
-│   │   │   │   └── ollama_provider.py    # Ollama (complete + stream + embeddings)
+│   │   │   │   ├── ollama_provider.py    # Ollama (complete + stream + embeddings)
+│   │   │   │   ├── openrouter_provider.py # OpenRouter (300+ models)
+│   │   │   │   └── groq_provider.py     # Groq (fast inference)
 │   │   │   ├── agents/
 │   │   │   │   ├── query_composer.py     # NL question → SQL
 │   │   │   │   ├── sql_validator.py      # Static + schema validation
@@ -344,47 +344,35 @@ querywise/
 │   │   │   ├── connector_registry.py# Plugin registry + connection caching
 │   │   │   ├── postgresql/
 │   │   │   │   └── connector.py     # PostgreSQL (asyncpg, connection pooling)
-│   │   │   ├── bigquery/
-│   │   │   │   └── connector.py     # BigQuery (google-cloud-bigquery, service account auth)
-│   │   │   └── databricks/
-│   │   │       └── connector.py     # Databricks (databricks-sql-connector, PAT auth)
+│   │   │   └── sqlserver/
+│   │   │       └── connector.py     # SQL Server (aioodbc, ODBC driver)
 │   │   └── utils/
 │   │       └── sql_sanitizer.py     # Regex blocklist (DDL/DML/admin/injection)
-│   ├── scripts/
-│   │   └── seed_ifrs9_metadata.py   # Seeds glossary, metrics, dictionary via API
 │   └── tests/
-│       └── fixtures/
-│           └── sample_seed.sql      # IFRS 9 banking sample data
+│       └── ...
 │
-└── frontend/
+├── frontend/                       # Mantine UI (port 5173)
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── vite.config.ts               # Dev proxy: /api → localhost:8000
+│   └── src/
+│       ├── main.tsx                 # MantineProvider + QueryClient + Router
+│       ├── App.tsx                  # Route definitions
+│       └── ...
+│
+└── chatbot-frontend/              # React + Tailwind + shadcn/ui (port 5174)
     ├── Dockerfile
     ├── package.json
-    ├── vite.config.ts               # Dev proxy: /api → localhost:8000
-    ├── tsconfig.json
+    ├── tailwind.config.js
+    ├── vite.config.ts
     └── src/
-        ├── main.tsx                 # MantineProvider + QueryClient + Router
-        ├── App.tsx                  # Route definitions
-        ├── api/
-        │   ├── client.ts           # Axios instance
-        │   ├── connectionApi.ts    # Connection endpoints
-        │   ├── queryApi.ts         # Query + history endpoints
-        │   ├── glossaryApi.ts      # Glossary + metrics + dictionary endpoints
-│   └── knowledgeApi.ts     # Knowledge document CRUD + URL fetch
-        ├── components/
-        │   └── layout/
-        │       └── AppLayout.tsx   # Mantine AppShell with sidebar nav
-        ├── hooks/
-        │   └── useConnections.ts   # React Query hooks for connections
-        ├── pages/
-        │   ├── QueryPage.tsx       # NL input → SQL preview → results table
-        │   ├── ConnectionsPage.tsx # Add/edit/delete/test/introspect connections
-        │   ├── GlossaryPage.tsx    # Business glossary term management
-        │   ├── MetricsPage.tsx     # Metric definition management
-        │   ├── DictionaryPage.tsx  # Column value mapping management
-        │   ├── KnowledgePage.tsx   # Knowledge document import/manage (text + URL fetch)
-        │   └── HistoryPage.tsx     # Query execution history + favorites
-        └── types/
-            └── api.ts              # TypeScript interfaces
+        ├── main.tsx
+        ├── App.tsx
+        ├── api/                    # Axios API clients
+        ├── components/ui/           # shadcn/ui components
+        ├── components/widget/      # Chat widget components
+        ├── pages/                  # Chat, Connections, History pages
+        └── hooks/                  # React Query hooks
 ```
 
 ---
@@ -396,7 +384,7 @@ querywise/
 When a user asks a natural language question, the system runs a 7-step pipeline:
 
 ```
-"What is the total ECL by stage?"
+"What is the total revenue by region?"
     │
     ▼
 ┌─ 1. CONTEXT BUILDING ──────────────────────────────────┐
@@ -426,9 +414,9 @@ When a user asks a natural language question, the system runs a 7-step pipeline:
 └──────────────────────────────┬──────────────────────────┘
                                ▼
 ┌─ 5. EXECUTION ──────────────────────────────────────────┐
-│  Run SQL via connector (PG / BigQuery / Databricks)      │
+│  Run SQL via connector (PostgreSQL or SQL Server)       │
 │  Read-only transaction, statement timeout, row limit    │
-│  If DB error → ErrorHandlerAgent retries (max 3x)      │
+│  If DB error → ErrorHandlerAgent retries (max 3x)       │
 └──────────────────────────────┬──────────────────────────┘
                                ▼
 ┌─ 6. INTERPRETATION ─────────────────────────────────────┐
@@ -570,41 +558,10 @@ All endpoints are under `/api/v1`.
 
 ---
 
-## Sample Database
-
-The project includes a sample **IFRS 9 banking database** (auto-seeded via Docker) modelling Expected Credit Loss (ECL) provisioning, staging, and impairment:
-
-| Table | Rows | Description |
-|-------|------|-------------|
-| `counterparties` | 20 | Bank customers/borrowers with segment (retail/corporate/sme), credit rating, default flag |
-| `facilities` | 25 | Loan facilities — mortgage, corporate loan, consumer loan, credit card, overdraft |
-| `exposures` | 25 | Monthly exposure snapshots — EAD, carrying amount, IFRS 9 stage (1/2/3), days past due |
-| `ecl_provisions` | 25 | Expected Credit Loss calculations — PD, LGD, ECL 12-month, ECL lifetime per exposure |
-| `collateral` | 14 | Collateral linked to facilities — property, cash, guarantee, securities |
-| `staging_history` | 30 | Stage transition audit trail — from/to stage, reason, effective date |
-
-Connection string: `postgresql://sample:sample_dev@sample-db:5432/sampledb` (from within Docker) or `postgresql://sample:sample_dev@localhost:5433/sampledb` (from host).
-
-### Pre-seeded Metadata
-
-All metadata is **auto-seeded on startup** when `AUTO_SETUP_SAMPLE_DB=true` (default). For manual seeding, run:
-
-```bash
-python backend/scripts/seed_ifrs9_metadata.py
-```
-
-Auto-setup populates:
-- **10 glossary terms**: EAD, PD, LGD, ECL, Stage 1/2/3, SICR, Coverage Ratio, NPL
-- **8 metrics**: Total ECL, Total EAD, Coverage Ratio, Stage 1/2/3 Exposure, Average PD, NPL Ratio
-- **43 dictionary entries**: stage codes, facility types, customer segments, collateral types, staging reasons, credit ratings, default flags, currencies, revolving indicators
-- **1 knowledge document**: IFRS 9 Staging & ECL Policy Summary (staging criteria, ECL calculation, collateral rules, stage migration, reporting dimensions)
-
----
-
 ## Security
 
-- **Read-only execution** — PostgreSQL queries run inside `SET TRANSACTION READ ONLY`; BigQuery and Databricks enforce read-only via SQL blocklist
-- **SQL blocklist** — static regex patterns block DDL (`DROP`, `ALTER`, `CREATE`), DML (`INSERT`, `UPDATE`, `DELETE`), admin commands (`GRANT`, `COPY`, `EXECUTE`), injection patterns (`pg_sleep`, `dblink`, stacked queries), BigQuery-specific operations (`EXPORT DATA`, `LOAD DATA`), and Databricks-specific operations (`COPY INTO`, `OPTIMIZE`, `VACUUM`)
+- **Read-only execution** — PostgreSQL and SQL Server queries run inside `SET TRANSACTION READ ONLY`
+- **SQL blocklist** — static regex patterns block DDL (`DROP`, `ALTER`, `CREATE`), DML (`INSERT`, `UPDATE`, `DELETE`), admin commands (`GRANT`, `COPY`, `EXECUTE`), and injection patterns (`pg_sleep`, `dblink`, stacked queries)
 - **Encrypted credentials** — connection strings encrypted at rest using Fernet (AES-128-CBC)
 - **Statement timeout** — configurable per connection (default 30s)
 - **Row limits** — configurable per connection (default 1000 rows)
