@@ -18,7 +18,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from app.llm.graph.nodes.field_registry import FIELD_REGISTRY, FieldConfig
+from app.llm.graph.nodes.field_registry import FIELD_REGISTRY, FieldConfig, DOMAIN_STATUS_IDS
 from app.llm.graph.query_plan import FilterClause, QueryPlan
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,8 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT DISTINCT r.ResourceName, s.Name, rs.SkillExperience{select_extras} "
         "FROM Resource r "
         "JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId "
-        "JOIN PA_Skills s ON rs.SkillId = s.SkillId{join_extras}"
+        "JOIN PA_Skills s ON rs.SkillId = s.SkillId{join_extras} "
+        "WHERE r.IsActive = 1"
     ),
 
     # Deferred intents — #baadme (not yet production-ready)
@@ -129,7 +130,7 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT distinct c.ClientName, c.Description, c.CountryId{select_extras} "
         "FROM Client c "
         "JOIN Status st ON c.StatusId = st.StatusId AND st.ReferenceId = 1{join_extras} "
-        "WHERE st.StatusName = 'Active'"
+        "WHERE 1=1"
     ),
 
     "client_projects": (
@@ -281,6 +282,47 @@ BASE_QUERIES: dict[str, str] = {
     ),
 }
 
+# ---------------------------------------------------------------------------
+# Fallback intent mapping — maps each intent to its broader sibling for 0-row retry
+# None means no fallback (broadest intent in that domain)
+# ---------------------------------------------------------------------------
+
+FALLBACK_INTENTS: dict[str, str | None] = {
+    # Resource domain (6 intents)
+    "active_resources": None,  # Broadest - no fallback
+    "benched_resources": None,  # Broadest - no fallback
+    "resource_by_skill": "active_resources",
+    "resource_availability": "active_resources",
+    "resource_project_assignments": "active_resources",
+    "resource_skills_list": "active_resources",
+
+    # Client domain (3 intents)
+    "active_clients": None,  # Broadest - no fallback
+    "client_projects": "active_clients",
+    "client_status": "active_clients",
+
+    # Project domain (6 intents)
+    "active_projects": None,  # Broadest - no fallback
+    "project_by_client": "active_projects",
+    "project_budget": "active_projects",
+    "project_resources": "active_projects",
+    "project_timeline": "active_projects",
+    "overdue_projects": "active_projects",
+
+    # Timesheet domain (4 intents)
+    "approved_timesheets": None,  # Broadest - no fallback
+    "timesheet_by_period": "approved_timesheets",
+    "unapproved_timesheets": "approved_timesheets",
+    "timesheet_by_project": "approved_timesheets",
+
+    # User Self domain (5 intents - no fallback needed, requires resource_id)
+    "my_projects": None,
+    "my_allocation": None,
+    "my_timesheets": None,
+    "my_skills": None,
+    "my_utilization": None,
+}
+
 
 # ---------------------------------------------------------------------------
 # detect_metrics — keyword-based metric detection stub
@@ -352,6 +394,7 @@ def build_filter_clause(
     - date fields: use exact values (BETWEEN / =)
     - numeric fields: use exact values (>= / < / = / BETWEEN)
     - boolean fields: coerce "true"/"false" → 1/0
+    - NULL checks: "missing", "incomplete", "null" → IS NULL / IS NOT NULL
 
     Args:
         filter_clause: The FilterClause to compile.
@@ -365,6 +408,32 @@ def build_filter_clause(
     op = filter_clause.op
     values = filter_clause.values
 
+    # ── Skip empty filters ──────────────────────────────────────────────────
+    if not values or all(not str(v).strip() for v in values):
+        return "", ()  # Skip empty filters entirely
+    
+    # ── Handle NULL checks for special values ────────────────────────────────
+    # Check if the value indicates a NULL check (missing, incomplete, null, empty)
+    NULL_INDICATORS = frozenset({"missing", "incomplete", "null", "empty", "blank", "undefined"})
+    
+    # Check first value for NULL indicators
+    first_value = str(values[0]).lower().strip() if values else ""
+    
+    # If it's a NULL indicator and op is "eq", generate IS NULL (or empty string for description field)
+    if first_value in NULL_INDICATORS and op == "eq":
+        # For description field, check both NULL and empty string
+        if field_config.field_name == "description":
+            return f"({col} IS NULL OR {col} = '')", ()
+        return f"{col} IS NULL", ()
+    
+    # If it's "not missing", "not null", "has value" etc., generate IS NOT NULL
+    NOT_NULL_INDICATORS = frozenset({"not missing", "not null", "has value", "filled", "complete"})
+    if first_value in NOT_NULL_INDICATORS and op == "eq":
+        # For description field, check both NOT NULL AND not empty string
+        if field_config.field_name == "description":
+            return f"({col} IS NOT NULL AND {col} != '')", ()
+        return f"{col} IS NOT NULL", ()
+    
     # ── Boolean coercion ──────────────────────────────────────────────────
     if sql_type == "boolean":
         coerced = []
@@ -379,6 +448,14 @@ def build_filter_clause(
 
     # ── Text fields: wrap with % for LIKE ─────────────────────────────────
     if sql_type == "text":
+        # Special case: status field in client/project domain uses Status table
+        if field_config.field_name == "status" and field_config.column_name == "StatusName":
+            if op == "eq":
+                v = values[0] if values else ""
+                # Use the Status table alias "st.StatusName"
+                return f"st.StatusName = ?", (v,)
+        
+        # Regular text handling
         if op == "eq":
             v = values[0] if values else ""
             return f"{col} LIKE ?", (f"%{v}%",)
@@ -399,8 +476,29 @@ def build_filter_clause(
 
     # ── Date / Numeric fields: exact values ───────────────────────────────
     if sql_type in ("date", "numeric"):
+        # Special handling for status field - use dual filter: IsActive + StatusId
+        if field_config.field_name == "status" and op == "eq":
+            status_value = str(values[0]).strip() if values else ""
+            # Get domain from filter or default
+            domain = getattr(filter_clause, 'domain', None) or "client"
+            
+            # Get StatusId mapping
+            domain_status_map = DOMAIN_STATUS_IDS.get(domain, {})
+            status_id = domain_status_map.get(status_value.capitalize(), domain_status_map.get(status_value))
+            
+            # Get IsActive column
+            isactive_col = field_config.isactive_column
+            
+            if status_id and isactive_col:
+                # Generate both filters: IsActive=1 AND StatusId=X
+                return f"({isactive_col} = 1 AND {col} = ?)", (status_id,)
+            elif status_id:
+                # Fallback: just StatusId
+                return f"{col} = ?", (status_id,)
+        
         if op == "eq":
-            return f"{col} = ?", (values[0],)
+            v = values[0] if values else ""
+            return f"{col} = ?", (v,)
         if op == "lt":
             return f"{col} < ?", (values[0],)
         if op == "gt":

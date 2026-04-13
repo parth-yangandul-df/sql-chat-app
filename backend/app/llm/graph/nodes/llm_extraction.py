@@ -101,6 +101,12 @@ Domain: {domain}
 Available fields for this domain: {', '.join(available_fields)}
 {context_str}
 
+IMPORTANT MAPPING RULES:
+- "missing", "incomplete", "empty", "null", "blank" descriptions → use field "description" with value "missing"
+- "has description", "with description", "complete descriptions" → use field "description" with value "has_value"
+- Status values should be capitalized: "active" → "Active", "inactive" → "Inactive"
+- "client_name" field is for filtering by specific client names, not for "missing" queries
+
 Extract query parameters as JSON."""
 
     messages = [
@@ -288,3 +294,76 @@ Output ONLY JSON."""
         LLMMessage(role="system", content=stronger_system),
         LLMMessage(role="user", content=stronger_user),
     ]
+
+
+# =============================================================================
+# LangGraph Node Wrapper
+# =============================================================================
+
+async def llm_extraction_node(state: dict[str, Any]) -> dict[str, Any]:
+    """LangGraph node for LLM structured extraction.
+    
+    Called after followup_detection to extract filters using LLM.
+    
+    Args:
+        state: Current GraphState
+        
+    Returns:
+        Dict with extracted filters, sort, limit, follow_up_type
+    """
+    question = state.get("question", "")
+    domain = state.get("domain", "resource")
+    
+    # Build context from last_turn_context
+    context = None
+    last_turn = state.get("last_turn_context")
+    if last_turn:
+        context = {
+            "last_filters": last_turn.get("filters", []),
+            "last_intent": last_turn.get("intent"),
+        }
+    
+    # Extract structured parameters
+    extracted = await extract_structured(question, domain, context)
+    
+    # Transform filters to match FilterClause schema
+    filters = extracted.get("filters", [])
+    transformed_filters = []
+    
+    for f in filters:
+        # Convert from LLM format to FilterClause format
+        # LLM: {"field": "skill", "operator": "contains", "value": "python"}
+        # FilterClause: {"field": "skill", "op": "eq", "values": ["python"]}
+        op = f.get("operator", "eq")
+        # Map "contains" to "eq" for now since FilterClause doesn't support contains
+        if op == "contains":
+            op = "eq"
+        
+        transformed_filters.append({
+            "field": f.get("field"),
+            "op": op,  # Use "op" not "operator"
+            "values": [f.get("value")] if f.get("value") else [],  # Wrap in list
+        })
+    
+    # ── Log LLM extracted filters ────────────────────────────────────────
+    filter_summary = ", ".join(
+        f"{f.get('field')}:{f.get('op')}:{f.get('values')}" for f in transformed_filters
+    ) if transformed_filters else "none"
+    logger.info(
+        "llm_extraction: domain=%s intent=%s filters=[%s]",
+        domain, state.get("intent", "unknown"), filter_summary,
+    )
+    
+    logger.info(
+        "LLM extraction node completed: domain=%s, filters=%d, follow_up=%s",
+        domain,
+        len(transformed_filters),
+        extracted.get("follow_up_type", "new")
+    )
+    
+    return {
+        "filters": transformed_filters,
+        "sort": extracted.get("sort", []),
+        "limit": extracted.get("limit", 50),
+        "follow_up_type": extracted.get("follow_up_type", "new"),
+    }

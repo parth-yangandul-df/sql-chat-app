@@ -1,5 +1,4 @@
 services:
-  # App metadata database — PostgreSQL 16 with pgvector extension
   app-db:
     image: pgvector/pgvector:pg16
     environment:
@@ -25,18 +24,15 @@ services:
     env_file:
       - .env
     environment:
-      # Override DATABASE_URL to use the Docker app-db container
       DATABASE_URL: "postgresql+asyncpg://parthy:querywise_app@app-db:5432/saras_metadata"
       ENVIRONMENT: development
       PYTHONPATH: /app
-      # OLLAMA_BASE_URL from .env = http://host.docker.internal:11434 (native Ollama on your machine)
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       app-db:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
+    volumes: []
     command: bash -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
@@ -47,11 +43,7 @@ services:
       - "5173:5173"
     environment:
       VITE_API_URL: http://localhost:8000
-      CHOKIDAR_USEPOLLING: "false"
-      WATCHPACK_POLLING: "false"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    volumes: []
     command: npm run dev -- --host
 
   chatbot-frontend:
@@ -62,9 +54,7 @@ services:
       - "5174:5174"
     environment:
       VITE_API_URL: http://localhost:8000
-    volumes:
-      - ./chatbot-frontend:/app
-      - /app/node_modules
+    volumes: []
     command: npm run dev -- --host
 
 volumes:

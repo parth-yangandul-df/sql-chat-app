@@ -13,19 +13,19 @@ Features:
 
 from __future__ import annotations
 
+import json
 import logging
 import re
-import json
 from typing import Any
 
-from app.llm.graph.intent_catalog import INTENT_CATALOG
+from app.config import settings
+from app.llm.base_provider import LLMConfig, LLMMessage
 from app.llm.graph.nodes.field_registry import FIELD_REGISTRY_BY_DOMAIN
 from app.llm.graph.nodes.intent_classifier import _is_refinement_followup, _semantic_followup_check
+from app.llm.graph.nodes.sql_compiler import BASE_QUERIES
 from app.llm.graph.query_plan import FilterClause, _sanitize_value
 from app.llm.graph.state import GraphState
 from app.llm.providers.groq_provider import GroqProvider
-from app.config import settings
-from app.llm.base_provider import LLMConfig, LLMMessage
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +55,10 @@ def _parse_failed_generation(error_str: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 def _build_tool_schema() -> list[dict]:
-    """Build Groq tool calling schema from INTENT_CATALOG and FIELD_REGISTRY."""
-    intent_names = [e.name for e in INTENT_CATALOG]
-    intent_descriptions = {e.name: e.description for e in INTENT_CATALOG}
+    """Build Groq tool calling schema from SQL_COMPILER BASE_QUERIES and FIELD_REGISTRY."""
+    intent_names = list(BASE_QUERIES.keys())
+    # Minimal descriptions - could be enhanced later
+    intent_descriptions = {name: f"Execute {name} intent" for name in intent_names}
 
     # Build field catalog per domain for the description
     field_lines: list[str] = []
@@ -166,8 +167,66 @@ _SYSTEM_PROMPT = (
     "For 'user_self' domain intents, the user is asking about their own data (my projects, my skills, etc.). "
     "If the query is ambiguous or doesn't clearly match any intent, set confidence below 0.6."
     "IMPORTANT: If a filter has no values, OMIT the filter entirely from the output. Never output an empty values array []. "
-    "Instead, simply do not include that filter field."
+    "Instead, simply do not include that filter field. "
+    "IMPORTANT EXAMPLES: "
+    "- 'show me skills of John Doe' → intent=resource_skills_list, filters=[{'field': 'resource_name', 'op': 'eq', 'values': ['John Doe']}] "
+    "- 'skills of Harshal Yeole' → intent=resource_skills_list, filters=[{'field': 'resource_name', 'op': 'eq', 'values': ['Harshal Yeole']}] "
+    "- 'python developers' → intent=resource_by_skill, filters=[{'field': 'skill', 'op': 'eq', 'values': ['Python']}] "
+    "- 'show me all active resources' → intent=active_resources, filters=[]"
 )
+
+# ---------------------------------------------------------------------------
+# Post-processing heuristics — fix common extraction failures
+# ---------------------------------------------------------------------------
+
+def _post_process_extraction(args: dict, question: str) -> dict:
+    """Fix common extraction failures with pattern matching heuristics.
+    
+    This catches cases where Groq doesn't extract filters correctly.
+    """
+    intent = args.get("intent", "")
+    filters = args.get("filters", [])
+    domain = args.get("domain", "")
+    question_lower = question.lower()
+    
+    # Fix 1: resource_skills_list - "skills of {name}" pattern
+    if intent == "resource_skills_list" and domain == "resource":
+        # Check if question has "skills of {person}" pattern
+        name_pattern = r"(?:skills?\s+(?:of|for)\s+|show\s+(?:me\s+)?skills?\s+(?:of\s+)?)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)"
+        if match := re.search(name_pattern, question, re.IGNORECASE):
+            name = match.group(1).strip()
+            # Check if we already have a resource_name filter
+            if not any(f.get("field") == "resource_name" for f in filters):
+                filters.append({"field": "resource_name", "op": "eq", "values": [name]})
+    
+    # Fix 2: resource_by_skill - common skill names
+    if intent == "resource_by_skill" and not any(f.get("field") == "skill" for f in filters):
+        skill_pattern = r"\b(python|java|react|angular|sql|javascript|typescript|\.net|nodejs|golang|rust|php|swift|kotlin|docker|kubernetes|aws|azure|gcp)\b"
+        if match := re.search(skill_pattern, question_lower):
+            skill = match.group(1).capitalize()
+            filters.append({"field": "skill", "op": "eq", "values": [skill]})
+    
+    # Fix 3: project_by_client - "projects for {client}" pattern
+    if intent == "project_by_client" and not any(f.get("field") == "client_name" for f in filters):
+        client_pattern = r"(?:projects?\s+(?:for|of)\s+|client\s+)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)"
+        if match := re.search(client_pattern, question, re.IGNORECASE):
+            client = match.group(1).strip()
+            filters.append({"field": "client_name", "op": "eq", "values": [client]})
+    
+    # Fix 4: timesheet_by_period - date range patterns
+    if intent == "timesheet_by_period" and not any(f.get("field") in ("start_date", "end_date") for f in filters):
+        # Try to extract date patterns
+        date_pattern = r"(?:last\s+)?(week|month|year)|(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})"
+        if match := re.search(date_pattern, question_lower):
+            if match.group(1):  # "last week", "last month"
+                # Would add date filters here based on period: match.group(1)
+                pass
+    
+    return {
+        "intent": intent,
+        "domain": domain,
+        "filters": filters,
+    }
 
 # ---------------------------------------------------------------------------
 # Main extraction function
@@ -276,6 +335,11 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
     domain = args.get("domain", "")
     confidence = float(args.get("confidence", 0.0))
     raw_filters = args.get("filters", [])
+
+    # Apply post-processing heuristics to fix common extraction failures
+    if raw_filters:
+        args = _post_process_extraction(args, question)
+        raw_filters = args.get("filters", [])
 
     # Filter out filters with empty values arrays (secondary safety net)
     raw_filters = [f for f in raw_filters if f.get("values")]

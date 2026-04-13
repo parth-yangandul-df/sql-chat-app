@@ -8,7 +8,7 @@ This document covers the database schema (app-db), API endpoint contracts, Pydan
 
 ## App-DB Schema (PostgreSQL + pgvector)
 
-Database name: `saras_metadata` (from `docker-compose.yml`). All tables use UUID primary keys and `created_at`/`updated_at` timestamps. Vector columns use `VECTOR(settings.embedding_dimension)` — default `1536` for OpenAI, `768` for Ollama `nomic-embed-text`.
+Database name: `querywise` (from `docker-compose.yml`). All tables use UUID primary keys and `created_at`/`updated_at` timestamps. Vector columns use `VECTOR(settings.embedding_dimension)` — default `1536` for OpenAI, `768` for Ollama `nomic-embed-text`.
 
 ### `database_connections`
 

@@ -27,6 +27,39 @@ class FieldConfig:
     sql_type: str             # "text" | "date" | "numeric" | "boolean"
     domains: list[str]        # Domains this field applies to
     aliases: list[str] = field(default_factory=list)  # Alternate param keys
+    # New fields for extraction guidance
+    example_values: list[str] = field(default_factory=list)  # Example values for LLM
+    extraction_hints: list[str] = field(default_factory=list)  # Phrases that indicate this field
+    # Status field specific (for dual-filter: IsActive + StatusId)
+    isactive_column: str | None = None  # e.g. "IsActive" for client, "IsActive" for project
+    status_map: dict[str, dict[str, int]] = field(default_factory=dict)  # domain -> {status_name: status_id}
+
+
+# ---------------------------------------------------------------------------
+# STATUS ID MAPPINGS — Domain-specific status IDs
+# ---------------------------------------------------------------------------
+# Used for dual-filter approach: WHERE IsActive=1 AND StatusId=X
+# Reference: User provided mappings
+# ---------------------------------------------------------------------------
+
+DOMAIN_STATUS_IDS: dict[str, dict[str, int]] = {
+    "client": {
+        "Active": 2,
+        "Inactive": 1,
+        "Closed": 12,
+    },
+    "project": {
+        "Active": 4,
+        "Inactive": 3,
+        "On hold": 5,
+        "Others": 6,
+        "Closed": 13,
+    },
+    "resource": {
+        "Active": 8,
+        "Inactive": 7,
+    },
+}
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +80,8 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         sql_type="text",
         domains=["resource"],
         aliases=["skill_filter"],
+        example_values=["Python", "Java", "React", "SQL", "Angular", ".NET", "NodeJS"],
+        extraction_hints=["knows", "experienced", "proficient", "skills", "technology", "tech"],
     ),
 
     # ── RESOURCE NAME ─────────────────────────────────────────────────────
@@ -56,7 +91,9 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         multi_value=False,
         sql_type="text",
         domains=["resource", "project", "timesheet"],
-        aliases=["employee_name"],
+        aliases=["employee_name", "person", "resource"],
+        example_values=["John Doe", "Harshal Yeole", "Jane Smith"],
+        extraction_hints=["of", "skills of", "show me", "assigned to", "for"],
     ),
 
     # ── DESIGNATION ───────────────────────────────────────────────────────
@@ -67,6 +104,8 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         sql_type="text",
         domains=["resource"],
         aliases=[],
+        example_values=["Software Engineer", "Senior Developer", "Tech Lead", "Manager"],
+        extraction_hints=["working as", "role", "designation", "position"],
     ),
 
     # ── TECH CATEGORY ─────────────────────────────────────────────────────
@@ -77,6 +116,8 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         sql_type="text",
         domains=["resource", "project"],
         aliases=["category"],
+        example_values=["Java", "Microsoft", "Open Source", "Data"],
+        extraction_hints=["category", "tech category", "technology stack"],
     ),
 
     # ── ROLE ──────────────────────────────────────────────────────────────
@@ -87,6 +128,8 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         sql_type="text",
         domains=["resource", "project"],
         aliases=[],
+        example_values=["Developer", "Tester", "Architect", "Lead"],
+        extraction_hints=["role", "as", "working as"],
     ),
 
     # ── START DATE ────────────────────────────────────────────────────────
@@ -157,6 +200,8 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         sql_type="text",
         domains=["client", "project"],
         aliases=["account_name"],
+        example_values=["Google", "Microsoft", "Amazon", "Apple"],
+        extraction_hints=["for client", "projects for", "client"],
     ),
 
     # ── COUNTRY ID ────────────────────────────────────────────────────────
@@ -177,16 +222,22 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         sql_type="text",
         domains=["client", "project", "user_self"],
         aliases=[],
+        example_values=["Project Alpha", "Migration Project"],
+        extraction_hints=["project", "named"],
     ),
 
     # ── STATUS ────────────────────────────────────────────────────────────
     "status": FieldConfig(
         field_name="status",
-        column_name="StatusName",
+        column_name="StatusId",  # Use StatusId for filtering
         multi_value=False,
-        sql_type="text",
-        domains=["client", "project"],
+        sql_type="numeric",  # Changed from text to numeric
+        domains=["client", "project", "resource"],
         aliases=[],
+        example_values=["Active", "Inactive", "Closed", "On hold", "Others", "Completed"],
+        extraction_hints=["status", "is", "state"],
+        isactive_column="IsActive",  # Dual-filter: IsActive + StatusId
+        status_map=DOMAIN_STATUS_IDS,  # Domain-specific StatusId mappings
     ),
 
     # ── PROJECT MANAGER ───────────────────────────────────────────────────
@@ -265,8 +316,10 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         column_name="Description",
         multi_value=False,
         sql_type="text",
-        domains=["timesheet"],
+        domains=["client", "timesheet"],
         aliases=[],
+        example_values=["Client description", "Acme Corp partnership"],
+        extraction_hints=["description", "about", "details"],
     ),
 
     # ── CATEGORY (user_self timesheets / utilization) ─────────────────────

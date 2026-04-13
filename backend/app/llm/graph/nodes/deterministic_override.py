@@ -130,3 +130,49 @@ def merge_override_with_extracted(
         ]
 
     return result
+
+
+# =============================================================================
+# LangGraph Node Wrapper
+# =============================================================================
+
+async def deterministic_override_node(state: dict[str, Any]) -> dict[str, Any]:
+    """LangGraph node for deterministic override layer.
+    
+    Applies deterministic rules that always win over LLM output.
+    
+    Args:
+        state: Current GraphState
+        
+    Returns:
+        Dict with final follow_up_type and confidence_breakdown
+    """
+    # Get extracted data from prior nodes
+    extracted = {
+        "filters": state.get("filters", []),
+        "sort": state.get("sort", []),
+        "limit": state.get("limit", 50),
+        "follow_up_type": state.get("follow_up_type", "new"),
+    }
+    
+    # Get last intent from last_turn_context
+    last_turn = state.get("last_turn_context")
+    if last_turn:
+        state["last_intent"] = last_turn.get("intent")
+    
+    # Apply deterministic overrides
+    override_result = apply_overrides(extracted, state)
+    
+    logger.info(
+        "Deterministic override node: was_overridden=%s, final_follow_up_type=%s",
+        override_result.was_overridden,
+        override_result.final_follow_up_type
+    )
+    
+    return {
+        "follow_up_type": override_result.final_follow_up_type,
+        "confidence_breakdown": {
+            "deterministic_override": 0.4 if not override_result.was_overridden else 0.0,
+            "overrides_applied": override_result.overrides_applied,
+        },
+    }

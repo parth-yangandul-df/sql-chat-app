@@ -24,7 +24,7 @@ QueryWise is a natural-language-to-SQL system with a semantic metadata layer. Us
 │              │       app-db         │                       │
 │              │  PostgreSQL 16       │                       │
 │              │  + pgvector          │                       │
-│              │  (saras_metadata)    │                       │
+│              │  (querywise)         │                       │
 │              └──────────────────────┘                       │
 └─────────────────────────────────────────────────────────────┘
 
@@ -66,7 +66,7 @@ Defined in `backend/app/main.py` lifespan hook:
 
 ### LangGraph Pipeline
 
-Defined in `backend/app/llm/graph/graph.py`. The pipeline is a `StateGraph` over `QueryState` (`backend/app/llm/graph/state.py`).
+Defined in `backend/app/llm/graph/graph.py`. The pipeline is a `StateGraph` over `GraphState` (`backend/app/llm/graph/state.py`).
 
 #### Full Graph Topology
 
@@ -76,7 +76,7 @@ START
   ▼
 classify_intent
   │
-  ├─ confidence >= 0.65 ──► extract_params ──► run_domain_tool
+  ├─ confidence >= 0.65 ──► extract_filters ──► update_query_plan ──► run_domain_tool
   │                                                  │
   │                                          rows > 0 ──► interpret_result
   │                                                  │
@@ -103,7 +103,8 @@ classify_intent
 | Node | File | Responsibility |
 |---|---|---|
 | `classify_intent` | `nodes/intent_classifier.py` | Embeds question, cosine-similarity against 24 intent descriptions, picks best match |
-| `extract_params` | `nodes/param_extractor.py` | Calls LLM to extract structured params from question using the matched intent's schema |
+| `extract_filters` | `nodes/filter_extractor.py` | Extracts structured filter clauses from question using LLM + regex patterns |
+| `update_query_plan` | `nodes/plan_updater.py` | Builds QueryPlan from domain, intent, filters; resolves schema references |
 | `run_domain_tool` | `nodes/` (inline in graph) | Looks up agent from `DomainAgentRegistry`, calls `agent.run(intent, params)` |
 | `run_fallback_intent` | `nodes/fallback_intent.py` | Re-runs domain tool with next-best intent when primary returned 0 rows |
 | `llm_fallback` | `nodes/llm_fallback.py` | Full LLM path: build semantic context → compose SQL → validate → execute → retry on error |
@@ -114,13 +115,15 @@ classify_intent
 
 ### Intent Classification Path (SQL Template Path)
 
-1. **`classify_intent`**: The question is embedded using the configured embedding provider. Cosine similarity is computed against pre-embedded descriptions of all 24 intents in `intent_catalog.py`. If best-match similarity ≥ `TOOL_CONFIDENCE_THRESHOLD` (default `0.65`), the intent name and score are written to state.
+1. **`classify_intent`**: The question is embedded using the configured embedding provider. Cosine similarity is computed against pre-embedded descriptions of all 24 intents across 5 domains in `intent_catalog.py`. If best-match similarity ≥ `TOOL_CONFIDENCE_THRESHOLD` (default `0.65`), the intent name and score are written to state.
 
-2. **`extract_params`**: The LLM is called with a prompt that includes the question and the matched intent's expected parameter schema. Returns a structured JSON dict of extracted values (e.g., `{"resource_name": "Alice", "start_date": "2024-01-01"}`).
+2. **`extract_filters`**: Extracts structured filter clauses (date ranges, text matches, numeric comparisons) from the question using an LLM prompt and regex post-processing. Writes `filters` list to state.
 
-3. **`run_domain_tool`**: The `DomainAgentRegistry` maps the intent name to its owning agent class. The agent's `run(intent, params, db_session, connection)` method is called. All domain agents extend `BaseDomainAgent` and use hardcoded SQL templates with parameter substitution. Result rows are written to state.
+3. **`update_query_plan`**: Builds a `QueryPlan` object from the domain, intent, and extracted filters. Resolves any schema references needed for SQL compilation. Writes `query_plan` to state.
 
-4. **`run_fallback_intent`** (conditional): If `run_domain_tool` returned 0 rows and the state has a `fallback_intent`, the next-best intent is tried. If that also returns 0 rows, the pipeline falls through to `llm_fallback`.
+4. **`run_domain_tool`**: The `DomainAgentRegistry` maps the intent name to its owning agent class. The agent's `run(intent, params, db_session, connection)` method is called. All domain agents extend `BaseDomainAgent` and use hardcoded SQL templates with parameter substitution. Result rows are written to state.
+
+5. **`run_fallback_intent`** (conditional): If `run_domain_tool` returned 0 rows and the state has a `fallback_intent`, the next-best intent is tried. If that also returns 0 rows, the pipeline falls through to `llm_fallback`.
 
 ---
 

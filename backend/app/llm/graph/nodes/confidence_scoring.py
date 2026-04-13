@@ -60,6 +60,12 @@ def calculate_confidence(
     breakdown["valid_fields"] = field_validity_score
     reasons.extend(field_reasons)
     
+    # 2b. Check filter value complexity (+0.1 penalty for complex values)
+    # Complex values like "missing", "incomplete" require LLM fallback
+    complexity_score, complexity_reasons = _check_value_complexity(extracted, domain)
+    breakdown["value_complexity"] = -complexity_score  # negative penalty
+    reasons.extend(complexity_reasons)
+    
     # 3. Check schema match (+0.4)
     schema_score, schema_reasons = _check_schema_match(extracted)
     breakdown["matches_schema"] = schema_score
@@ -159,6 +165,39 @@ def _check_field_validity(
     # Partial validity
     score = (valid_count / total_count) * 0.3
     return score, reasons
+
+
+def _check_value_complexity(
+    extracted: dict[str, Any],
+    domain: str,
+) -> tuple[float, list[str]]:
+    """Check if filter values are simple or complex (require LLM fallback).
+    
+    Complex values like "missing", "incomplete", "null", "empty" require 
+    SQL generation for NULL checks - can't be handled by template SQL.
+    
+    Returns:
+        Tuple of (penalty_score, reasons) — higher penalty means more complex
+    """
+    # Keywords that indicate complex semantic meaning requiring LLM
+    COMPLEX_KEYWORDS: frozenset[str] = frozenset({
+        "missing", "incomplete", "null", "empty", "blank",
+        "undefined", "none", "unset", "absent",
+        "without", "lacking", "no description", "no name",
+    })
+    
+    filters = extracted.get("filters", [])
+    penalty = 0.0
+    reasons: list[str] = []
+    
+    for f in filters:
+        for value in f.get("values", []):
+            value_str = str(value).lower()
+            if any(kw in value_str for kw in COMPLEX_KEYWORDS):
+                penalty += 0.15  # 0.15 penalty per complex filter
+                reasons.append(f"Complex value '{value}' requires LLM fallback")
+    
+    return penalty, reasons
 
 
 def _check_schema_match(extracted: dict[str, Any]) -> tuple[float, list[str]]:
@@ -269,3 +308,69 @@ def get_filters_for_processing(
     else:  # full_fallback
         # Don't use any LLM-extracted filters - trigger fallback ladder
         return []
+
+
+# =============================================================================
+# LangGraph Node Wrapper
+# =============================================================================
+
+async def confidence_scoring_node(state: dict[str, Any]) -> dict[str, Any]:
+    """LangGraph node for confidence scoring.
+    
+    Calculates confidence score for LLM extraction and routes accordingly.
+    
+    Args:
+        state: Current GraphState
+        
+    Returns:
+        Dict with confidence score and decision
+    """
+    # Get extracted data from prior nodes
+    extracted = {
+        "filters": state.get("filters", []),
+        "sort": state.get("sort", []),
+        "limit": state.get("limit", 50),
+        "follow_up_type": state.get("follow_up_type", "new"),
+    }
+    
+    domain = state.get("domain", "resource")
+    
+    # Calculate confidence
+    confidence_result = calculate_confidence(extracted, domain)
+    
+    # Merge with existing confidence_breakdown
+    breakdown = state.get("confidence_breakdown", {})
+    breakdown.update({
+        "valid_json": confidence_result.breakdown.get("valid_json", 0.0),
+        "valid_fields": confidence_result.breakdown.get("valid_fields", 0.0),
+        "matches_schema": confidence_result.breakdown.get("matches_schema", 0.0),
+        "confidence_score": confidence_result.score,
+        "decision": confidence_result.decision,
+    })
+    
+    logger.info(
+        "Confidence scoring node: score=%.2f, decision=%s",
+        confidence_result.score,
+        confidence_result.decision
+    )
+    
+    return {
+        "confidence": confidence_result.score,
+        "confidence_breakdown": breakdown,
+    }
+
+
+def route_after_confidence(state: dict[str, Any]) -> str:
+    """LangGraph conditional edge: route based on confidence score.
+    
+    Args:
+        state: Current GraphState
+        
+    Returns:
+        "update_query_plan" if confidence >= 0.7, else "llm_fallback"
+    """
+    confidence = state.get("confidence", 0.0)
+    
+    if confidence >= 0.7:
+        return "update_query_plan"
+    return "llm_fallback"

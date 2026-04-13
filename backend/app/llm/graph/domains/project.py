@@ -17,8 +17,7 @@ class ProjectAgent(BaseDomainAgent):
             sql = (
                 "SELECT p.ProjectId, p.ProjectName, c.ClientName "
                 "FROM Project p JOIN Client c ON p.ClientId = c.ClientId "
-                "JOIN Status st ON p.ProjectStatusId = st.StatusId AND st.ReferenceId = 2 "
-                "WHERE st.StatusName = 'Active'"
+                "WHERE p.IsActive = 1 AND p.ProjectStatusId = 4"
             )
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
 

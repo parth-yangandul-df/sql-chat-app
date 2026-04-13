@@ -79,10 +79,13 @@ class Settings(BaseSettings):
     embedding_dimension: int = 1536
 
     # QueryPlan compiler feature flag (Phase 7)
-    use_query_plan_compiler: bool = False  # MIGRATION FLAG: remove after phase validation
+    use_query_plan_compiler: bool   # MIGRATION FLAG: remove after phase validation
 
     # Groq unified intent + filter extractor (replaces embedding classifier + regex filter_extractor)
     use_groq_extractor: bool = False  # Enable via USE_GROQ_EXTRACTOR=true in .env
+
+    # Hybrid Mode (Phase 8) — context-aware query system with deterministic override
+    use_hybrid_mode: bool = False  # Enable via USE_HYBRID_MODE=true in .env
 
     # Logging
     log_level: str = "INFO"

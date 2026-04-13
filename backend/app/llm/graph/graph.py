@@ -31,6 +31,32 @@ Graph topology (USE_GROQ_EXTRACTOR=true — unified Groq path):
                                 write_history
                                       │
                                      END
+
+Graph topology (USE_HYBRID_MODE=true — Phase 8 hybrid path):
+  classify_intent
+       |
+       compute_embedding
+       |
+       followup_detection
+       |
+       llm_extraction
+       |
+       deterministic_override
+       |
+       confidence_scoring
+       |
+       ├─ confidence >= 0.7 → update_query_plan → run_domain_tool
+       │                                            ├─ rows > 0 → interpret_result
+       │                                            └─ 0 rows + fallback_intent? → run_fallback_intent
+       │                                                            ├─ rows > 0 → interpret_result
+       │                                                            └─ 0 rows   → llm_fallback
+       └─ confidence < 0.7  → llm_fallback
+                                      │
+                                interpret_result
+                                      │
+                                write_history
+                                      │
+                                     END
 """
 
 from langgraph.graph import END, StateGraph
@@ -56,7 +82,7 @@ _compiled_graph = None
 def _build_graph():
     graph = StateGraph(GraphState)
 
-    # ── Shared nodes (both paths) ────────────────────────────────────────────
+    # ── Shared nodes (all paths) ────────────────────────────────────────────
     graph.add_node("run_domain_tool", run_domain_tool)
     graph.add_node("run_fallback_intent", run_fallback_intent)
     graph.add_node("llm_fallback", llm_fallback)
@@ -64,7 +90,41 @@ def _build_graph():
     graph.add_node("write_history", write_history)
     graph.add_node("update_query_plan", update_query_plan)
 
-    if settings.use_groq_extractor:
+    if settings.use_hybrid_mode:
+        # ── Phase 8 Hybrid Mode Path ─────────────────────────────────────────
+        from app.llm.graph.nodes.compute_embedding import compute_embedding_node
+        from app.llm.graph.nodes.followup_detection import followup_detection_node
+        from app.llm.graph.nodes.llm_extraction import llm_extraction_node
+        from app.llm.graph.nodes.deterministic_override import deterministic_override_node
+        from app.llm.graph.nodes.confidence_scoring import confidence_scoring_node, route_after_confidence
+
+        graph.add_node("classify_intent", classify_intent)
+        graph.add_node("compute_embedding", compute_embedding_node)
+        graph.add_node("followup_detection", followup_detection_node)
+        graph.add_node("llm_extraction", llm_extraction_node)
+        graph.add_node("deterministic_override", deterministic_override_node)
+        graph.add_node("confidence_scoring", confidence_scoring_node)
+
+        graph.set_entry_point("classify_intent")
+
+        # Flow: classify → embed → followup → extract → override → score
+        graph.add_edge("classify_intent", "compute_embedding")
+        graph.add_edge("compute_embedding", "followup_detection")
+        graph.add_edge("followup_detection", "llm_extraction")
+        graph.add_edge("llm_extraction", "deterministic_override")
+        graph.add_edge("deterministic_override", "confidence_scoring")
+
+        # Route based on confidence score
+        graph.add_conditional_edges(
+            "confidence_scoring",
+            route_after_confidence,
+            {
+                "update_query_plan": "update_query_plan",
+                "llm_fallback": "llm_fallback",
+            },
+        )
+
+    elif settings.use_groq_extractor:
         # ── Groq unified path ─────────────────────────────────────────────────
         from app.llm.graph.nodes.llm_groq_extractor import groq_extract, route_after_groq
 

@@ -78,6 +78,22 @@ _UNAPPROVED_KEYWORDS: frozenset[str] = frozenset({
     "waiting for approval", "unreviewed", "pending timesheet",
 })
 
+# "show all active client*" pattern — must be checked BEFORE generic "active" matching
+# to route to active_clients instead of client_projects or other intents
+_ACTIVE_CLIENT_KEYWORDS: frozenset[str] = frozenset({
+    "active client", "active clients", "all active client", "all active clients",
+    "list active client", "list active clients", "show active client", "show active clients",
+    "current client", "current clients", "all current client", "all current clients",
+})
+
+# "show all active project*" pattern — must be checked BEFORE generic "active" matching
+_ACTIVE_PROJECT_KEYWORDS: frozenset[str] = frozenset({
+    "active project", "active projects", "all active project", "all active projects",
+    "list active project", "list active projects", "show active project", "show active projects",
+    "current project", "current projects", "all current project", "all current projects",
+    "ongoing project", "ongoing projects", "all ongoing project", "all ongoing projects",
+})
+
 
 def _keyword_route(question: str) -> tuple[str, str] | None:
     """Check keyword sets and return (intent_name, domain) if a pre-check fires.
@@ -87,6 +103,11 @@ def _keyword_route(question: str) -> tuple[str, str] | None:
     Returns None if no keyword guard matches.
     """
     q = question.lower()
+    # Check most specific patterns FIRST - "active client*" before generic "active"
+    if any(kw in q for kw in _ACTIVE_CLIENT_KEYWORDS):
+        return ("active_clients", "client")
+    if any(kw in q for kw in _ACTIVE_PROJECT_KEYWORDS):
+        return ("active_projects", "project")
     if any(kw in q for kw in _BENCH_KEYWORDS):
         return ("benched_resources", "resource")
     if any(kw in q for kw in _SKILL_KEYWORDS):

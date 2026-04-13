@@ -30,6 +30,7 @@ class GraphState(TypedDict):
     semantic_similarity: float | None       # Cosine similarity between current and last query
     follow_up_type: Literal["refine", "replace", "new"] | None  # Classification result
     confidence_breakdown: dict | None       # {valid_json, valid_fields, matches_schema} scores
+    last_intent: str | None                 # Intent from previous turn for override logic
 
     # ── Auth / RBAC (set by query_service from current_user) ─────────────
     user_id: str | None          # UUID as str — authenticated user's ID; None if unauthenticated

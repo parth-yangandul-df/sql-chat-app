@@ -104,6 +104,16 @@ async def update_query_plan(state: GraphState) -> dict[str, Any]:
             "plan_updater: created fresh QueryPlan for %s.%s with %d filter(s)",
             domain, intent, len(plan.filters),
         )
+        
+        # ── Log QueryPlan details ───────────────────────────────────────────
+        filter_summary = ", ".join(
+            f"{f.field}={f.op}:{f.values}" for f in plan.filters
+        ) if plan.filters else "none"
+        logger.info(
+            "plan_updater: QueryPlan domain=%s intent=%s filters=[%s]",
+            domain, intent, filter_summary,
+        )
+        
         return {"query_plan": plan.to_api_dict()}
 
     # ── 3b. Merge new filters into existing plan ──────────────────────────

@@ -106,6 +106,13 @@ class BaseDomainAgent(ABC):
             if query_plan_dict:
                 plan = QueryPlan.from_untrusted_dict(query_plan_dict)
                 sql, sql_params = compile_query(plan, resource_id=state.get("resource_id"))
+                
+                # ── Log generated SQL ─────────────────────────────────────────
+                logger.info(
+                    "domain_sql: domain=%s intent=%s sql=[%s] params=%s",
+                    domain, intent, sql[:200] if sql else "none", sql_params,
+                )
+                
                 result = await connector.execute_query(
                     sql,
                     params=sql_params,
@@ -120,6 +127,12 @@ class BaseDomainAgent(ABC):
                     domain, intent,
                 )
                 sql, result = await self._run_intent(intent, params, connector, state)
+                
+                # ── Log fallback SQL ─────────────────────────────────────────
+                logger.info(
+                    "domain_sql: domain=%s intent=%s (fallback intent sql)",
+                    domain, intent,
+                )
         else:
             # EXISTING PATH: subquery refinement (unchanged)
             if _is_refine_mode(params):
@@ -129,6 +142,12 @@ class BaseDomainAgent(ABC):
                 )
             else:
                 sql, result = await self._run_intent(intent, params, connector, state)
+            
+            # ── Log old path SQL ─────────────────────────────────────────────
+            logger.info(
+                "domain_sql: domain=%s intent=%s (old path)",
+                domain, intent,
+            )
 
         return {
             "sql": sql,

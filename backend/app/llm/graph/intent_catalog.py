@@ -65,7 +65,7 @@ INTENT_CATALOG: list[IntentEntry] = [
         "show all active clients list all current client accounts or customer names",
         fallback_intent=None),
     IntentEntry("client_projects", "client",
-        "show or list all projects under a specific client or account name — what projects does this client have",
+        "list projects for a specific named client — what projects does this particular client have running",
         fallback_intent="active_clients"),
     IntentEntry("client_status", "client",
         "check whether a specific client or account is active or inactive — client status lookup",

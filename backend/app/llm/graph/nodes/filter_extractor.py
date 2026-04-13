@@ -325,7 +325,7 @@ async def extract_filters(state: GraphState) -> dict[str, Any]:
         if fc:
             filters.append(fc)
 
-    # ── 9. Billable extraction ───────────────────────────────────────────
+    # ── 9. Billable extraction ────────────────────────────────────────────
     billable_match = _BILLABLE_RE.search(question)
     if billable_match:
         val = "0" if "non" in billable_match.group(1).lower() else "1"
@@ -333,12 +333,43 @@ async def extract_filters(state: GraphState) -> dict[str, Any]:
         if fc:
             filters.append(fc)
 
-    # ── 10. LLM fallback stub ────────────────────────────────────────────
+    # ── 10. Status extraction ────────────────────────────────────────────
+    # Extract status values like "active", "inactive", "pending", etc.
+    # Map to canonical "status" field which resolves to StatusName column
+    status_match = _STATUS_RE.search(question)
+    if status_match:
+        status_value = status_match.group(1).capitalize()
+        # Map lowercase variations to canonical status values
+        status_map = {
+            "active": "Active",
+            "inactive": "Inactive",
+            "pending": "Pending",
+            "completed": "Completed",
+            "closed": "Closed",
+            "open": "Open",
+            "approved": "Approved",
+            "unapproved": "Unapproved",
+        }
+        canonical_status = status_map.get(status_value.lower(), status_value)
+        fc = _make_filter("status", "eq", [canonical_status], domain)
+        if fc:
+            filters.append(fc)
+
+    # ── 11. LLM fallback stub ────────────────────────────────────────────
     if not filters:
         logger.debug(
             "filter_extractor: no regex matches for domain='%s', intent='%s'. "
             "LLM extraction deferred to Plan 04.",
             domain, intent,
         )
+
+    # ── Log extracted filters ─────────────────────────────────────────────
+    filter_summary = ", ".join(
+        f"{f.field}={f.op}:{f.values}" for f in filters
+    ) if filters else "none"
+    logger.info(
+        "filter_extractor: domain=%s intent=%s extracted_filters=[%s]",
+        domain, intent, filter_summary,
+    )
 
     return {"filters": filters}

@@ -16,23 +16,31 @@ Builds a `StateGraph` over `QueryState`. All nodes are registered with `add_node
 
 ### State Schema
 
-**File:** `backend/app/llm/graph/state.py` — `QueryState` (TypedDict)
+**File:** `backend/app/llm/graph/state.py` — `GraphState` (TypedDict)
 
 | Field | Type | Description |
 |---|---|---|
 | `question` | `str` | The user's natural-language question |
-| `connection_id` | `UUID` | Target database connection ID |
-| `session_id` | `UUID \| None` | Chat session ID |
-| `history` | `list[dict]` | Conversation history (role/content pairs, max 6 turns) |
+| `connection_id` | `str` | Target database connection ID (UUID as str) |
+| `session_id` | `str \| None` | Chat session ID (UUID as str) |
+| `conversation_history` | `list[dict]` | Conversation history (role/content pairs, max 6 turns) |
+| `user_id` | `str \| None` | Authenticated user's ID (UUID as str); None if unauthenticated |
+| `user_role` | `str \| None` | "admin" \| "manager" \| "user"; None if unauthenticated |
+| `resource_id` | `int \| None` | Only set for "user" role; None for admin/manager/unauthenticated |
+| `domain` | `str \| None` | "resource" \| "client" \| "project" \| "timesheet" \| "user_self" |
 | `intent` | `str \| None` | Matched intent name |
-| `intent_confidence` | `float \| None` | Cosine similarity score |
-| `fallback_intent` | `str \| None` | Next-best intent for 0-row fallback |
-| `params` | `dict \| None` | Extracted parameters from LLM |
+| `confidence` | `float` | Cosine similarity score |
+| `params` | `dict` | Extracted parameters (skill, dates, names) |
+| `filters` | `list` | FilterClause objects extracted by filter_extractor node |
+| `query_plan` | `dict \| None` | QueryPlan serialized as dict |
 | `sql` | `str \| None` | Generated or templated SQL |
-| `rows` | `list[dict] \| None` | Query result rows |
+| `result` | `QueryResult \| None` | Query execution result |
+| `generated_sql` | `str \| None` | LLM path only; None for domain tool path |
 | `answer` | `str \| None` | Final natural-language answer |
+| `highlights` | `list[str]` | Result highlights |
+| `suggested_followups` | `list[str]` | Suggested follow-up questions |
 | `error` | `str \| None` | Error message if pipeline failed |
-| `execution_time_ms` | `int \| None` | Query wall-clock time in milliseconds |
+| `execution_time_ms` | `float \| None` | Query wall-clock time in milliseconds |
 
 ---
 
@@ -44,16 +52,24 @@ Builds a `StateGraph` over `QueryState`. All nodes are registered with `add_node
 
 - Embeds the question using the configured embedding provider.
 - Computes cosine similarity against pre-embedded descriptions of all 24 intents from `intent_catalog.py`.
-- Writes `intent`, `intent_confidence`, and `fallback_intent` (second-best match) to state.
+- Writes `domain`, `intent`, `confidence`, and `fallback_intent` (second-best match) to state.
 - Threshold: `TOOL_CONFIDENCE_THRESHOLD` env var (default `0.65`).
 
-### `extract_params`
+### `extract_filters`
 
-**File:** `backend/app/llm/graph/nodes/param_extractor.py`
+**File:** `backend/app/llm/graph/nodes/filter_extractor.py`
 
-- Calls the LLM with the question and the matched intent's expected parameter schema.
-- Returns structured JSON (e.g., `{"resource_name": "Alice", "start_date": "2024-01-01"}`).
-- Uses `repair_json()` to handle malformed LLM output.
+- Calls the LLM with the question and matched intent to extract structured filter clauses.
+- Uses regex post-processing to parse dates, numeric ranges, and text patterns.
+- Writes `filters` (list of FilterClause objects) to state.
+
+### `update_query_plan`
+
+**File:** `backend/app/llm/graph/nodes/plan_updater.py`
+
+- Builds a `QueryPlan` object from domain, intent, and extracted filters.
+- Resolves schema references needed for SQL compilation.
+- Writes `query_plan` (serialized dict) to state.
 
 ### `run_domain_tool`
 
@@ -98,25 +114,27 @@ Inline in `graph.py`. Resolves the intent name to an agent via `DomainAgentRegis
 
 **File:** `backend/app/llm/graph/intent_catalog.py`
 
-24 intents across 4 domains. Each intent has a `name`, `description` (used for embedding), and `param_schema`.
-
-| Domain | Intents (9) |
-|---|---|
-| `resource` | allocation status, available resources, bench list, utilization rate, skills search, headcount by department, resource timeline, billing rate lookup, resource gap analysis |
-
-| Domain | Intents (5) |
-|---|---|
-| `client` | active clients, client project list, client contact lookup, client portfolio summary, ~~client revenue~~ (commented out) |
+24 intents across 5 domains. Each intent has a `name`, `description` (used for embedding), and `param_schema`.
 
 | Domain | Intents (6) |
 |---|---|
-| `project` | project status, project team, overdue projects, project budget, project milestones, project risk |
+| `resource` | active resources, benched resources, resource by skill, resource availability, resource project assignments, resource skills list |
+
+| Domain | Intents (3) |
+|---|---|
+| `client` | active clients, client projects, client status |
+
+| Domain | Intents (6) |
+|---|---|
+| `project` | active projects, project by client, project budget, project resources, project timeline, overdue projects |
 
 | Domain | Intents (4) |
 |---|---|
-| `timesheet` | hours logged, timesheet compliance, overtime summary, project hours breakdown |
+| `timesheet` | approved timesheets, timesheet by period, unapproved timesheets, timesheet by project |
 
-**Note:** `client_revenue` intent exists in `intent_catalog.py` but the corresponding handler in `client.py` is commented out. Queries matching this intent will fall through to `llm_fallback`.
+| Domain | Intents (5) |
+|---|---|
+| `user_self` | my projects, my allocation, my timesheets, my skills, my utilization |
 
 ---
 
