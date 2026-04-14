@@ -23,6 +23,20 @@ from app.llm.graph.query_plan import FilterClause, QueryPlan
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# NO_FILTER_INTENTS — intents with fully self-contained SQL (no dynamic filters)
+# ---------------------------------------------------------------------------
+NO_FILTER_INTENTS: frozenset[str] = frozenset({
+    "benched_resources",      # hardcoded WHERE p.ProjectId = 119
+    "active_resources",       # hardcoded WHERE r.IsActive = 1 AND r.statusid = 8
+    "resource_availability",  # hardcoded subquery exclusion
+    "active_projects",        # hardcoded WHERE p.IsActive = 1 AND p.ProjectStatusId = 4
+    "overdue_projects",       # hardcoded WHERE p.EndDate < GETDATE()
+    "active_clients",         # hardcoded WHERE c.IsActive = 1 AND c.StatusId = 2
+    "approved_timesheets",    # hardcoded approval flags
+    "unapproved_timesheets",  # hardcoded unapproved flags
+})
+
 
 # ---------------------------------------------------------------------------
 # MetricFragment — injectable metric SQL for SELECT / JOIN / GROUP BY
@@ -130,7 +144,7 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT distinct c.ClientName, c.Description, c.CountryId{select_extras} "
         "FROM Client c "
         "JOIN Status st ON c.StatusId = st.StatusId AND st.ReferenceId = 1{join_extras} "
-        "WHERE 1=1"
+        "WHERE c.IsActive = 1"
     ),
 
     "client_projects": (
@@ -386,6 +400,7 @@ def build_in_clause(column: str, values: list[str]) -> tuple[str, tuple]:
 def build_filter_clause(
     filter_clause: FilterClause,
     field_config: FieldConfig,
+    domain: str = "",
 ) -> tuple[str, tuple]:
     """Compile a single FilterClause to a SQL WHERE fragment and param tuple.
 
@@ -423,16 +438,24 @@ def build_filter_clause(
     if first_value in NULL_INDICATORS and op == "eq":
         # For description field, check both NULL and empty string
         if field_config.field_name == "description":
-            return f"({col} IS NULL OR {col} = '')", ()
-        return f"{col} IS NULL", ()
+            table_alias = field_config.table_alias or ''
+            alias_prefix = f'{table_alias}.' if table_alias else ''
+            return f"({alias_prefix}{col} IS NULL OR {alias_prefix}{col} = '')", ()
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
+        return f"{alias_prefix}{col} IS NULL", ()
     
     # If it's "not missing", "not null", "has value" etc., generate IS NOT NULL
     NOT_NULL_INDICATORS = frozenset({"not missing", "not null", "has value", "filled", "complete"})
     if first_value in NOT_NULL_INDICATORS and op == "eq":
         # For description field, check both NOT NULL AND not empty string
         if field_config.field_name == "description":
-            return f"({col} IS NOT NULL AND {col} != '')", ()
-        return f"{col} IS NOT NULL", ()
+            table_alias = field_config.table_alias or ''
+            alias_prefix = f'{table_alias}.' if table_alias else ''
+            return f"({alias_prefix}{col} IS NOT NULL AND {alias_prefix}{col} != '')", ()
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
+        return f"{alias_prefix}{col} IS NOT NULL", ()
     
     # ── Boolean coercion ──────────────────────────────────────────────────
     if sql_type == "boolean":
@@ -443,11 +466,16 @@ def build_filter_clause(
             else:
                 coerced.append(0)
         values = [str(c) for c in coerced]
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
         # Boolean always uses eq
-        return f"{col} = ?", (coerced[0] if len(coerced) == 1 else coerced[0],)
+        return f"{alias_prefix}{col} = ?", (coerced[0] if len(coerced) == 1 else coerced[0],)
 
     # ── Text fields: wrap with % for LIKE ─────────────────────────────────
     if sql_type == "text":
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
+        
         # Special case: status field in client/project domain uses Status table
         if field_config.field_name == "status" and field_config.column_name == "StatusName":
             if op == "eq":
@@ -458,24 +486,27 @@ def build_filter_clause(
         # Regular text handling
         if op == "eq":
             v = values[0] if values else ""
-            return f"{col} LIKE ?", (f"%{v}%",)
+            return f"{alias_prefix}{col} LIKE ?", (f"%{v}%",)
         if op == "in":
             # For text IN: each value gets its own LIKE (OR chain is safer
             # for text search than IN which requires exact match)
             if not values:
                 return "1=0", ()
-            like_parts = " OR ".join(f"{col} LIKE ?" for _ in values)
+            like_parts = " OR ".join(f"{alias_prefix}{col} LIKE ?" for _ in values)
             params = tuple(f"%{v}%" for v in values)
             return f"({like_parts})", params
         if op == "lt":
-            return f"{col} < ?", (values[0],)
+            return f"{alias_prefix}{col} < ?", (values[0],)
         if op == "gt":
-            return f"{col} >= ?", (values[0],)
+            return f"{alias_prefix}{col} >= ?", (values[0],)
         if op == "between":
-            return f"{col} BETWEEN ? AND ?", (values[0], values[1])
+            return f"{alias_prefix}{col} BETWEEN ? AND ?", (values[0], values[1])
 
     # ── Date / Numeric fields: exact values ───────────────────────────────
     if sql_type in ("date", "numeric"):
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
+        
         # Special handling for status field - use dual filter: IsActive + StatusId
         if field_config.field_name == "status" and op == "eq":
             status_value = str(values[0]).strip() if values else ""
@@ -491,22 +522,22 @@ def build_filter_clause(
             
             if status_id and isactive_col:
                 # Generate both filters: IsActive=1 AND StatusId=X
-                return f"({isactive_col} = 1 AND {col} = ?)", (status_id,)
+                return f"({alias_prefix}{isactive_col} = 1 AND {alias_prefix}{col} = ?)", (status_id,)
             elif status_id:
                 # Fallback: just StatusId
-                return f"{col} = ?", (status_id,)
+                return f"{alias_prefix}{col} = ?", (status_id,)
         
         if op == "eq":
             v = values[0] if values else ""
-            return f"{col} = ?", (v,)
+            return f"{alias_prefix}{col} = ?", (v,)
         if op == "lt":
-            return f"{col} < ?", (values[0],)
+            return f"{alias_prefix}{col} < ?", (values[0],)
         if op == "gt":
-            return f"{col} >= ?", (values[0],)
+            return f"{alias_prefix}{col} >= ?", (values[0],)
         if op == "between":
-            return f"{col} BETWEEN ? AND ?", (values[0], values[1])
+            return f"{alias_prefix}{col} BETWEEN ? AND ?", (values[0], values[1])
         if op == "in":
-            clause, params = build_in_clause(col, values)
+            clause, params = build_in_clause(f"{alias_prefix}{col}", values)
             return clause, params
 
     # ── Fallback: unknown type or op ──────────────────────────────────────
@@ -607,23 +638,34 @@ def compile_query(
             # No skill filter — return all (IsActive=1 still applies from base WHERE)
             sql = sql.replace("{skill_filter}", "1=1")
 
-    # ── Build filter WHERE clauses from remaining filters ─────────────────
-    where_fragments: list[str] = []
-    filter_params: list[Any] = []
+    # ── Skip filter application for self-contained intents ───────────────────
+    # These intents have hardcoded WHERE clauses and should not receive 
+    # additional filters to avoid SQL conflicts
+    if plan.intent in NO_FILTER_INTENTS:
+        logger.debug(
+            "compile_query: intent '%s' has self-contained filters, skipping filter application",
+            plan.intent
+        )
+        where_fragments: list[str] = []
+        filter_params: list[Any] = []
+    else:
+        # ── Build filter WHERE clauses from remaining filters ─────────────────
+        where_fragments: list[str] = []
+        filter_params: list[Any] = []
 
-    for f in remaining_filters:
-        field_config = FIELD_REGISTRY.get(f.field)
-        if field_config is None:
-            logger.warning(
-                "compile_query: field '%s' not found in FIELD_REGISTRY — skipping filter",
-                f.field,
-            )
-            continue
+        for f in remaining_filters:
+            field_config = FIELD_REGISTRY.get(f.field)
+            if field_config is None:
+                logger.warning(
+                    "compile_query: field '%s' not found in FIELD_REGISTRY — skipping filter",
+                    f.field,
+                )
+                continue
 
-        fragment, params = build_filter_clause(f, field_config)
-        if fragment and fragment not in ("1=1",):
-            where_fragments.append(fragment)
-            filter_params.extend(params)
+            fragment, params = build_filter_clause(f, field_config, domain=plan.domain)
+            if fragment and fragment not in ("1=1",):
+                where_fragments.append(fragment)
+                filter_params.extend(params)
 
     # ── Assemble final SQL ─────────────────────────────────────────────────
     # For user_self intents: the base SQL already contains "WHERE ... = ?"

@@ -22,6 +22,20 @@ from app.llm.graph.state import GraphState
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# NO_FILTER_INTENTS — intents with fully self-contained SQL (no dynamic filters)
+# ---------------------------------------------------------------------------
+NO_FILTER_INTENTS: frozenset[str] = frozenset({
+    "benched_resources",      # hardcoded WHERE p.ProjectId = 119
+    "active_resources",       # hardcoded WHERE r.IsActive = 1 AND r.statusid = 8
+    "resource_availability",  # hardcoded subquery exclusion
+    "active_projects",        # hardcoded WHERE p.IsActive = 1 AND p.ProjectStatusId = 4
+    "overdue_projects",       # hardcoded WHERE p.EndDate < GETDATE()
+    "active_clients",         # hardcoded WHERE c.IsActive = 1 AND c.StatusId = 2
+    "approved_timesheets",    # hardcoded approval flags
+    "unapproved_timesheets",  # hardcoded unapproved flags
+})
+
+# ---------------------------------------------------------------------------
 # Lazy import for semantic_resolver value_map normalization
 # ---------------------------------------------------------------------------
 try:
@@ -55,6 +69,29 @@ async def update_query_plan(state: GraphState) -> dict[str, Any]:
     if not domain or not intent:
         logger.debug("plan_updater: no domain/intent (LLM fallback path), returning None plan")
         return {"query_plan": None}
+    
+    # ── 1b. Self-contained intents with hardcoded WHERE clauses ───────────────
+    # These intents already contain complete WHERE clauses and should not
+    # receive additional filters from the pipeline
+    if intent in NO_FILTER_INTENTS:
+        logger.debug(
+            "plan_updater: intent '%s' is self-contained with hardcoded WHERE clause, forcing empty filters",
+            intent
+        )
+        
+        # Get base SQL from params if available (e.g. _prior_sql from param_extractor)
+        params: dict = state.get("params") or {}
+        base_intent_sql: str = params.get("_prior_sql", "")
+        
+        plan = QueryPlan(
+            domain=domain,
+            intent=intent,
+            filters=[],  # Empty filters for self-contained intents
+            base_intent_sql=base_intent_sql,
+            schema_version=1,
+        )
+        
+        return {"query_plan": plan.to_api_dict()}
 
     # ── Plan 04: Normalize filter values through cached value_map ─────────
     if new_filters and get_cached_value_map is not None and normalize_values_batch is not None:

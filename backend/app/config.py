@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_file_enabled: bool = True
     log_rotation: str = "10 MB"
-    log_retention: str = "7 days"
+    log_retention: str = "10 days"
 
 
 settings = Settings()

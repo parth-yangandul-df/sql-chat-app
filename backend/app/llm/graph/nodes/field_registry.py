@@ -33,6 +33,7 @@ class FieldConfig:
     # Status field specific (for dual-filter: IsActive + StatusId)
     isactive_column: str | None = None  # e.g. "IsActive" for client, "IsActive" for project
     status_map: dict[str, dict[str, int]] = field(default_factory=dict)  # domain -> {status_name: status_id}
+    table_alias: str | None = None  # Table alias for joins (e.g. "c" for Client table)
 
 
 # ---------------------------------------------------------------------------
@@ -238,6 +239,7 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         extraction_hints=["status", "is", "state"],
         isactive_column="IsActive",  # Dual-filter: IsActive + StatusId
         status_map=DOMAIN_STATUS_IDS,  # Domain-specific StatusId mappings
+        table_alias="c",  # "c" for Client table in client domain
     ),
 
     # ── PROJECT MANAGER ───────────────────────────────────────────────────

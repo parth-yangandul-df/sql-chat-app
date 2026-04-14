@@ -6,7 +6,7 @@ QueryWise — a text-to-SQL application with a semantic metadata layer. Users as
 
 ## Tech Stack
 
-- **Backend:** Python 3.11+, FastAPI, SQLAlchemy (async), asyncpg, pgvector, Alembic, LangGraph
+- **Backend:** Python 3.12+, FastAPI, SQLAlchemy (async), asyncpg, pgvector, Alembic, LangGraph
 - **Frontend:** React 19, TypeScript, Vite, Mantine UI, React Query, React Router (port 5173)
 - **Chatbot Frontend:** React 19 with Tailwind CSS, shadcn/ui components (port 5174)
 - **Databases:** PostgreSQL 16 with pgvector (app metadata), target DBs via PostgreSQL/SQL Server connectors
@@ -49,9 +49,19 @@ npm run build                         # Production build (tsc + vite)
 npm run lint                          # ESLint
 ```
 
+Run from `chatbot-frontend/`:
+
+```bash
+npm install                           # Install deps
+npm run dev                           # Dev server on :5174
+npm run build                         # Production build (tsc + vite)
+npm run build:widget                  # Build IIFE bundle for Angular integration
+npm run lint                          # ESLint
+```
+
 ## Code Style
 
-- **Python:** Ruff, 100 char line length, Python 3.11 target, rules: E, F, I, N, UP, B
+- **Python:** Ruff, 100 char line length, Python 3.12 target, rules: E, F, I, N, UP, B
 - **TypeScript:** ESLint, strict mode, no explicit `any`
 - **Async everywhere:** All DB operations, HTTP calls, and LLM calls are async
 - **Pytest:** asyncio_mode="auto", test paths at `tests/`
@@ -83,6 +93,39 @@ frontend/src/            # Mantine UI (port 5173)
 chatbot-frontend/src/    # React + Tailwind + shadcn/ui (port 5174)
 ```
 
+## Angular Widget Integration
+
+QueryWise provides a self-contained IIFE widget that can be integrated into any web application, including Angular. The widget is built from the chatbot-frontend and exposes the QueryWise chat interface via a single script tag.
+
+### Building the Widget
+
+```bash
+# Build the IIFE bundle from chatbot-frontend/
+npm run build:widget
+```
+
+This creates `querywise-chat.js` in the chatbot-frontend dist folder.
+
+### Integration
+
+Add the widget to any HTML page:
+
+```html
+<script src="https://your-host/querywise-chat.js"></script>
+<script>
+  // Initialize the widget
+  QueryWiseChat.init({
+    apiUrl: 'http://localhost:8000',  // Your backend URL
+    container: '#querywise-container', // DOM element to render into
+    theme: 'light'                    // or 'dark'
+  });
+</script>
+```
+
+### Testing
+
+The `angular-test/` directory contains an Angular 21 application used for testing and demonstrating the widget integration in an Angular context.
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -92,7 +135,7 @@ chatbot-frontend/src/    # React + Tailwind + shadcn/ui (port 5174)
 | `DEFAULT_LLM_PROVIDER` | `anthropic` | LLM provider (`anthropic`, `openai`, `ollama`, `openrouter`, `groq`) |
 | `DEFAULT_LLM_MODEL` | `claude-sonnet-4-20250514` | Default model for SQL generation |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model |
-| `CORS_ORIGINS` | `["http://localhost:5173", "http://localhost:5174"]` | Allowed CORS origins |
+| `CORS_ORIGINS` | `["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:4200", "http://localhost:4000"]` | Allowed CORS origins |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama server URL |
 | `OLLAMA_MODEL` | `llama3.1:8b` | Ollama model for completions |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model for embeddings |
@@ -101,6 +144,36 @@ chatbot-frontend/src/    # React + Tailwind + shadcn/ui (port 5174)
 | `EMBEDDING_DIMENSION` | `1536` | Vector dimension (1536 for OpenAI, 768 for Ollama nomic-embed-text) |
 | `ANTHROPIC_API_KEY` | — | Required if using Anthropic |
 | `OPENAI_API_KEY` | — | Required if using OpenAI (completions + embeddings) |
+
+### Feature Flags
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `USE_GROQ_EXTRACTOR` | `false` | Enable Groq unified intent + filter extractor |
+| `USE_QUERY_PLAN_COMPILER` | `false` | QueryPlan compiler feature flag |
+| `USE_HYBRID_MODE` | `false` | Hybrid Mode (context-aware query system) |
+
+### Cloud Ollama (Optional)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_LLM_BASE_URL` | — | Cloud Ollama URL for LLM completions |
+| `OLLAMA_API_KEY` | — | API key for cloud Ollama |
+| `EMBEDDING_PROVIDER` | — | Explicit embedding provider override |
+
+### Authentication
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET` | — | JWT authentication secret key |
+| `JWT_ALGORITHM` | `HS256` | JWT algorithm |
+| `JWT_EXPIRY_SECONDS` | `3600` | JWT token expiry in seconds |
+
+### Development
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MORPH_API_KEY` | — | Morph API key for development tools |
 
 ## Ollama (Local LLM)
 
@@ -171,6 +244,28 @@ If the embedding model is unavailable (not pulled, or Ollama is down), the query
 - `repair_json()` in `app/llm/utils.py` handles common local model JSON issues (markdown fences, Python booleans, trailing commas)
 - Embeddings: tries `/api/embed` (Ollama 0.4+), falls back to `/api/embeddings` (legacy) automatically
 - `get_embedding_provider()` follows the configured provider — Ollama embeds locally, Anthropic falls back to OpenAI
+
+## Groq
+
+QueryWise supports Groq for high-performance LLM completions with two modes:
+
+### Standard Mode
+When `USE_GROQ_EXTRACTOR=false` (default), Groq operates as a standard LLM provider with the current recommended model:
+- `DEFAULT_LLM_MODEL="meta-llama/llama-3.1-70b-versatile"`
+
+### Groq Extractor Mode
+When `USE_GROQ_EXTRACTOR=true`, Groq's unified intent and filter extractor replaces the embedding classifier + regex filter_extractor. This mode provides:
+- Faster intent classification
+- Native filter extraction without regex
+- Improved accuracy for complex queries
+
+### Configuration
+```bash
+# Enable Groq with extractor
+DEFAULT_LLM_PROVIDER=groq
+USE_GROQ_EXTRACTOR=true
+GROQ_API_KEY=your-groq-api-key
+```
 
 ## Architecture Conventions
 

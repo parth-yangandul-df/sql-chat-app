@@ -1,0 +1,215 @@
+═══════════════════════════════════════════════════════════════════════════
+Token Analysis: Session ses_2793d3069ffebsw9otD24hEPgw
+Model: minimax-m2.5-free
+═══════════════════════════════════════════════════════════════════════════
+
+WARNINGS
+───────────────────────────────────────────────────
+- Pricing for 'opencode/minimax-m2.5-free' was not found in models.json. Cost estimates use the default fallback rates ($1/M input, $3/M output, no cache pricing).
+
+TOKEN BREAKDOWN BY CATEGORY
+─────────────────────────────────────────────────────────────────────────
+Estimated using tokenizer analysis of message content:
+
+Input Categories:
+  USER      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        1.3% (578)
+  TOOLS     ██████████████████████████████    98.7% (42,753)
+
+  Subtotal: 43,331 estimated input tokens
+
+Output Categories:
+  ASSISTANT █████░░░░░░░░░░░░░░░░░░░░░░░░░       17.9% (600)
+  REASONING █████████████████████████░░░░░     82.1% (2,750)
+
+  Subtotal: 3,350 estimated output tokens
+
+Local Total: 46,681 tokens (estimated)
+
+TOOL USAGE BREAKDOWN
+─────────────────────────────────────────────────────────────────────────
+read                 ████████████████████░░░░░░░░░░    65.9% (28,184)   21x
+morph_edit           ████░░░░░░░░░░░░░░░░░░░░░░░░░░     11.9% (5,077)   13x
+glob                 ███░░░░░░░░░░░░░░░░░░░░░░░░░░░      9.3% (3,976)    5x
+todowrite            ███░░░░░░░░░░░░░░░░░░░░░░░░░░░      8.5% (3,624)   13x
+delegation_read      █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░      2.5% (1,078)    1x
+task                 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        0.8% (349)    4x
+grep                 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        0.8% (339)    4x
+invalid              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░         0.2% (89)    1x
+delegate             ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░         0.1% (25)    1x
+compress             ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░         0.0% (12)    1x
+
+TOP CONTRIBUTORS
+─────────────────────────────────────────────────────────────────────────
+• read                         28,184 tokens (60.4%)
+• morph_edit                   5,077 tokens (10.9%)
+• glob                         3,976 tokens (8.5%)
+• todowrite                    3,624 tokens (7.8%)
+• delegation_read              1,078 tokens (2.3%)
+
+═══════════════════════════════════════════════════════════════════════════
+MOST RECENT API CALL
+─────────────────────────────────────────────────────────────────────────
+
+Raw telemetry from last API response:
+  Input (fresh):            793 tokens
+  Cache read:            42,304 tokens
+  Output:                   308 tokens
+  Provider total:        43,405 tokens
+  ─────────────────────────────────────
+  Total:                 43,405 tokens
+
+═══════════════════════════════════════════════════════════════════════════
+SESSION TOTALS (All 65 API calls)
+─────────────────────────────────────────────────────────────────────────
+
+Assistant messages observed: 67 (structural count)
+
+Total tokens processed across the entire session (for cost calculation):
+
+  Input tokens:         970,186 (fresh tokens across all calls)
+  Cache read:         1,306,688 (cached tokens across all calls)
+  Cache write:                0 (tokens written to cache)
+  Output tokens:         20,578 (all model responses)
+  ─────────────────────────────────────
+  Session Total:      2,297,452 tokens (for billing)
+  Cache read calls:          31 / 65
+  Cache write calls:          0 / 65
+
+═══════════════════════════════════════════════════════════════════════════
+ESTIMATED SESSION COST (API Key Pricing)
+─────────────────────────────────────────────────────────────────────────
+
+You appear to be on a subscription plan (API cost is $0).
+Here's what this session would cost with direct API access:
+
+  Input tokens:         970,186 × $1.00/M  = $0.9702
+  Output tokens:         20,578 × $3.00/M  = $0.0617
+─────────────────────────────────────────────────────────────────────────
+ESTIMATED TOTAL: $1.0319
+
+Note: This estimate uses standard API pricing from models.json.
+Actual API costs may vary based on provider and context size.
+
+══════════════════════════════════════════════════════════════════════════
+AVAILABLE SKILLS (always-available context)
+─────────────────────────────────────────────────────────────────────────
+
+These skills were recovered from the skill tool metadata available to this session.
+
+  Skill                  Description                                   Tokens
+  ───────────────────────────────────────────────────────────────────────
+  langgraph-state-manag… Design state schemas, implement reducers, co…    ~171
+  chat-ui                Chat UI building blocks for React/Next.js fr…     ~99
+  find-skills            Helps users discover and install agent skill…     ~68
+  documentation          Write and maintain technical documentation. …     ~61
+  docker-debug           Debug Docker container startup issues for Qu…     ~59
+  frontend-philosophy    Visual & UI philosophy (The 5 Pillars of Int…     ~40
+  python-logging-best-p… Python logging with loguru and platformdirs.…     ~40
+  code-philosophy        Internal logic and data flow philosophy (The…     ~35
+  session-summary        Generate 4 short bullet points summarizing t…     ~34
+  shadcn-ui              Expert guidance for integrating and building…     ~33
+  coding                 MUST use for all coding related tasks - incl…     ~32
+  code-edit              Use Fast Apply (edit_file) for precise edits…     ~20
+  explore                Use this skill when the user asks you someth…     ~20
+  code-research          Research open-source repositories to underst…     ~19
+  code-review            Comprehensive code review methodology with s…     ~15
+  feature-research       Research existing architecture before implem…     ~15
+  plan-protocol          Guidelines for creating and managing impleme…     ~15
+  plan-review            Criteria for reviewing implementation plans …     ~13
+  ───────────────────────────────────────────────────────────────────────
+  Total: ~789 tokens (18 skills available)
+
+  Note: Full skill tool description is ~1,822 tokens (includes boilerplate).
+
+═══════════════════════════════════════════════════════════════════════════
+AVAILABLE SUBAGENTS (in task tool definition)
+─────────────────────────────────────────────────────────────────────────
+
+These subagents are embedded in the task tool description and consume tokens on every API call.
+
+  Subagent               Description                                        Tokens
+  ───────────────────────────────────────────────────────────────────────
+  explore                Fast agent specialized for exploring codebases. U…    ~101
+  gsd-project-researcher Researches domain ecosystem before roadmap creati…     ~49
+  gsd-codebase-mapper    Explores codebase and writes structured analysis …     ~48
+  gsd-phase-researcher   Researches how to implement a phase before planni…     ~41
+  gsd-nyquist-auditor    Fills Nyquist validation gaps by generating tests…     ~38
+  gsd-research-synthesi… Synthesizes research outputs from parallel resear…     ~38
+  gsd-verifier           Verifies phase goal achievement through goal-back…     ~37
+  gsd-executor           Executes GSD plans with atomic commits, deviation…     ~36
+  gsd-plan-checker       Verifies plans will achieve phase goal before exe…     ~36
+  gsd-roadmapper         Creates project roadmaps with phase breakdown, re…     ~36
+  gsd-planner            Creates executable phase plans with task breakdow…     ~34
+  gsd-integration-check… Verifies cross-phase integration and E2E flows. C…     ~32
+  gsd-debugger           Investigates bugs using scientific method, manage…     ~30
+  general                General-purpose agent for researching complex que…     ~28
+  reviewer               Expert code reviewer for security, performance, a…     ~14
+  scribe                 Human-facing content specialist for documentation…     ~12
+  coder                  Technical implementation specialist for writing a…     ~11
+  researcher             Knowledge architect for external research and doc…     ~10
+  ───────────────────────────────────────────────────────────────────────
+  Total: ~631 tokens (18 subagents available)
+
+  Note: Full task tool description is ~1,472 tokens (includes instructions/examples).
+
+═══════════════════════════════════════════════════════════════════════════
+TOOL DEFINITION COSTS (Estimated from argument analysis)
+─────────────────────────────────────────────────────────────────────────
+
+  Tool                Est. Tokens   Args   Complexity
+  ───────────────────────────────────────────────────────────────────
+  compress                   ~410       2   complex (arrays/objects)
+  todowrite                  ~380       1   complex (arrays/objects)
+  task                       ~370       3   simple
+  read                       ~370       3   simple
+  morph_edit                 ~370       3   simple
+  grep                       ~370       3   simple
+  delegate                   ~340       2   simple
+  invalid                    ~340       2   simple
+  delegation_read            ~310       1   simple
+  glob                       ~310       1   simple
+  tokenscope                 ~280       0   simple
+  ───────────────────────────────────────────────────────────────────
+  Total:             ~      3,850 tokens (11 enabled tools)
+
+  Note: Estimates inferred from tool call arguments in this session.
+        Actual schema tokens may vary +/-20%.
+
+═══════════════════════════════════════════════════════════════════════════
+CACHE EFFICIENCY
+─────────────────────────────────────────────────────────────────────────
+
+  Token Distribution:
+    Cache Read:         1,306,688 tokens   █████████████████░░░░░░░░░░░░░  57.4%
+    Fresh Input:          970,186 tokens   █████████████░░░░░░░░░░░░░░░░░  42.6%
+  ───────────────────────────────────────────────────────────────────
+  Cache Hit Rate:      57.4% (cache read / (cache read + fresh input))
+
+  Cost Analysis (minimax-m2.5-free @ $1.00/M input, $0.00/M cache read, $0.00/M cache write):
+    Without caching:   $2.2769  (2,276,874 tokens x $1.00/M)
+    With caching:      $0.9702  (fresh x $1.00/M + cache read x $0.00/M + cache write x $0.00/M)
+  ───────────────────────────────────────────────────────────────────
+  Cost Savings:        $1.3067  (57.4% reduction)
+  Effective Rate:      $0.43/M tokens  (vs. $1.00/M standard)
+
+═══════════════════════════════════════════════════════════════════════════
+SUBAGENT COSTS (3 child sessions, 53 API calls)
+─────────────────────────────────────────────────────────────────────────
+
+  delegation:                  $0.6218  (615,537 tokens, 42 calls)
+  scribe                       $0.0108  (10,634 tokens, 1 calls)
+  coder                        $0.0998  (358,017 tokens, 10 calls)
+─────────────────────────────────────────────────────────────────────────
+Subagent Total:            $0.7324  (984,188 tokens, 53 calls)
+
+═══════════════════════════════════════════════════════════════════════════
+SUMMARY
+─────────────────────────────────────────────────────────────────────────
+
+                          Cost        Tokens          API Calls
+  Main session:      $    1.0319     2,297,452            65
+  Subagents:         $    0.7324       984,188            53
+─────────────────────────────────────────────────────────────────────────
+  TOTAL:             $    1.7643     3,281,640           118
+
+═══════════════════════════════════════════════════════════════════════════
