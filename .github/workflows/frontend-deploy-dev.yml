@@ -3,10 +3,7 @@ name: Deploy Frontend to S3 and CloudFront
 on:
   push:
     branches:
-      - main
-    paths:
-      - "frontend/**"
-
+      - devops
 jobs:
   deploy:
     runs-on: ubuntu-latest
