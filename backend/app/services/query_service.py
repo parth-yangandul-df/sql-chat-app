@@ -68,6 +68,7 @@ async def execute_nl_query(
         "user_id": str(current_user.id) if current_user else None,
         "user_role": current_user.role if current_user else None,
         "resource_id": current_user.resource_id if current_user else None,
+        "employee_id": current_user.employee_id if current_user else None,
         # Classification defaults
         "domain": None,
         "intent": None,

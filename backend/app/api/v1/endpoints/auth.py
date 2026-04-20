@@ -28,6 +28,7 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     role: str
     resource_id: int | None
+    employee_id: str | None
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -67,6 +68,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Login
         "email": user.email,
         "role": user.role,
         "resource_id": user.resource_id,
+        "employee_id": user.employee_id,
         "iat": int(now.timestamp()),
         "exp": int(exp.timestamp()),
     }
@@ -77,4 +79,5 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Login
         access_token=token,
         role=user.role,
         resource_id=user.resource_id,
+        employee_id=user.employee_id,
     )

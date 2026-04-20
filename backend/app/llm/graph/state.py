@@ -36,6 +36,7 @@ class GraphState(TypedDict):
     user_id: str | None          # UUID as str — authenticated user's ID; None if unauthenticated
     user_role: str | None        # "admin" | "manager" | "user"; None if unauthenticated
     resource_id: int | None      # Only set for "user" role; None for admin/manager/unauthenticated
+    employee_id: str | None      # Employee ID for employee_id-scoped queries; None if not set
 
     # ── Classification (set by classify_intent) ──────────────────────────
     domain: str | None           # "resource" | "client" | "project" | "timesheet"

@@ -57,7 +57,7 @@ class UserSelfAgent(BaseDomainAgent):
                 "SELECT ts.Title, ts.Category, ts.Activity, ts.[Effort Hours], ts.[File Date] "
                 "FROM TS_Timesheet_Report ts "
                 "JOIN Resource r ON r.EmployeeId = ts.[Emp ID] "
-                "WHERE r.ResourceId = ? "
+                "WHERE CAST(r.EmployeeId AS INT) = ? "
                 "ORDER BY ts.[File Date] DESC"
             )
             result = await connector.execute_query(sql, params=(resource_id,), timeout_seconds=t, max_rows=m)
@@ -76,7 +76,7 @@ class UserSelfAgent(BaseDomainAgent):
                 "SELECT ts.Title, SUM(ts.[Effort Hours]) AS TotalHours, ts.[File Date] "
                 "FROM TS_Timesheet_Report ts "
                 "JOIN Resource r ON r.EmployeeId = ts.[Emp ID] "
-                "WHERE r.ResourceId = ? "
+                "WHERE CAST(r.EmployeeId AS INT) = ? "
                 "GROUP BY ts.Title, ts.[File Date] "
                 "ORDER BY ts.[File Date] DESC"
             )

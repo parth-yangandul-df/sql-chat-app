@@ -88,13 +88,14 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
     # ── RESOURCE NAME ─────────────────────────────────────────────────────
     "resource_name": FieldConfig(
         field_name="resource_name",
-        column_name="Name",             # Resource.Name / ResourceName alias
+        column_name="ResourceName",     # Resource.ResourceName (joins alias Resource as "r")
         multi_value=False,
         sql_type="text",
         domains=["resource", "project", "timesheet"],
         aliases=["employee_name", "person", "resource"],
         example_values=["John Doe", "Harshal Yeole", "Jane Smith"],
         extraction_hints=["of", "skills of", "show me", "assigned to", "for"],
+        table_alias="r",                # Resource table is always aliased as "r" in all queries
     ),
 
     # ── DESIGNATION ───────────────────────────────────────────────────────
@@ -156,7 +157,7 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
     # ── BILLABLE ──────────────────────────────────────────────────────────
     "billable": FieldConfig(
         field_name="billable",
-        column_name="Billab",           # PA_ProjectResources.Billab
+        column_name="Billable",         # ProjectResource.Billable
         multi_value=False,              # Boolean — last-wins
         sql_type="boolean",
         domains=["resource", "project"],
@@ -240,16 +241,6 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         isactive_column="IsActive",  # Dual-filter: IsActive + StatusId
         status_map=DOMAIN_STATUS_IDS,  # Domain-specific StatusId mappings
         table_alias="c",  # "c" for Client table in client domain
-    ),
-
-    # ── PROJECT MANAGER ───────────────────────────────────────────────────
-    "project_manager": FieldConfig(
-        field_name="project_manager",
-        column_name="Project Manager",
-        multi_value=False,
-        sql_type="text",
-        domains=["project"],
-        aliases=["pm"],
     ),
 
     # ── MIN BUDGET ────────────────────────────────────────────────────────

@@ -117,3 +117,66 @@ async def test_extract_no_match_returns_empty():
     state = _base_state(question="show active resources")
     updates = await extract_params(state)
     assert updates["params"] == {}
+
+
+# ── Person Name Detection Tests ───────────────────────────────────────────────
+
+
+def test_has_person_name_two_capitalized_words():
+    """Two consecutive capitalized words trigger person name detection."""
+    from app.llm.graph.nodes.intent_classifier import _has_person_name
+
+    assert _has_person_name("Show Gautham R M project assignments")
+    assert _has_person_name("John Smith works on Python")
+    assert _has_person_name("What are Jane Doe's skills?")
+    assert _has_person_name("Tell me about Alice Johnson")
+    assert _has_person_name("Mary Ann joined last week")
+
+
+def test_has_person_name_single_capitalized_word():
+    """Single capitalized word (like "Python" or "SQL") does NOT trigger."""
+    from app.llm.graph.nodes.intent_classifier import _has_person_name
+
+    assert not _has_person_name("Show me my Python projects")
+    assert not _has_person_name("What is my SQL timesheet")
+    assert not _has_person_name("My project assignments")
+
+
+def test_has_person_name_no_names():
+    """Questions without person names return False."""
+    from app.llm.graph.nodes.intent_classifier import _has_person_name
+
+    assert not _has_person_name("show active resources")
+    assert not _has_person_name("what are benched developers")
+    assert not _has_person_name("list all projects")
+
+
+# ── Keyword Route Person Name Guard Tests ─────────────────────────────────────
+
+
+def test_keyword_route_person_name_skips_user_self():
+    """Queries about named people skip _USER_SELF_KEYWORDS even with 'my'/'me'."""
+    from app.llm.graph.nodes.intent_classifier import _keyword_route
+
+    # "Show me Gautham R M project assignments" — "me" is followed by a name
+    result = _keyword_route("Show me Gautham R M project assignments")
+    # Should NOT return my_projects/user_self — let embedding decide
+    assert result is None or result[0] != "my_projects"
+
+    # Same for "my" with a person name
+    result = _keyword_route("my John Smith timesheets")
+    assert result is None or result[0] != "my_projects"
+
+
+def test_keyword_route_genuine_user_self_still_works():
+    """Genuine 'my projects' queries (no person name) still route correctly."""
+    from app.llm.graph.nodes.intent_classifier import _keyword_route
+
+    result = _keyword_route("show my projects")
+    assert result == ("my_projects", "user_self")
+
+    result = _keyword_route("my timesheets")
+    assert result == ("my_projects", "user_self")
+
+    result = _keyword_route("show my timesheet")
+    assert result == ("my_projects", "user_self")

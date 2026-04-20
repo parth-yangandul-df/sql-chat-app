@@ -28,13 +28,17 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 NO_FILTER_INTENTS: frozenset[str] = frozenset({
     "benched_resources",      # hardcoded WHERE p.ProjectId = 119
+    "benched_by_skill",       # skill handled via {skill_filter} token; ProjectId=119 hardcoded
     "active_resources",       # hardcoded WHERE r.IsActive = 1 AND r.statusid = 8
-    "resource_availability",  # hardcoded subquery exclusion
+    "resource_availability",   # hardcoded subquery exclusion
+    "resource_by_skill",       # status filter maps to c.IsActive alias; not valid in this query
     "active_projects",        # hardcoded WHERE p.IsActive = 1 AND p.ProjectStatusId = 4
     "overdue_projects",       # hardcoded WHERE p.EndDate < GETDATE()
     "active_clients",         # hardcoded WHERE c.IsActive = 1 AND c.StatusId = 2
     "approved_timesheets",    # hardcoded approval flags
     "unapproved_timesheets",  # hardcoded unapproved flags
+    "my_utilization",         # hardcoded self-contained SQL with EmployeeId parameter
+    "reports_to",             # manager name baked into WHERE via param; no extra filters
 })
 
 
@@ -70,7 +74,7 @@ class MetricFragment:
 BASE_QUERIES: dict[str, str] = {
 
     # ═══════════════════════════════════════════════════════════════════════
-    # RESOURCE DOMAIN (6 active intents)
+    # RESOURCE DOMAIN (7 active intents)
     # ═══════════════════════════════════════════════════════════════════════
 
     "active_resources": (
@@ -90,6 +94,20 @@ BASE_QUERIES: dict[str, str] = {
         "JOIN Project p ON pr.ProjectId = p.ProjectId "
         "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId{join_extras} "
         "WHERE p.ProjectId = 119 "  # hardcoded bench project; confirmed constant
+        "ORDER BY r.ResourceName"
+    ),
+
+    "benched_by_skill": (
+        "SELECT DISTINCT r.employeeid as [EMPID], r.ResourceName as [Name], r.EmailId, "
+        "t.TechCategoryName as [Tech Category], s.Name as [Skill]{select_extras} "
+        "FROM Resource r "
+        "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
+        "JOIN Project p ON pr.ProjectId = p.ProjectId "
+        "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId "
+        "JOIN PA_ResourceSkills rs ON rs.ResourceId = r.ResourceId "
+        "JOIN PA_Skills s ON s.SkillId = rs.SkillId{join_extras} "
+        "WHERE p.ProjectId = 119 "  # same bench project filter
+        "AND ({skill_filter}) "
         "ORDER BY r.ResourceName"
     ),
 
@@ -117,7 +135,7 @@ BASE_QUERIES: dict[str, str] = {
         "CAST(pr.StartDate AS DATE) AS [Start Date], "
         "CAST(pr.EndDate AS DATE) AS [End Date], "
         "pr.resourcerole as [Role], pr.PercentageAllocation as [Allocation], "
-        "pr.Billab{select_extras} "
+        "pr.Billable{select_extras} "
         "FROM Resource r "
         "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
         "JOIN Project p ON pr.ProjectId = p.ProjectId{join_extras}"
@@ -129,6 +147,13 @@ BASE_QUERIES: dict[str, str] = {
         "JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId "
         "JOIN PA_Skills s ON rs.SkillId = s.SkillId{join_extras} "
         "WHERE r.IsActive = 1"
+    ),
+
+    "reports_to": (
+        "SELECT r.EmployeeId, r.ResourceName, pm.ResourceName as [Reporting To]{select_extras} "
+        "FROM Resource r "
+        "JOIN Resource pm ON pm.ResourceId = r.ReportingTo{join_extras} "
+        "WHERE pm.ResourceName LIKE ? AND r.IsActive = 1"
     ),
 
     # Deferred intents — #baadme (not yet production-ready)
@@ -206,6 +231,18 @@ BASE_QUERIES: dict[str, str] = {
         "FROM Project{join_extras}"
     ),
 
+    "project_status": (
+        "SELECT p.ProjectName as [Project Name], c.ClientName as [Client], "
+        "s.StatusName as [Status], "
+        "cast(p.StartDate as date) as [Start Date], "
+        "COALESCE(CONVERT(VARCHAR(10), p.EndDate, 120), 'NA') AS [End Date], "
+        "r.ResourceName as [Project Manager]{select_extras} "
+        "FROM Project p "
+        "JOIN Client c ON p.ClientId = c.ClientId "
+        "JOIN Status s ON s.StatusId = p.ProjectStatusId "
+        "JOIN Resource r ON r.ResourceId = p.ProjectManagerId{join_extras}"
+    ),
+
     "overdue_projects": (
         "SELECT p.ProjectId, p.ProjectName, p.EndDate, c.ClientName{select_extras} "
         "FROM Project p "
@@ -256,8 +293,8 @@ BASE_QUERIES: dict[str, str] = {
 
     "my_projects": (
         "SELECT p.ProjectName, r.ResourceName AS [Employee Name], "
-        "COALESCE(CAST(p.StartDate AS DATE), 'NA') AS [Start Date], "
-        "COALESCE(CAST(p.EndDate AS DATE), 'NA') AS [End Date]{select_extras} "
+        "COALESCE(CONVERT(VARCHAR(10), p.StartDate, 120), 'NA') AS [Start Date], "
+        "COALESCE(CONVERT(VARCHAR(10), p.EndDate, 120), 'NA') AS [End Date]{select_extras} "
         "FROM Project p "
         "JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId "
         "JOIN Resource r ON r.ResourceId = pr.ResourceId{join_extras} "
@@ -275,7 +312,7 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT ts.Title, ts.Category, ts.Activity, ts.[Effort Hours], ts.[File Date]{select_extras} "
         "FROM TS_Timesheet_Report ts "
         "JOIN Resource r ON r.EmployeeId = ts.[Emp ID]{join_extras} "
-        "WHERE r.ResourceId = ? "
+        "WHERE CAST(r.EmployeeId AS INT) = ? "
         "ORDER BY ts.[File Date] DESC"
     ),
 
@@ -290,7 +327,7 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT ts.Title, SUM(ts.[Effort Hours]) AS TotalHours, ts.[File Date]{select_extras} "
         "FROM TS_Timesheet_Report ts "
         "JOIN Resource r ON r.EmployeeId = ts.[Emp ID]{join_extras} "
-        "WHERE r.ResourceId = ? "
+        "WHERE CAST(r.EmployeeId AS INT) = ? "
         "GROUP BY ts.Title, ts.[File Date] "
         "ORDER BY ts.[File Date] DESC"
     ),
@@ -302,9 +339,10 @@ BASE_QUERIES: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 FALLBACK_INTENTS: dict[str, str | None] = {
-    # Resource domain (6 intents)
+    # Resource domain (7 intents)
     "active_resources": None,  # Broadest - no fallback
     "benched_resources": None,  # Broadest - no fallback
+    "benched_by_skill": "benched_resources",
     "resource_by_skill": "active_resources",
     "resource_availability": "active_resources",
     "resource_project_assignments": "active_resources",
@@ -315,12 +353,13 @@ FALLBACK_INTENTS: dict[str, str | None] = {
     "client_projects": "active_clients",
     "client_status": "active_clients",
 
-    # Project domain (6 intents)
+    # Project domain (7 intents)
     "active_projects": None,  # Broadest - no fallback
     "project_by_client": "active_projects",
     "project_budget": "active_projects",
     "project_resources": "active_projects",
     "project_timeline": "active_projects",
+    "project_status": "active_projects",
     "overdue_projects": "active_projects",
 
     # Timesheet domain (4 intents)
@@ -622,18 +661,26 @@ def compile_query(
     remaining_filters = list(plan.filters)
 
     if "{skill_filter}" in sql:
-        skill_clauses = [f for f in remaining_filters if f.field == "skill"]
+        skill_clauses = [f for f in remaining_filters if f.field in ("skill", "skill_name")]
         if skill_clauses:
             sf = skill_clauses[0]
             v = f"%{sf.values[0]}%"
-            skill_fragment = (
-                "r.PrimarySkill LIKE ? OR r.SecondarySkill LIKE ? "
-                "OR tc.TechCategoryName LIKE ? OR psk.Name LIKE ?"
-            )
+            # benched_by_skill uses s (PA_Skills alias) — 3 params
+            # resource_by_skill uses tc (TechCatagory) and psk (PA_Skills) — 4 params
+            if plan.intent == "benched_by_skill":
+                skill_fragment = (
+                    "s.Name LIKE ? OR r.PrimarySkill LIKE ? OR r.SecondarySkill LIKE ?"
+                )
+                skill_params = [v, v, v]
+            else:
+                skill_fragment = (
+                    "r.PrimarySkill LIKE ? OR r.SecondarySkill LIKE ? "
+                    "OR tc.TechCategoryName LIKE ? OR psk.Name LIKE ?"
+                )
+                skill_params = [v, v, v, v]
             sql = sql.replace("{skill_filter}", skill_fragment)
-            skill_params = [v, v, v, v]
-            # Remove skill from remaining filters so it isn't double-processed
-            remaining_filters = [f for f in remaining_filters if f.field != "skill"]
+            # Remove both "skill" and "skill_name" variants so they aren't double-processed
+            remaining_filters = [f for f in remaining_filters if f.field not in ("skill", "skill_name")]
         else:
             # No skill filter — return all (IsActive=1 still applies from base WHERE)
             sql = sql.replace("{skill_filter}", "1=1")
@@ -667,6 +714,18 @@ def compile_query(
                 where_fragments.append(fragment)
                 filter_params.extend(params)
 
+    # ── reports_to: extract manager name param from filters ───────────────────
+    # Base SQL has hardcoded WHERE pm.ResourceName LIKE ? — param must come from
+    # the resource_name filter, not the generic filter loop (which is skipped).
+    reports_to_params: tuple = ()
+    if plan.intent == "reports_to":
+        name_filter = next((f for f in plan.filters if f.field == "resource_name"), None)
+        if name_filter and name_filter.values:
+            name_val = f"%{name_filter.values[0]}%"
+        else:
+            name_val = "%"  # fallback: return all (no manager specified)
+        reports_to_params = (name_val,)
+
     # ── Assemble final SQL ─────────────────────────────────────────────────
     # For user_self intents: the base SQL already contains "WHERE ... = ?"
     # with resource_id as the first param.
@@ -699,7 +758,7 @@ def compile_query(
     if needs_group_by:
         sql = _inject_group_by(sql, plan)
 
-    all_params = tuple(skill_params) + tuple(filter_params)
+    all_params = reports_to_params + tuple(skill_params) + tuple(filter_params)
     logger.debug(
         "compile_query: domain=%s intent=%s filters=%d params=%d",
         plan.domain, plan.intent, len(plan.filters), len(all_params),

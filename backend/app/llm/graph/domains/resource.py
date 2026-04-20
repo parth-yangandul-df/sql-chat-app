@@ -50,7 +50,7 @@ class ResourceAgent(BaseDomainAgent):
         """
         logger = logging.getLogger(__name__)
 
-        skill = params.get("skill", "")
+        skill = params.get("skill_name", params.get("skill", ""))
         _ = params.get("_prior_columns", [])  # available for future intent detection
         t = state["timeout_seconds"]
         m = state["max_rows"]
@@ -167,6 +167,28 @@ class ResourceAgent(BaseDomainAgent):
 
             result = await connector.execute_query(sql, timeout_seconds=t, max_rows=m)
 
+        elif intent == "benched_by_skill":
+            skill = params.get("skill_name", params.get("skill", ""))
+            sql = (
+                "SELECT DISTINCT r.employeeid as [EMPID], r.ResourceName as [Name], r.EmailId, "
+                "t.TechCategoryName as [Tech Category], s.Name as [Skill] "
+                "FROM Resource r "
+                "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
+                "JOIN Project p ON pr.ProjectId = p.ProjectId "
+                "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId "
+                "JOIN PA_ResourceSkills rs ON rs.ResourceId = r.ResourceId "
+                "JOIN PA_Skills s ON s.SkillId = rs.SkillId "
+                "WHERE p.ProjectId = 119 "
+                "AND (s.Name LIKE ? OR r.PrimarySkill LIKE ? OR r.SecondarySkill LIKE ?) "
+                "ORDER BY r.ResourceName"
+            )
+            result = await connector.execute_query(
+                sql,
+                params=(f"%{skill}%", f"%{skill}%", f"%{skill}%"),
+                timeout_seconds=t,
+                max_rows=m,
+            )
+
         elif intent == "resource_by_skill": # done and ready for improvement
             skill = params.get("skill", "")
             sql = (
@@ -192,7 +214,7 @@ class ResourceAgent(BaseDomainAgent):
             name = params.get("resource_name", "")
             sql = (
                 "SELECT r.EmployeeId as [EMPID],r.ResourceName as [Employee Name], p.ProjectName as  [Project Name], CAST(pr.StartDate AS DATE) AS [Start Date],"
-                "CAST(pr.EndDate AS DATE) AS [End Date], pr.resourcerole as [Role], pr.PercentageAllocation as [Allocation], pr.Billab FROM Resource r "
+                "CAST(pr.EndDate AS DATE) AS [End Date], pr.resourcerole as [Role], pr.PercentageAllocation as [Allocation], pr.Billable FROM Resource r "
                 "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
                 "JOIN Project p ON pr.ProjectId = p.ProjectId "
                 "WHERE r.ResourceName LIKE ?"
@@ -207,6 +229,16 @@ class ResourceAgent(BaseDomainAgent):
                 "JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId "
                 "JOIN PA_Skills s ON rs.SkillId = s.SkillId "
                 "WHERE r.ResourceName LIKE ?"
+            )
+            result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
+
+        elif intent == "reports_to":
+            name = params.get("resource_name", "")
+            sql = (
+                "SELECT r.EmployeeId, r.ResourceName, pm.ResourceName as [Reporting To] "
+                "FROM Resource r "
+                "JOIN Resource pm ON pm.ResourceId = r.ReportingTo "
+                "WHERE pm.ResourceName LIKE ? AND r.IsActive = 1"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
 

@@ -1,4 +1,4 @@
-"""ProjectAgent — 6 PRMS project intent SQL templates."""
+"""ProjectAgent — 7 PRMS project intent SQL templates."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ class ProjectAgent(BaseDomainAgent):
                 "FROM Project p "
                 "JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId "
                 "JOIN Resource r ON pr.ResourceId = r.ResourceId "
-                "JOIN TechCategory tc ON tc.TechCategoryId = r.TechCategoryId "
+                "JOIN TechCatagory tc ON tc.TechCategoryId = r.TechCategoryId "
                 "JOIN Client c ON c.ClientId = pr.ClientId "
                 "WHERE p.ProjectName LIKE ? AND pr.IsActive = 1"
             )
@@ -59,6 +59,22 @@ class ProjectAgent(BaseDomainAgent):
                 "SELECT ProjectName, cast(StartDate as Date) as [Start Date],COALESCE(CONVERT(VARCHAR(10), EndDate, 120), 'NA') AS [End Date], "
                 "COALESCE(CAST(DATEDIFF(DAY, StartDate, EndDate) AS VARCHAR(10)), 'NA') AS DurationDays "
                 "FROM Project WHERE ProjectName LIKE ?"
+            )
+            result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
+
+        elif intent == "project_status":
+            name = params.get("project_name", params.get("resource_name", ""))
+            sql = (
+                "SELECT p.ProjectName as [Project Name], c.ClientName as [Client], "
+                "s.StatusName as [Status], "
+                "cast(p.StartDate as date) as [Start Date], "
+                "COALESCE(CONVERT(VARCHAR(10), p.EndDate, 120), 'NA') AS [End Date], "
+                "r.ResourceName as [Project Manager] "
+                "FROM Project p "
+                "JOIN Client c ON p.ClientId = c.ClientId "
+                "JOIN Status s ON s.StatusId = p.ProjectStatusId "
+                "JOIN Resource r ON r.ResourceId = p.ProjectManagerId "
+                "WHERE p.ProjectName LIKE ?"
             )
             result = await connector.execute_query(sql, params=(f"%{name}%",), timeout_seconds=t, max_rows=m)
 

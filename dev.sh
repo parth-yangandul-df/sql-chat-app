@@ -1,21 +1,26 @@
 #!/bin/bash
 
 # QueryWise Native Development Script
-# Usage: ./dev.sh [start|stop|status|logs|db|clean]
+# Usage: ./dev.sh [start|stop|restart|status|logs|db|clean] [service]
 #
 # Works on Windows (Git Bash) and Unix-like systems
 
-set -e
+# Do NOT use set -e — it causes premature exits in Git Bash on Windows
+set +e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Colors for output
+# =============================================================================
+# Constants
+# =============================================================================
+
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Ports
 PORT_DB=5434
@@ -26,512 +31,484 @@ PORT_WIDGET=4000
 PORT_ANGULAR=4200
 PORT_OLLAMA=11434
 
-# PID file and log file locations
-PID_FILE="$SCRIPT_DIR/dev.pids"
+# Paths
+PIDS_DIR="$SCRIPT_DIR/dev.pids"
 LOG_FILE="$SCRIPT_DIR/backend.log"
 
-# Service names for display
-SERVICES=("postgresql" "ollama" "backend" "frontend" "chatbot" "widget" "angular")
-
 # =============================================================================
-# Utility Functions
+# Logging
 # =============================================================================
 
-log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_info()  { echo -e "${GREEN}[INFO]${NC}  $1"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
+log_step()  { echo -e "${BLUE}[STEP]${NC}  $1"; }
 
-# Check if running on Windows (Git Bash on Windows)
+# =============================================================================
+# Platform Detection
+# =============================================================================
+
 is_windows() {
-    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || -n "$COMSPEC" ]]; then
-        return 0
-    fi
-    return 1
+    [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || -n "$COMSPEC" ]]
 }
 
-# Check if a port is in use
+# =============================================================================
+# Port Utilities
+# =============================================================================
+
+# Reliable LISTENING check — anchors on column boundaries for Windows netstat
 is_port_in_use() {
     local port=$1
     if is_windows; then
-        # Windows: use netstat
-        netstat -ano 2>/dev/null | grep -E "(:${port}|:${port}\s)" >/dev/null 2>&1
+        netstat -ano 2>/dev/null \
+            | grep -E "^\s*TCP\s+[0-9.:]+:${port}\s+.*LISTENING" \
+            >/dev/null 2>&1
     else
-        # Unix: try ss first, then netstat
         if command -v ss >/dev/null 2>&1; then
-            ss -tlnp 2>/dev/null | grep -E "(:${port}|:${port})" >/dev/null 2>&1
+            ss -tlnp 2>/dev/null | grep -E ":${port}\b" >/dev/null 2>&1
         else
-            netstat -tlnp 2>/dev/null | grep -E "(:${port}|:${port})" >/dev/null 2>&1
+            netstat -tlnp 2>/dev/null | grep -E ":${port}\b" >/dev/null 2>&1
         fi
     fi
 }
 
-# Get PID from port (Windows)
-get_pid_from_port_windows() {
+# Returns the PIDs (one per line) of processes holding a port LISTENING
+get_pids_on_port() {
     local port=$1
-    netstat -ano 2>/dev/null | grep -E "(:${port}|:${port}\s)" | grep LISTENING | head -1 | awk '{print $5}'
-}
-
-# Get PID from port (Unix)
-get_pid_from_port_unix() {
-    local port=$1
-    if command -v ss >/dev/null 2>&1; then
-        ss -tlnp 2>/dev/null | grep -E "(:${port}|:${port})" | grep -oP 'pid=\K[0-9]+' | head -1
-    else
-        netstat -tlnp 2>/dev/null | grep -E "(:${port}|:${port})" | grep -oP '\([0-9]+/' | grep -oP '[0-9]+' | head -1
-    fi
-}
-
-# Kill process by PID
-kill_process() {
-    local pid=$1
-    if [[ -z "$pid" ]]; then
-        return 1
-    fi
-    
     if is_windows; then
-        taskkill //F //PID "$pid" 2>/dev/null || true
+        netstat -ano 2>/dev/null \
+            | grep -E "^\s*TCP\s+[0-9.:]+:${port}\s+.*LISTENING" \
+            | awk '{print $5}' \
+            | sort -u
     else
-        kill -9 "$pid" 2>/dev/null || true
+        if command -v lsof >/dev/null 2>&1; then
+            lsof -ti ":${port}" 2>/dev/null
+        elif command -v ss >/dev/null 2>&1; then
+            ss -tlnp 2>/dev/null \
+                | grep -E ":${port}\b" \
+                | grep -oP 'pid=\K[0-9]+'
+        fi
     fi
 }
 
-# Kill process by name (Windows)
-kill_process_by_name_windows() {
-    local name=$1
-    taskkill //F //IM "$name" 2>/dev/null || true
+# On Windows, kill all processes on a port using PowerShell (bypasses MSYS PID mismatch)
+kill_port_windows_ps() {
+    local port=$1
+    powershell.exe -NoProfile -Command "
+        \$conns = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
+        if (\$conns) {
+            \$conns | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique | ForEach-Object {
+                Stop-Process -Id \$_ -Force -ErrorAction SilentlyContinue
+            }
+        }
+    " >/dev/null 2>&1
 }
 
-# Save PIDs to file
-save_pids() {
-    local service=$1
-    local pid=$2
-    echo "${service}:${pid}" >> "$PID_FILE"
+# Poll until port becomes active (or timeout)
+wait_for_port() {
+    local port=$1
+    local retries=${2:-15}
+    while [[ $retries -gt 0 ]]; do
+        if is_port_in_use "$port"; then
+            return 0
+        fi
+        sleep 1
+        (( retries-- )) || true
+    done
+    return 1
 }
 
-# Clear PID file
-clear_pids() {
-    > "$PID_FILE"
-}
+# =============================================================================
+# Generic Stop Helper
+# =============================================================================
 
-# Read and kill PIDs from file
-kill_saved_pids() {
-    if [[ -f "$PID_FILE" ]]; then
-        while IFS=: read -r service pid; do
-            if [[ -n "$pid" ]] && [[ "$pid" != "null" ]]; then
-                log_info "Stopping $service (PID: $pid)"
-                kill_process "$pid" 2>/dev/null || true
+# Kills the process(es) on a port, then falls back to the saved .pid file.
+# Usage: stop_service <service_name> <port>
+stop_service() {
+    local service_name=$1
+    local port=$2
+    local pid_file="$PIDS_DIR/${service_name}.pid"
+
+    log_step "Stopping ${service_name}..."
+
+    # --- Method 1: kill by port ---
+    if is_windows; then
+        # Use PowerShell to avoid MSYS/Windows PID mismatch with taskkill
+        kill_port_windows_ps "$port"
+        for pid in $(get_pids_on_port "$port"); do
+            [[ -z "$pid" ]] && continue
+            log_info "  Killing PID $pid on port $port"
+            taskkill //F //PID "$pid" >/dev/null 2>&1 || true
+        done
+    else
+        for pid in $(get_pids_on_port "$port"); do
+            [[ -z "$pid" ]] && continue
+            log_info "  Sending SIGTERM to PID $pid on port $port"
+            kill -TERM "$pid" 2>/dev/null || true
+        done
+        # Give processes a moment to exit cleanly before hard-killing
+        sleep 2
+        for pid in $(get_pids_on_port "$port"); do
+            [[ -z "$pid" ]] && continue
+            log_info "  Sending SIGKILL to PID $pid on port $port"
+            kill -9 "$pid" 2>/dev/null || true
+        done
+    fi
+
+    # --- Method 2: kill saved PID (handles cases where port detection misses) ---
+    if [[ -f "$pid_file" ]]; then
+        local saved_pid
+        saved_pid=$(cat "$pid_file" 2>/dev/null)
+        if [[ -n "$saved_pid" ]]; then
+            log_info "  Killing saved PID $saved_pid for ${service_name}"
+            if is_windows; then
+                taskkill //F //PID "$saved_pid" >/dev/null 2>&1 || true
+            else
+                kill -9 "$saved_pid" 2>/dev/null || true
             fi
-        done < "$PID_FILE"
-        clear_pids
+        fi
+        rm -f "$pid_file"
+    fi
+
+    # --- Verify port was released ---
+    sleep 1
+    if is_port_in_use "$port"; then
+        log_warn "${service_name} port $port is still in use — manual cleanup may be needed"
+    else
+        log_info "${service_name} stopped"
     fi
 }
 
 # =============================================================================
-# Service Functions
+# Docker / PostgreSQL
 # =============================================================================
 
-# Start PostgreSQL via Docker
+# Resolve the right docker compose invocation
+_docker_compose() {
+    if command -v docker-compose >/dev/null 2>&1; then
+        docker-compose "$@"
+    else
+        docker compose "$@"
+    fi
+}
+
 start_postgresql() {
     log_step "Starting PostgreSQL on port $PORT_DB..."
-    
+
     if is_port_in_use $PORT_DB; then
         log_warn "PostgreSQL already running on port $PORT_DB"
         return 0
     fi
-    
-    # Check if Docker is running
+
     if ! command -v docker >/dev/null 2>&1; then
         log_error "Docker not found. Please install Docker."
         return 1
     fi
-    
-    # Check if docker-compose is available
-    if command -v docker-compose >/dev/null 2>&1; then
-        DOCKER_COMPOSE="docker-compose"
-    elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-        DOCKER_COMPOSE="docker compose"
+
+    # Try docker compose first, then a bare docker run as fallback
+    if _docker_compose up -d app-db 2>/dev/null; then
+        : # success
     else
-        log_error "Docker Compose not found."
-        return 1
+        docker run -d \
+            --name querywise-postgres \
+            -e POSTGRES_DB=saras_metadata \
+            -e POSTGRES_USER=parthy \
+            -e POSTGRES_PASSWORD=querywise_app \
+            -p "$PORT_DB:5432" \
+            pgvector/pgvector:pg16 2>/dev/null || true
     fi
-    
-    # Start only PostgreSQL service
-    $DOCKER_COMPOSE up -d app-db 2>/dev/null || docker run -d \
-        --name querywise-postgres \
-        -e POSTGRES_DB=saras_metadata \
-        -e POSTGRES_USER=parthy \
-        -e POSTGRES_PASSWORD=querywise_app \
-        -p $PORT_DB:5432 \
-        pgvector/pgvector:pg16 2>/dev/null || true
-    
-    sleep 2
-    
-    if is_port_in_use $PORT_DB; then
-        log_info "PostgreSQL started successfully"
+
+    if wait_for_port $PORT_DB 10; then
+        log_info "PostgreSQL started"
     else
-        log_error "Failed to start PostgreSQL"
+        log_error "PostgreSQL failed to start — check Docker"
         return 1
     fi
 }
 
-# Stop PostgreSQL via Docker
 stop_postgresql() {
     log_step "Stopping PostgreSQL..."
-    
-    if command -v docker-compose >/dev/null 2>&1; then
-        docker-compose stop app-db 2>/dev/null || true
-    elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-        docker compose stop app-db 2>/dev/null || true
-    else
-        # Try to stop container by name
-        docker stop querywise-postgres 2>/dev/null || true
-    fi
-    
+    _docker_compose stop app-db 2>/dev/null || docker stop querywise-postgres 2>/dev/null || true
     log_info "PostgreSQL stopped"
 }
 
-# Check Ollama status
+# =============================================================================
+# Ollama — status check only; it is a system-managed service
+# =============================================================================
+
 check_ollama() {
-    if is_port_in_use $PORT_OLLAMA; then
-        return 0
-    fi
-    return 1
+    is_port_in_use $PORT_OLLAMA
 }
 
-# Start Ollama (user must have it installed locally)
-start_ollama() {
-    log_step "Checking Ollama..."
-    
-    if ! command -v ollama >/dev/null 2>&1; then
-        log_error "Ollama not found. Please install Ollama from https://ollama.ai"
-        return 1
-    fi
-    
-    if check_ollama; then
-        log_info "Ollama already running on port $PORT_OLLAMA"
-        return 0
-    fi
-    
-    log_info "Starting Ollama..."
-    if is_windows; then
-        # On Windows, Ollama might be installed as a service or app
-        start "" ollama serve 2>/dev/null || log_warn "Could not start Ollama. Please start it manually."
-    else
-        nohup ollama serve >/dev/null 2>&1 &
-    fi
-    
-    # Wait for Ollama to start
-    local retries=10
-    while [[ $retries -gt 0 ]]; do
-        if check_ollama; then
-            log_info "Ollama started successfully"
-            return 0
-        fi
-        sleep 1
-        ((retries--))
-    done
-    
-    log_warn "Ollama may not have started. Check manually."
-    return 0
-}
+# =============================================================================
+# Backend
+# =============================================================================
 
-# Stop Ollama (doesn't actually stop system Ollama, just warns)
-stop_ollama() {
-    log_warn "Ollama is a system service. Use 'ollama serve' to manage it."
-    log_info "To stop Ollama: taskkill //IM ollama.exe //F  (Windows) or pkill ollama (Unix)"
-}
-
-# Start Backend (venv + uvicorn)
 start_backend() {
     log_step "Starting Backend on port $PORT_BACKEND..."
-    
+
     if is_port_in_use $PORT_BACKEND; then
         log_warn "Backend already running on port $PORT_BACKEND"
         return 0
     fi
-    
-    cd "$SCRIPT_DIR/backend"
-    
-    # Check if venv exists, create if not
-    if [[ ! -d "venv" ]]; then
+
+    local pid_file="$PIDS_DIR/backend.pid"
+
+    # Ensure venv exists
+    if [[ ! -d "$SCRIPT_DIR/backend/venv" ]]; then
         log_info "Creating Python virtual environment..."
-        python -m venv venv
+        python -m venv "$SCRIPT_DIR/backend/venv"
     fi
-    
-    # Activate venv
+
+    # Ensure deps are installed
     if is_windows; then
-        source venv/Scripts/activate
+        local python_bin="$SCRIPT_DIR/backend/venv/Scripts/python"
+        local activate="source '$SCRIPT_DIR/backend/venv/Scripts/activate'"
     else
-        source venv/bin/activate
+        local python_bin="$SCRIPT_DIR/backend/venv/bin/python"
+        local activate="source '$SCRIPT_DIR/backend/venv/bin/activate'"
     fi
-    
-    # Check if dependencies are installed
-    if ! python -c "import uvicorn" 2>/dev/null; then
+
+    if ! "$python_bin" -c "import uvicorn" 2>/dev/null; then
         log_info "Installing backend dependencies..."
-        pip install -e ".[llm,dev,sqlserver]" 2>/dev/null || pip install uvicorn fastapi 2>/dev/null || true
+        if is_windows; then
+            "$SCRIPT_DIR/backend/venv/Scripts/pip" install -e "$SCRIPT_DIR/backend[llm,dev,sqlserver]" 2>/dev/null \
+                || "$SCRIPT_DIR/backend/venv/Scripts/pip" install uvicorn fastapi 2>/dev/null \
+                || true
+        else
+            "$SCRIPT_DIR/backend/venv/bin/pip" install -e "$SCRIPT_DIR/backend[llm,dev,sqlserver]" 2>/dev/null \
+                || "$SCRIPT_DIR/backend/venv/bin/pip" install uvicorn fastapi 2>/dev/null \
+                || true
+        fi
     fi
-    
-    # Start uvicorn in background
-    cd "$SCRIPT_DIR"
+
+    mkdir -p "$PIDS_DIR" 2>/dev/null || true
+
+    # The subshell writes its own PID before exec-ing uvicorn.
+    # This way $pid_file holds the actual uvicorn process PID, not the wrapper bash PID.
     if is_windows; then
-        # Windows background process
-        nohup bash -c "cd '$SCRIPT_DIR/backend' && source venv/Scripts/activate && uvicorn app.main:app --host 0.0.0.0 --port $PORT_BACKEND --reload" > "$LOG_FILE" 2>&1 &
-        BACKEND_PID=$!
+        bash -c "
+            ${activate}
+            cd '$SCRIPT_DIR/backend'
+            echo \$\$ > '$pid_file'
+            exec uvicorn app.main:app --host 0.0.0.0 --port $PORT_BACKEND --reload
+        " >> "$LOG_FILE" 2>&1 &
     else
-        nohup bash -c "cd '$SCRIPT_DIR/backend' && source venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port $PORT_BACKEND --reload" > "$LOG_FILE" 2>&1 &
-        BACKEND_PID=$!
+        bash -c "
+            ${activate}
+            cd '$SCRIPT_DIR/backend'
+            echo \$\$ > '$pid_file'
+            exec uvicorn app.main:app --host 0.0.0.0 --port $PORT_BACKEND --reload
+        " >> "$LOG_FILE" 2>&1 &
     fi
-    
-    # Wait for backend to start
-    sleep 3
-    
-    if is_port_in_use $PORT_BACKEND; then
-        log_info "Backend started successfully (PID: $BACKEND_PID)"
-        save_pids "backend" "$BACKEND_PID"
+
+    if wait_for_port $PORT_BACKEND 20; then
+        log_info "Backend started (PID: $(cat "$pid_file" 2>/dev/null || echo unknown))"
     else
-        log_warn "Backend may not have started. Check $LOG_FILE"
-        log_info "Backend process PID: $BACKEND_PID"
-        save_pids "backend" "$BACKEND_PID"
+        log_warn "Backend may not have started — check $LOG_FILE"
     fi
-    
-    cd "$SCRIPT_DIR"
 }
 
-# Stop Backend
 stop_backend() {
-    log_step "Stopping Backend..."
-    
-    # Try to kill by port first
+    log_step "Stopping backend (watchdog-aware)..."
+    local pid_file="$PIDS_DIR/backend.pid"
+
+    # On Windows, kill via PowerShell first (bypasses MSYS/Windows PID mismatch)
     if is_windows; then
-        local pid=$(get_pid_from_port_windows $PORT_BACKEND)
-        if [[ -n "$pid" ]]; then
-            kill_process "$pid"
-        fi
-    else
-        local pid=$(get_pid_from_port_unix $PORT_BACKEND)
-        if [[ -n "$pid" ]]; then
-            kill_process "$pid"
-        fi
+        kill_port_windows_ps "$PORT_BACKEND"
     fi
-    
-    # Also try to kill uvicorn processes
+
+    # Kill watchdog FIRST — prevents it from respawning the child worker
+    if [[ -f "$pid_file" ]]; then
+        local saved_pid
+        saved_pid=$(cat "$pid_file" 2>/dev/null)
+        if [[ -n "$saved_pid" ]]; then
+            log_info "  Killing watchdog PID $saved_pid"
+            if is_windows; then
+                taskkill //F //PID "$saved_pid" >/dev/null 2>&1 || true
+            else
+                kill -9 "$saved_pid" 2>/dev/null || true
+            fi
+        fi
+        rm -f "$pid_file"
+    fi
+
+    # Brief pause for watchdog to fully exit
+    sleep 1
+
+    # Kill any lingering child worker still holding the port
     if is_windows; then
-        taskkill //F //IM python.exe 2>/dev/null || true
-    else
-        pkill -f "uvicorn.*app.main:app" 2>/dev/null || true
+        kill_port_windows_ps "$PORT_BACKEND"
     fi
-    
-    log_info "Backend stopped"
+    for pid in $(get_pids_on_port "$PORT_BACKEND"); do
+        [[ -z "$pid" ]] && continue
+        log_info "  Killing lingering worker PID $pid on port $PORT_BACKEND"
+        if is_windows; then
+            taskkill //F //PID "$pid" >/dev/null 2>&1 || true
+        else
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
+
+    sleep 1
+    if is_port_in_use "$PORT_BACKEND"; then
+        log_warn "Backend port $PORT_BACKEND still in use — manual cleanup may be needed"
+    else
+        log_info "Backend stopped"
+    fi
 }
 
-# Start Frontend
+# =============================================================================
+# Frontend
+# =============================================================================
+
 start_frontend() {
     log_step "Starting Frontend on port $PORT_FRONTEND..."
-    
+
     if is_port_in_use $PORT_FRONTEND; then
         log_warn "Frontend already running on port $PORT_FRONTEND"
         return 0
     fi
-    
-    cd "$SCRIPT_DIR/frontend"
-    
-    # Check if node_modules exists
-    if [[ ! -d "node_modules" ]]; then
+
+    local pid_file="$PIDS_DIR/frontend.pid"
+    mkdir -p "$PIDS_DIR" 2>/dev/null || true
+
+    if [[ ! -d "$SCRIPT_DIR/frontend/node_modules" ]]; then
         log_info "Installing frontend dependencies..."
-        npm install 2>/dev/null || true
+        npm install --prefix "$SCRIPT_DIR/frontend" 2>/dev/null || true
     fi
-    
-    # Start frontend in background
-    cd "$SCRIPT_DIR"
-    if is_windows; then
-        nohup bash -c "cd '$SCRIPT_DIR/frontend' && npm run dev" > /dev/null 2>&1 &
+
+    bash -c "
+        cd '$SCRIPT_DIR/frontend'
+        echo \$\$ > '$pid_file'
+        exec npm run dev
+    " >/dev/null 2>&1 &
+
+    if wait_for_port $PORT_FRONTEND 20; then
+        log_info "Frontend started (PID: $(cat "$pid_file" 2>/dev/null || echo unknown))"
     else
-        nohup npm run dev > /dev/null 2>&1 &
-    fi
-    
-    # Wait for frontend to start
-    sleep 5
-    
-    if is_port_in_use $PORT_FRONTEND; then
-        log_info "Frontend started successfully"
-    else
-        log_warn "Frontend may not have started. Check manually."
+        log_warn "Frontend may not have started — check manually"
     fi
 }
 
-# Stop Frontend
 stop_frontend() {
-    log_step "Stopping Frontend..."
-    
-    if is_windows; then
-        taskkill //F //IM node.exe 2>/dev/null || true
-    else
-        pkill -f "vite.*5173" 2>/dev/null || true
-    fi
-    
-    log_info "Frontend stopped"
+    stop_service "frontend" $PORT_FRONTEND
 }
 
-# Start Chatbot Frontend
+# =============================================================================
+# Chatbot Frontend
+# =============================================================================
+
 start_chatbot() {
     log_step "Starting Chatbot Frontend on port $PORT_CHATBOT..."
-    
+
     if is_port_in_use $PORT_CHATBOT; then
         log_warn "Chatbot Frontend already running on port $PORT_CHATBOT"
         return 0
     fi
-    
-    cd "$SCRIPT_DIR/chatbot-frontend"
-    
-    # Check if node_modules exists
-    if [[ ! -d "node_modules" ]]; then
+
+    local pid_file="$PIDS_DIR/chatbot.pid"
+    mkdir -p "$PIDS_DIR" 2>/dev/null || true
+
+    if [[ ! -d "$SCRIPT_DIR/chatbot-frontend/node_modules" ]]; then
         log_info "Installing chatbot-frontend dependencies..."
-        npm install 2>/dev/null || true
+        npm install --prefix "$SCRIPT_DIR/chatbot-frontend" 2>/dev/null || true
     fi
-    
-    # Start chatbot in background
-    cd "$SCRIPT_DIR"
-    if is_windows; then
-        nohup bash -c "cd '$SCRIPT_DIR/chatbot-frontend' && npm run dev" > /dev/null 2>&1 &
+
+    bash -c "
+        cd '$SCRIPT_DIR/chatbot-frontend'
+        echo \$\$ > '$pid_file'
+        exec npm run dev
+    " >/dev/null 2>&1 &
+
+    if wait_for_port $PORT_CHATBOT 20; then
+        log_info "Chatbot Frontend started (PID: $(cat "$pid_file" 2>/dev/null || echo unknown))"
     else
-        nohup npm run dev > /dev/null 2>&1 &
-    fi
-    
-    # Wait for chatbot to start
-    sleep 5
-    
-    if is_port_in_use $PORT_CHATBOT; then
-        log_info "Chatbot Frontend started successfully"
-    else
-        log_warn "Chatbot Frontend may not have started. Check manually."
+        log_warn "Chatbot Frontend may not have started — check manually"
     fi
 }
 
-# Stop Chatbot Frontend
 stop_chatbot() {
-    log_step "Stopping Chatbot Frontend..."
-    
-    if is_windows; then
-        # Kill node processes on port 5174
-        local pid=$(netstat -ano 2>/dev/null | grep ":$PORT_CHATBOT " | grep LISTENING | head -1 | awk '{print $5}')
-        if [[ -n "$pid" ]]; then
-            kill_process "$pid"
-        fi
-    else
-        pkill -f "vite.*5174" 2>/dev/null || true
-    fi
-    
-    log_info "Chatbot Frontend stopped"
+    stop_service "chatbot" $PORT_CHATBOT
 }
 
-# Start Widget Server
+# =============================================================================
+# Widget Server
+# =============================================================================
+
 start_widget() {
     log_step "Starting Widget Server on port $PORT_WIDGET..."
-    
+
     if is_port_in_use $PORT_WIDGET; then
         log_warn "Widget Server already running on port $PORT_WIDGET"
         return 0
     fi
-    
-    cd "$SCRIPT_DIR/chatbot-frontend"
-    
-    # Check if dist-widget exists
-    if [[ ! -d "dist-widget" ]]; then
+
+    local pid_file="$PIDS_DIR/widget.pid"
+    mkdir -p "$PIDS_DIR" 2>/dev/null || true
+
+    if [[ ! -d "$SCRIPT_DIR/chatbot-frontend/dist-widget" ]]; then
         log_info "Building widget bundle..."
-        npm run build:widget 2>/dev/null || true
+        npm run --prefix "$SCRIPT_DIR/chatbot-frontend" build:widget 2>/dev/null || true
     fi
-    
-    # Start serve in background
-    cd "$SCRIPT_DIR"
-    if is_windows; then
-        nohup bash -c "cd '$SCRIPT_DIR/chatbot-frontend' && npx serve dist-widget --cors -p $PORT_WIDGET" > /dev/null 2>&1 &
+
+    bash -c "
+        cd '$SCRIPT_DIR/chatbot-frontend'
+        echo \$\$ > '$pid_file'
+        exec npx serve dist-widget --cors -p $PORT_WIDGET
+    " >/dev/null 2>&1 &
+
+    if wait_for_port $PORT_WIDGET 15; then
+        log_info "Widget Server started (PID: $(cat "$pid_file" 2>/dev/null || echo unknown))"
     else
-        nohup npx serve dist-widget --cors -p $PORT_WIDGET > /dev/null 2>&1 &
-    fi
-    
-    # Wait for widget server to start
-    sleep 3
-    
-    if is_port_in_use $PORT_WIDGET; then
-        log_info "Widget Server started successfully"
-    else
-        log_warn "Widget Server may not have started. Check manually."
+        log_warn "Widget Server may not have started — check manually"
     fi
 }
 
-# Stop Widget Server
 stop_widget() {
-    log_step "Stopping Widget Server..."
-    
-    if is_windows; then
-        local pid=$(netstat -ano 2>/dev/null | grep ":$PORT_WIDGET " | grep LISTENING | head -1 | awk '{print $5}')
-        if [[ -n "$pid" ]]; then
-            kill_process "$pid"
-        fi
-        # Also kill serve process
-        taskkill //F //IM node.exe 2>/dev/null || true
-    else
-        pkill -f "serve.*dist-widget" 2>/dev/null || true
-    fi
-    
-    log_info "Widget Server stopped"
+    stop_service "widget" $PORT_WIDGET
 }
 
-# Start Angular Test App
+# =============================================================================
+# Angular Test App
+# =============================================================================
+
 start_angular() {
     log_step "Starting Angular Test App on port $PORT_ANGULAR..."
-    
+
     if is_port_in_use $PORT_ANGULAR; then
         log_warn "Angular Test App already running on port $PORT_ANGULAR"
         return 0
     fi
-    
+
     if [[ ! -d "$SCRIPT_DIR/angular-test" ]]; then
-        log_warn "Angular test app not found at $SCRIPT_DIR/angular-test"
-        return 1
+        log_warn "Angular test app not found at $SCRIPT_DIR/angular-test — skipping"
+        return 0
     fi
-    
-    cd "$SCRIPT_DIR/angular-test"
-    
-    # Check if node_modules exists
-    if [[ ! -d "node_modules" ]]; then
+
+    local pid_file="$PIDS_DIR/angular.pid"
+    mkdir -p "$PIDS_DIR" 2>/dev/null || true
+
+    if [[ ! -d "$SCRIPT_DIR/angular-test/node_modules" ]]; then
         log_info "Installing Angular test app dependencies..."
-        npm install 2>/dev/null || true
+        npm install --prefix "$SCRIPT_DIR/angular-test" 2>/dev/null || true
     fi
-    
-    # Start angular in background
-    cd "$SCRIPT_DIR"
-    if is_windows; then
-        nohup bash -c "cd '$SCRIPT_DIR/angular-test' && ng serve --port $PORT_ANGULAR" > /dev/null 2>&1 &
+
+    bash -c "
+        cd '$SCRIPT_DIR/angular-test'
+        echo \$\$ > '$pid_file'
+        exec npx ng serve --port $PORT_ANGULAR
+    " >/dev/null 2>&1 &
+
+    if wait_for_port $PORT_ANGULAR 30; then
+        log_info "Angular Test App started (PID: $(cat "$pid_file" 2>/dev/null || echo unknown))"
     else
-        nohup ng serve --port $PORT_ANGULAR > /dev/null 2>&1 &
-    fi
-    
-    # Wait for angular to start
-    sleep 5
-    
-    if is_port_in_use $PORT_ANGULAR; then
-        log_info "Angular Test App started successfully"
-    else
-        log_warn "Angular Test App may not have started. Check manually."
+        log_warn "Angular Test App may not have started — check manually"
     fi
 }
 
-# Stop Angular Test App
 stop_angular() {
-    log_step "Stopping Angular Test App..."
-    
-    if is_windows; then
-        local pid=$(netstat -ano 2>/dev/null | grep ":$PORT_ANGULAR " | grep LISTENING | head -1 | awk '{print $5}')
-        if [[ -n "$pid" ]]; then
-            kill_process "$pid"
-        fi
-    else
-        pkill -f "ng serve" 2>/dev/null || true
-    fi
-    
-    log_info "Angular Test App stopped"
+    stop_service "angular" $PORT_ANGULAR
 }
 
 # =============================================================================
@@ -541,34 +518,36 @@ stop_angular() {
 cmd_start() {
     log_info "Starting all QueryWise services..."
     echo ""
-    
-    # Clear previous PIDs
-    clear_pids
-    
-    # Start services in order (PostgreSQL is optional - just checks if running)
+
+    mkdir -p "$PIDS_DIR" 2>/dev/null || true
+    _ensure_gitignore_entry
+
     start_postgresql || true
     echo ""
-    
-    # Note: Ollama is not auto-started to prevent opening a new window
-    # Start Ollama manually if needed: 'ollama serve' or by launching the Ollama application
-    # start_ollama
+
+    # Ollama: status check only — started externally
+    if check_ollama; then
+        log_info "Ollama running on port $PORT_OLLAMA"
+    else
+        log_warn "Ollama not running on port $PORT_OLLAMA — start it manually if needed"
+    fi
     echo ""
-    
+
     start_backend
     echo ""
-    
+
     start_frontend
     echo ""
-    
+
     start_chatbot
     echo ""
-    
+
     start_widget
     echo ""
-    
+
     start_angular
     echo ""
-    
+
     log_info "All services started!"
     echo ""
     cmd_status
@@ -577,52 +556,111 @@ cmd_start() {
 cmd_stop() {
     log_info "Stopping all QueryWise services..."
     echo ""
-    
+
     stop_angular
-    stop_widget
-    stop_chatbot
-    stop_frontend
-    stop_backend
-    stop_ollama
-    stop_postgresql
-    
     echo ""
-    log_info "All services stopped!"
+    stop_widget
+    echo ""
+    stop_chatbot
+    echo ""
+    stop_frontend
+    echo ""
+    stop_backend
+    echo ""
+    stop_postgresql
+    echo ""
+
+    log_info "All services stopped"
+}
+
+# restart [service]
+# If no service is given, restarts all services.
+cmd_restart() {
+    local service="${1:-all}"
+
+    case "$service" in
+        backend)
+            stop_backend
+            echo ""
+            start_backend
+            ;;
+        frontend)
+            stop_frontend
+            echo ""
+            start_frontend
+            ;;
+        chatbot)
+            stop_chatbot
+            echo ""
+            start_chatbot
+            ;;
+        widget)
+            stop_widget
+            echo ""
+            start_widget
+            ;;
+        angular)
+            stop_angular
+            echo ""
+            start_angular
+            ;;
+        all)
+            cmd_stop
+            echo ""
+            cmd_start
+            ;;
+        *)
+            log_error "Unknown service: $service"
+            log_info "Valid services: backend, frontend, chatbot, widget, angular"
+            return 1
+            ;;
+    esac
 }
 
 cmd_status() {
     echo -e "${BLUE}=== QueryWise Service Status ===${NC}"
     echo ""
-    
-    local services=(
-        "PostgreSQL:$PORT_DB"
-        "Ollama:$PORT_OLLAMA"
-        "Backend:$PORT_BACKEND"
-        "Frontend:$PORT_FRONTEND"
-        "Chatbot:$PORT_CHATBOT"
-        "Widget:$PORT_WIDGET"
-        "Angular:$PORT_ANGULAR"
+
+    local -A service_ports=(
+        ["PostgreSQL"]=$PORT_DB
+        ["Ollama"]=$PORT_OLLAMA
+        ["Backend"]=$PORT_BACKEND
+        ["Frontend"]=$PORT_FRONTEND
+        ["Chatbot"]=$PORT_CHATBOT
+        ["Widget"]=$PORT_WIDGET
+        ["Angular"]=$PORT_ANGULAR
     )
-    
-    for service in "${services[@]}"; do
-        local name="${service%%:*}"
-        local port="${service##*:}"
-        
-        if is_port_in_use $port; then
-            echo -e "  ${GREEN}✓${NC} $name (port $port) - RUNNING"
+
+    # Print in a stable order
+    local ordered_services=("PostgreSQL" "Ollama" "Backend" "Frontend" "Chatbot" "Widget" "Angular")
+    for name in "${ordered_services[@]}"; do
+        local port=${service_ports[$name]}
+        if is_port_in_use "$port"; then
+            echo -e "  ${GREEN}✓${NC} ${name} (port ${port}) — RUNNING"
         else
-            echo -e "  ${RED}✗${NC} $name (port $port) - STOPPED"
+            echo -e "  ${RED}✗${NC} ${name} (port ${port}) — STOPPED"
         fi
     done
-    
-    echo ""
-    
-    # Show PID file contents if exists
-    if [[ -f "$PID_FILE" ]] && [[ -s "$PID_FILE" ]]; then
-        echo -e "${BLUE}=== Saved PIDs ===${NC}"
-        cat "$PID_FILE"
-        echo ""
+
+    # Show saved PID file contents if present
+    if [[ -d "$PIDS_DIR" ]]; then
+        local any_pid=false
+        for pid_file in "$PIDS_DIR"/*.pid; do
+            [[ -f "$pid_file" ]] && any_pid=true && break
+        done
+        if $any_pid; then
+            echo ""
+            echo -e "${BLUE}=== Saved PIDs ===${NC}"
+            for pid_file in "$PIDS_DIR"/*.pid; do
+                [[ -f "$pid_file" ]] || continue
+                local svc_name
+                svc_name="$(basename "$pid_file" .pid)"
+                echo "  ${svc_name}: $(cat "$pid_file")"
+            done
+        fi
     fi
+
+    echo ""
 }
 
 cmd_logs() {
@@ -631,12 +669,11 @@ cmd_logs() {
         tail -f "$LOG_FILE"
     else
         log_error "Log file not found: $LOG_FILE"
-        log_info "Backend may not have been started yet."
+        log_info "Backend may not have been started yet"
     fi
 }
 
 cmd_db() {
-    # Toggle PostgreSQL
     if is_port_in_use $PORT_DB; then
         stop_postgresql
     else
@@ -647,76 +684,103 @@ cmd_db() {
 cmd_clean() {
     log_warn "Cleaning up all development processes..."
     echo ""
-    
-    # Kill all saved PIDs
-    kill_saved_pids
-    
-    # Also try to kill any remaining processes on our ports
-    if is_windows; then
-        log_step "Killing processes on known ports..."
-        
-        for port in $PORT_DB $PORT_BACKEND $PORT_FRONTEND $PORT_CHATBOT $PORT_WIDGET $PORT_ANGULAR $PORT_OLLAMA; do
-            local pid=$(get_pid_from_port_windows $port)
-            if [[ -n "$pid" ]] && [[ "$pid" != "0" ]]; then
-                log_info "Killing process on port $port (PID: $pid)"
-                kill_process "$pid"
+
+    local all_ports=($PORT_BACKEND $PORT_FRONTEND $PORT_CHATBOT $PORT_WIDGET $PORT_ANGULAR)
+
+    # Kill all processes holding our ports (port-based, no broad process-name kills)
+    log_step "Killing processes on project ports..."
+    for port in "${all_ports[@]}"; do
+        if is_windows; then
+            kill_port_windows_ps "$port"
+        fi
+        for pid in $(get_pids_on_port "$port"); do
+            [[ -z "$pid" ]] && continue
+            log_info "  Killing PID $pid on port $port"
+            if is_windows; then
+                taskkill //F //PID "$pid" >/dev/null 2>&1 || true
+            else
+                kill -9 "$pid" 2>/dev/null || true
             fi
         done
-        
-        # Also kill common dev processes
-        taskkill //F //IM node.exe 2>/dev/null || true
-        taskkill //F //IM python.exe 2>/dev/null || true
-    else
-        for port in $PORT_DB $PORT_BACKEND $PORT_FRONTEND $PORT_CHATBOT $PORT_WIDGET $PORT_ANGULAR $PORT_OLLAMA; do
-            local pid=$(get_pid_from_port_unix $port)
-            if [[ -n "$pid" ]]; then
-                log_info "Killing process on port $port (PID: $pid)"
-                kill_process "$pid"
+    done
+
+    # Kill any saved PIDs that may not have had an active port
+    if [[ -d "$PIDS_DIR" ]]; then
+        for pid_file in "$PIDS_DIR"/*.pid; do
+            [[ -f "$pid_file" ]] || continue
+            local saved_pid
+            saved_pid=$(cat "$pid_file" 2>/dev/null)
+            if [[ -n "$saved_pid" ]]; then
+                log_info "  Killing saved PID $saved_pid ($(basename "$pid_file" .pid))"
+                if is_windows; then
+                    taskkill //F //PID "$saved_pid" >/dev/null 2>&1 || true
+                else
+                    kill -9 "$saved_pid" 2>/dev/null || true
+                fi
             fi
         done
-        
-        pkill -f "node" 2>/dev/null || true
-        pkill -f "python" 2>/dev/null || true
-        pkill -f "uvicorn" 2>/dev/null || true
+        rm -rf "$PIDS_DIR"
     fi
-    
-    # Stop Docker containers
+
+    # Stop Docker container
     log_step "Stopping Docker containers..."
-    docker stop querywise-postgres 2>/dev/null || true
-    
-    # Remove PID file
-    rm -f "$PID_FILE"
-    
+    _docker_compose stop app-db 2>/dev/null || docker stop querywise-postgres 2>/dev/null || true
+
     echo ""
     log_info "Clean complete!"
 }
 
 # =============================================================================
-# Main Entry Point
+# Helpers
+# =============================================================================
+
+# Ensure dev.pids/ is in .gitignore (idempotent)
+_ensure_gitignore_entry() {
+    local gitignore="$SCRIPT_DIR/.gitignore"
+    local entry="dev.pids/"
+    if [[ -f "$gitignore" ]] && grep -qF "$entry" "$gitignore"; then
+        return 0
+    fi
+    echo "" >> "$gitignore"
+    echo "# Dev process PID tracking" >> "$gitignore"
+    echo "$entry" >> "$gitignore"
+    log_info "Added $entry to .gitignore"
+}
+
+# =============================================================================
+# Usage
 # =============================================================================
 
 show_usage() {
     echo "QueryWise Native Development Script"
     echo ""
-    echo "Usage: $0 [command]"
+    echo "Usage: $0 <command> [service]"
     echo ""
     echo "Commands:"
-    echo "  start   - Start all services"
-    echo "  stop    - Stop all services"
-    echo "  status  - Show running processes/ports"
-    echo "  logs    - Tail backend logs"
-    echo "  db      - Start/stop PostgreSQL in Docker only"
-    echo "  clean   - Kill all dev processes and cleanup"
+    echo "  start              Start all services"
+    echo "  stop               Stop all services"
+    echo "  restart [service]  Restart all (or a specific) service"
+    echo "  status             Show running processes/ports"
+    echo "  logs               Tail backend logs"
+    echo "  db                 Toggle PostgreSQL (Docker)"
+    echo "  clean              Kill all dev processes and clean up"
     echo ""
-    echo "Services managed:"
-    echo "  - PostgreSQL (Docker)  : port $PORT_DB"
-    echo "  - Ollama (local)       : port $PORT_OLLAMA"
-    echo "  - Backend (uvicorn)    : port $PORT_BACKEND"
-    echo "  - Frontend (Vite)      : port $PORT_FRONTEND"
-    echo "  - Chatbot (Vite)       : port $PORT_CHATBOT"
-    echo "  - Widget Server        : port $PORT_WIDGET"
-    echo "  - Angular Test         : port $PORT_ANGULAR"
+    echo "Services (for restart):"
+    echo "  backend  frontend  chatbot  widget  angular"
+    echo ""
+    echo "Ports:"
+    printf "  %-22s port %s\n" "PostgreSQL (Docker)"  "$PORT_DB"
+    printf "  %-22s port %s\n" "Ollama (system)"      "$PORT_OLLAMA"
+    printf "  %-22s port %s\n" "Backend (uvicorn)"    "$PORT_BACKEND"
+    printf "  %-22s port %s\n" "Frontend (Vite)"      "$PORT_FRONTEND"
+    printf "  %-22s port %s\n" "Chatbot (Vite)"       "$PORT_CHATBOT"
+    printf "  %-22s port %s\n" "Widget Server"        "$PORT_WIDGET"
+    printf "  %-22s port %s\n" "Angular Test"         "$PORT_ANGULAR"
 }
+
+# =============================================================================
+# Entry Point
+# =============================================================================
 
 case "${1:-}" in
     start)
@@ -724,6 +788,9 @@ case "${1:-}" in
         ;;
     stop)
         cmd_stop
+        ;;
+    restart)
+        cmd_restart "${2:-}"
         ;;
     status)
         cmd_status
@@ -738,6 +805,9 @@ case "${1:-}" in
         cmd_clean
         ;;
     -h|--help|help)
+        show_usage
+        ;;
+    "")
         show_usage
         ;;
     *)

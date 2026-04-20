@@ -29,8 +29,14 @@ async def run_domain_tool(state: GraphState) -> dict[str, Any]:
     intent = state.get("intent")
     logger.info("domain_tool: domain=%s intent=%s", domain, intent)
 
-    if domain not in DOMAIN_REGISTRY:
-        raise ValueError(f"run_domain_tool: unknown domain '{domain}'")
+    if not domain or domain not in DOMAIN_REGISTRY:
+        logger.warning("run_domain_tool: domain=%s blocked by RBAC or invalid, returning permission_denied", domain)
+        return {
+            "result": None,
+            "error": "Permission denied: you do not have access to this data",
+            "sql": None,
+            "row_count": 0,
+        }
     agent_class = DOMAIN_REGISTRY[domain]
     agent = agent_class()
     try:

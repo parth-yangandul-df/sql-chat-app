@@ -17,6 +17,14 @@ from app.llm.router import get_provider
 
 logger = logging.getLogger(__name__)
 
+#: Remap well-known LLM field hallucinations to canonical field names
+_FIELD_ALIAS_REMAP: dict[str, str] = {
+    "reports_to": "resource_name",
+    "manager": "resource_name",
+    "reporting_to": "resource_name",
+    "project_manager": "resource_name",
+}
+
 #: System prompt enforcing strict JSON output with no explanation
 SYSTEM_PROMPT = """You are a structured query extractor. Given a user question about a database, extract the query parameters in JSON format.
 
@@ -161,7 +169,10 @@ def _validate_and_normalize_fields(
     
     for f in extracted.get("filters", []):
         field_name = f.get("field", "")
-        
+
+        # Remap well-known LLM field hallucinations to canonical field names
+        field_name = _FIELD_ALIAS_REMAP.get(field_name, field_name)
+
         # Check if field exists in registry for this domain
         field_config = lookup_field(field_name, domain)
         

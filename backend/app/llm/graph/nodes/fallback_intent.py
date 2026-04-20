@@ -59,6 +59,11 @@ async def run_fallback_intent(state: GraphState) -> dict[str, Any]:
 
 def route_after_domain_tool(state: GraphState) -> str:
     """Conditional edge after run_domain_tool."""
+    # NEW: Check for error first — permission_denied returns error, not empty result
+    error = state.get("error")
+    if error:
+        logger.warning("route_after_domain_tool: error=%r → interpret_result", error)
+        return "interpret_result"
     result = state.get("result")
     row_count = result.row_count if result else 0
     fallback_name = _get_fallback_intent_name(state.get("intent") or "")

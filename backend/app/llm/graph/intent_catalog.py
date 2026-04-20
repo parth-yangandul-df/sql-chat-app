@@ -1,12 +1,12 @@
-"""Static 24-intent catalog for PRMS domain tool routing.
+"""Static 27-intent catalog for PRMS domain tool routing.
 
 Intents are pre-embedded at startup via ensure_catalog_embedded() so
 the first query does not pay the embedding cost.
 
-Active domains (24 entries):
-  resource   (6) — org-wide resource data
+Active domains (27 entries):
+  resource   (8) — org-wide resource data
   client     (3) — client/account data
-  project    (6) — project data
+  project    (7) — project data
   timesheet  (4) — timesheet data
   user_self  (5) — data scoped to the authenticated user's resource_id
 
@@ -35,14 +35,17 @@ class IntentEntry:
 
 
 INTENT_CATALOG: list[IntentEntry] = [
-    # ── Resource (6 active) ───────────────────────────────────────────────
+    # ── Resource (7 active) ───────────────────────────────────────────────
     # Broadest entries keep fallback_intent=None (nothing broader to fall back to)
     IntentEntry("active_resources", "resource",
         "show all active resources employees or staff members — list everyone currently active in the organization",
         fallback_intent=None),
     IntentEntry("benched_resources", "resource",
-        "show benched resources or employees on the bench — staff not currently assigned to any active billable project",
+        "show all benched resources or employees on the bench — complete list of ALL staff not currently assigned, no skill filter",
         fallback_intent=None),
+    IntentEntry("benched_by_skill", "resource",
+        "find benched resources who have a specific skill — benched employees who know Python Java .NET React Angular SQL or any named technology",
+        fallback_intent="benched_resources"),
 
     IntentEntry("resource_by_skill", "resource",
         "find resources employees or developers who know a specific programming language framework or tool — Python Java React Angular SQL .NET",
@@ -59,6 +62,9 @@ INTENT_CATALOG: list[IntentEntry] = [
     IntentEntry("resource_skills_list", "resource",
         "list all the technical skills and experience of one specific named resource person or employee",
         fallback_intent="active_resources"),
+    IntentEntry("reports_to", "resource",
+        "show who reports to a specific manager or person — direct reports subordinates team under a manager",
+        fallback_intent="active_resources"),
 
     # ── Client (3 active) ─────────────────────────────────────────────────
     IntentEntry("active_clients", "client",
@@ -71,7 +77,7 @@ INTENT_CATALOG: list[IntentEntry] = [
         "check whether a specific client or account is active or inactive — client status lookup",
         fallback_intent="active_clients"),
 
-    # ── Project (6 active) ────────────────────────────────────────────────
+    # ── Project (7 active) ────────────────────────────────────────────────
     IntentEntry("active_projects", "project",
         "show all active ongoing projects across the organization — full project list not filtered by client",
         fallback_intent=None),
@@ -86,6 +92,9 @@ INTENT_CATALOG: list[IntentEntry] = [
         fallback_intent="active_projects"),
     IntentEntry("project_timeline", "project",
         "show the start date end date and duration timeline schedule for a specific named project",
+        fallback_intent="active_projects"),
+    IntentEntry("project_status", "project",
+        "what is the current status of a specific named project — check if a project is active completed on hold or its health",
         fallback_intent="active_projects"),
     IntentEntry("overdue_projects", "project",
         "show overdue late or delayed projects that are past their end date and still not completed — projects running behind schedule",
@@ -107,7 +116,7 @@ INTENT_CATALOG: list[IntentEntry] = [
 
     # ── User Self (5 active) — scoped to the authenticated user's own data ─
     IntentEntry("my_projects", "user_self",
-        "which projects am I assigned to or currently working on — show my current project assignments",
+        "which projects am I personally assigned to — show my own current project assignments, projects I myself am working on",
         fallback_intent=None),
     IntentEntry("my_allocation", "user_self",
         "what is my allocation percentage — how much am I allocated across my projects or what is my utilization capacity",
