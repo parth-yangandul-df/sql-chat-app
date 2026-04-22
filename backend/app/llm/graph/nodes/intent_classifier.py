@@ -141,6 +141,15 @@ _ACTIVE_PROJECT_KEYWORDS: frozenset[str] = frozenset({
     "ongoing project", "ongoing projects", "all ongoing project", "all ongoing projects",
 })
 
+# "show all active resource*" / "active employees" — must be checked BEFORE generic skill/bench matching
+_ACTIVE_RESOURCE_KEYWORDS: frozenset[str] = frozenset({
+    "active resource", "active resources", "all active resource", "all active resources",
+    "list active resource", "list active resources", "show active resource", "show active resources",
+    "active employee", "active employees", "all active employee", "all active employees",
+    "show active employee", "show active employees", "list active employee", "list active employees",
+    "active staff", "all active staff", "show active staff",
+})
+
 _PROJECT_RESOURCES_KEYWORDS: frozenset[str] = frozenset({
     "working on project", "works on project", "assigned to project",
     "who is on project", "who are on project", "on the project",
@@ -232,6 +241,8 @@ def _keyword_route(question: str) -> tuple[str, str] | None:
         return ("active_clients", "client")
     if any(kw in q for kw in _ACTIVE_PROJECT_KEYWORDS):
         return ("active_projects", "project")
+    if any(kw in q for kw in _ACTIVE_RESOURCE_KEYWORDS):
+        return ("active_resources", "resource")
     if any(kw in q for kw in _BENCH_KEYWORDS):
         # If a skill keyword also appears, route to benched_by_skill
         if any(kw in q for kw in _SKILL_KEYWORDS):

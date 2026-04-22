@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     # Embedding provider override (leave empty to auto-derive from default_llm_provider)
     # Set to "ollama" to use Ollama for embeddings while using a different provider for LLM.
     # Valid values: "", "openai", "ollama", "anthropic"
-    embedding_provider: str = ""
+    embedding_provider: str
 
     # Rate limiting
     max_queries_per_minute: int = 30

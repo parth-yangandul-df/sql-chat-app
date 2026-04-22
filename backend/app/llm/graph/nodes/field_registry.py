@@ -234,7 +234,7 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         column_name="StatusId",  # Use StatusId for filtering
         multi_value=False,
         sql_type="numeric",  # Changed from text to numeric
-        domains=["client", "project", "resource"],
+        domains=["client", "project"],  # "resource" removed — resource status handled by active_resources (NO_FILTER_INTENTS); table_alias="c" is invalid in resource queries
         aliases=[],
         example_values=["Active", "Inactive", "Closed", "On hold", "Others", "Completed"],
         extraction_hints=["status", "is", "state"],

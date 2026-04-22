@@ -47,4 +47,12 @@ async def run_domain_tool(state: GraphState) -> dict[str, Any]:
         return result
     except Exception as e:
         logger.error("domain_tool: domain=%s intent=%s EXCEPTION: %s", domain, intent, e, exc_info=True)
-        raise
+        from app.connectors.base_connector import QueryResult
+        return {
+            "result": QueryResult(
+                columns=[], column_types=[], rows=[], row_count=0,
+                execution_time_ms=0.0, truncated=False,
+            ),
+            "error": str(e),
+            "sql": None,
+        }

@@ -20,9 +20,10 @@ from typing import Any
 
 from app.config import settings
 from app.llm.base_provider import LLMConfig, LLMMessage
+from app.llm.graph.intent_catalog import INTENT_CATALOG
 from app.llm.graph.nodes.field_registry import FIELD_REGISTRY_BY_DOMAIN
 from app.llm.graph.nodes.intent_classifier import _is_refinement_followup, _semantic_followup_check
-from app.llm.graph.nodes.sql_compiler import BASE_QUERIES
+from app.llm.graph.nodes.sql_compiler import BASE_QUERIES, NO_FILTER_INTENTS
 from app.llm.graph.query_plan import FilterClause, _sanitize_value
 from app.llm.graph.state import GraphState
 from app.llm.providers.groq_provider import GroqProvider
@@ -55,24 +56,36 @@ def _parse_failed_generation(error_str: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 def _build_tool_schema() -> list[dict]:
-    """Build Groq tool calling schema from SQL_COMPILER BASE_QUERIES and FIELD_REGISTRY."""
+    """Build Groq tool calling schema from INTENT_CATALOG descriptions and FIELD_REGISTRY."""
     intent_names = list(BASE_QUERIES.keys())
-    # Minimal descriptions - could be enhanced later
-    intent_descriptions = {name: f"Execute {name} intent" for name in intent_names}
 
-    # Build field catalog per domain for the description
-    field_lines: list[str] = []
+    # Build rich descriptions from INTENT_CATALOG — used for semantic intent selection.
+    # Falls back to a plain name if an intent exists in BASE_QUERIES but not in the catalog.
+    catalog_descriptions: dict[str, str] = {
+        entry.name: entry.description for entry in INTENT_CATALOG
+    }
+
+    # [FIXED] intents have pre-built SQL with no dynamic filter support.
+    # If user question needs filters for a [FIXED] intent → set confidence<0.6.
+    intent_lines: list[str] = [
+        "NOTE: [FIXED] = no dynamic filters. Set confidence<0.6 if user question needs filters on a [FIXED] intent."
+    ]
+    for name in intent_names:
+        desc = catalog_descriptions.get(name, name)
+        # Shorten description to core meaning only — strip synonym padding used for embeddings
+        desc = desc.split(" — ")[0].strip()  # keep first clause only
+        tag = " [FIXED]" if name in NO_FILTER_INTENTS else ""
+        intent_lines.append(f"  {name}{tag}: {desc}")
+    # 'unknown' escape hatch — select when NO catalog intent covers the question
+    intent_lines.append("  unknown: No catalog intent matches — pipeline generates custom SQL.")
+    intent_catalog_str = "\n".join(intent_lines)
+
+    # Build field catalog as one compact line per domain
+    domain_field_lines: list[str] = []
     for domain, fields in FIELD_REGISTRY_BY_DOMAIN.items():
-        for fname, fc in fields.items():
-            aliases = f" (aliases: {', '.join(fc.aliases)})" if fc.aliases else ""
-            field_lines.append(
-                f"  {fname} [{fc.sql_type}] — domain:{domain}{aliases}"
-            )
-    field_catalog_str = "\n".join(field_lines)
-
-    intent_catalog_str = "\n".join(
-        f"  {name}: {desc}" for name, desc in intent_descriptions.items()
-    )
+        field_parts = [f"{fname}[{fc.sql_type[0]}]" for fname, fc in fields.items()]  # e.g. skill[t], billable[b]
+        domain_field_lines.append(f"  {domain}: {', '.join(field_parts)}")
+    field_catalog_str = "\n".join(domain_field_lines)
 
     return [
         {
@@ -80,27 +93,25 @@ def _build_tool_schema() -> list[dict]:
             "function": {
                 "name": "extract_query_intent_and_filters",
                 "description": (
-                    "Extract the user's intent and structured filters from a natural language PRMS query.\n\n"
-                    "INTENT CATALOG (pick exactly one):\n"
+                    "Extract intent and filters from a PRMS natural language query.\n\n"
+                    "INTENTS:\n"
                     f"{intent_catalog_str}\n\n"
-                    "AVAILABLE FILTER FIELDS (use canonical field_name, validate domain matches intent):\n"
+                    "FILTER FIELDS (field[type] per domain — t=text,d=date,n=numeric,b=boolean):\n"
                     f"{field_catalog_str}\n\n"
-                    "FILTER OPS: eq (equals/contains), gt (greater than), lt (less than), between (date/numeric range), in (multiple values).\n"
-                    "All filter values must be plain strings. For boolean fields: '1'=true, '0'=false.\n"
-                    "Extract only filters explicitly mentioned. Do not infer filters not present in the query."
+                    "OPS: eq,in,lt,gt,between. Values as strings. boolean: '1'=true,'0'=false. Extract only explicit filters."
                 ),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "intent": {
                             "type": "string",
-                            "enum": intent_names,
-                            "description": "The most appropriate intent from the catalog.",
+                            "enum": intent_names + ["unknown"],
+                            "description": "The most appropriate intent from the catalog, or 'unknown' if no intent matches.",
                         },
                         "domain": {
                             "type": "string",
-                            "enum": ["resource", "client", "project", "timesheet", "user_self"],
-                            "description": "Domain that the intent belongs to.",
+                            "enum": ["resource", "client", "project", "timesheet", "user_self", "unknown"],
+                            "description": "Domain that the intent belongs to, or 'unknown' if the intent is unknown.",
                         },
                         "confidence": {
                             "type": "number",
@@ -159,20 +170,20 @@ def _get_groq_provider() -> GroqProvider:
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = (
-    "You are an intent and filter extraction assistant for a PRMS (Project Resource Management System). "
-    "Given a natural language query, call the extract_query_intent_and_filters tool with the correct intent "
-    "and any filters the user mentioned. "
-    "Be precise — only extract filters explicitly stated in the query. "
-    "For skill/technology filters, extract the exact technology name as stated (e.g. 'Python', 'React Native', 'SQL', '.NET'). "
-    "For 'user_self' domain intents, the user is asking about their own data (my projects, my skills, etc.). "
-    "If the query is ambiguous or doesn't clearly match any intent, set confidence below 0.6."
-    "IMPORTANT: If a filter has no values, OMIT the filter entirely from the output. Never output an empty values array []. "
-    "Instead, simply do not include that filter field. "
-    "IMPORTANT EXAMPLES: "
-    "- 'show me skills of John Doe' → intent=resource_skills_list, filters=[{'field': 'resource_name', 'op': 'eq', 'values': ['John Doe']}] "
-    "- 'skills of Harshal Yeole' → intent=resource_skills_list, filters=[{'field': 'resource_name', 'op': 'eq', 'values': ['Harshal Yeole']}] "
-    "- 'python developers' → intent=resource_by_skill, filters=[{'field': 'skill', 'op': 'eq', 'values': ['Python']}] "
-    "- 'show me all active resources' → intent=active_resources, filters=[]"
+    "PRMS intent+filter extractor. Call extract_query_intent_and_filters with the correct intent and any explicit filters. "
+    "Only extract filters stated in the query — never infer. "
+    "Skills/tech: use exact name as stated (Python, React Native, .NET). "
+    "user_self intents (my_projects, my_timesheets, my_skills, my_allocation, my_utilization): only when user says 'my'/'I'/'me'. "
+    "\nSet confidence<0.6 when: query spans multiple entity types; uses negation across entities; "
+    "requires aggregation/counting; no intent clearly matches; closest intent is [FIXED] but filters needed. "
+    "Use intent=unknown when query clearly needs data not in catalog (join dates, salary, trends, attrition). "
+    "\nNever output empty filters array — omit filter if no value. "
+    "\nEXAMPLES:"
+    "\n- 'skills of John Doe' → resource_skills_list, 0.95, [{resource_name,eq,[John Doe]}]"
+    "\n- 'python developers' → resource_by_skill, 0.95, [{skill,eq,[Python]}]"
+    "\n- 'active resources' → active_resources, 0.95, []"
+    "\n- 'resources joined last 6 months' → unknown, 0.0, []"
+    "\n- 'clients with no billable resources' → unknown, 0.0, []"
 )
 
 # ---------------------------------------------------------------------------
@@ -388,6 +399,13 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
             logger.warning("groq_extractor: invalid FilterClause for field=%r: %s", field_name, e)
             continue
 
+    # Normalize 'unknown' intent/domain to None so llm_fallback generates fresh SQL
+    # without trying to look up a domain agent or use a prior SQL template.
+    if intent == "unknown" or domain == "unknown":
+        intent = None
+        domain = None
+        confidence = 0.0
+
     return {
         "domain": domain,
         "intent": intent,
@@ -398,6 +416,11 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
 
 def route_after_groq(state: GraphState) -> str:
     """Conditional edge: route based on Groq extraction confidence."""
+    # 'unknown' is an explicit signal from the model that no catalog intent covers
+    # this query — bypass confidence check and go straight to llm_fallback.
+    if state.get("intent") == "unknown":
+        logger.info("route_after_groq: intent=unknown → llm_fallback (no catalog coverage)")
+        return "llm_fallback"
     if state["confidence"] >= _CONFIDENCE_THRESHOLD:
         return "run_domain_tool"
     return "llm_fallback"

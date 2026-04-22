@@ -116,7 +116,11 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
 
     composer = QueryComposerAgent(provider, llm_config)
     composer_output = await composer.compose(
-        resolved, prompt_context, conversation_history=conversation_history
+        # Use raw question (not history-enriched `resolved`) so composer sees a
+        # clean current question. History is already injected as proper chat
+        # messages by compose() — passing `resolved` would double-encode history.
+        # `resolved` is only used above for build_context (schema/table linking).
+        question, prompt_context, conversation_history=conversation_history
     )
     generated_sql = composer_output.generated_sql
 

@@ -351,6 +351,14 @@ stop_backend() {
     done
 
     sleep 1
+
+    # Final sweep — kill any remaining Python processes (uvicorn workers, reloaders, etc.)
+    if is_windows; then
+        powershell.exe -NoProfile -Command "
+            Get-Process python* -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        " >/dev/null 2>&1
+    fi
+
     if is_port_in_use "$PORT_BACKEND"; then
         log_warn "Backend port $PORT_BACKEND still in use — manual cleanup may be needed"
     else

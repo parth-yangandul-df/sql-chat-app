@@ -334,50 +334,6 @@ BASE_QUERIES: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# Fallback intent mapping — maps each intent to its broader sibling for 0-row retry
-# None means no fallback (broadest intent in that domain)
-# ---------------------------------------------------------------------------
-
-FALLBACK_INTENTS: dict[str, str | None] = {
-    # Resource domain (7 intents)
-    "active_resources": None,  # Broadest - no fallback
-    "benched_resources": None,  # Broadest - no fallback
-    "benched_by_skill": "benched_resources",
-    "resource_by_skill": "active_resources",
-    "resource_availability": "active_resources",
-    "resource_project_assignments": "active_resources",
-    "resource_skills_list": "active_resources",
-
-    # Client domain (3 intents)
-    "active_clients": None,  # Broadest - no fallback
-    "client_projects": "active_clients",
-    "client_status": "active_clients",
-
-    # Project domain (7 intents)
-    "active_projects": None,  # Broadest - no fallback
-    "project_by_client": "active_projects",
-    "project_budget": "active_projects",
-    "project_resources": "active_projects",
-    "project_timeline": "active_projects",
-    "project_status": "active_projects",
-    "overdue_projects": "active_projects",
-
-    # Timesheet domain (4 intents)
-    "approved_timesheets": None,  # Broadest - no fallback
-    "timesheet_by_period": "approved_timesheets",
-    "unapproved_timesheets": "approved_timesheets",
-    "timesheet_by_project": "approved_timesheets",
-
-    # User Self domain (5 intents - no fallback needed, requires resource_id)
-    "my_projects": None,
-    "my_allocation": None,
-    "my_timesheets": None,
-    "my_skills": None,
-    "my_utilization": None,
-}
-
-
-# ---------------------------------------------------------------------------
 # detect_metrics — keyword-based metric detection stub
 # ---------------------------------------------------------------------------
 
