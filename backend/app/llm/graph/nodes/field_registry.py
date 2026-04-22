@@ -33,6 +33,7 @@ class FieldConfig:
     # Status field specific (for dual-filter: IsActive + StatusId)
     isactive_column: str | None = None  # e.g. "IsActive" for client, "IsActive" for project
     status_map: dict[str, dict[str, int]] = field(default_factory=dict)  # domain -> {status_name: status_id}
+    table_alias: str | None = None  # Table alias for joins (e.g. "c" for Client table)
 
 
 # ---------------------------------------------------------------------------
@@ -87,13 +88,14 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
     # ── RESOURCE NAME ─────────────────────────────────────────────────────
     "resource_name": FieldConfig(
         field_name="resource_name",
-        column_name="Name",             # Resource.Name / ResourceName alias
+        column_name="ResourceName",     # Resource.ResourceName (joins alias Resource as "r")
         multi_value=False,
         sql_type="text",
         domains=["resource", "project", "timesheet"],
         aliases=["employee_name", "person", "resource"],
         example_values=["John Doe", "Harshal Yeole", "Jane Smith"],
         extraction_hints=["of", "skills of", "show me", "assigned to", "for"],
+        table_alias="r",                # Resource table is always aliased as "r" in all queries
     ),
 
     # ── DESIGNATION ───────────────────────────────────────────────────────
@@ -155,7 +157,7 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
     # ── BILLABLE ──────────────────────────────────────────────────────────
     "billable": FieldConfig(
         field_name="billable",
-        column_name="Billab",           # PA_ProjectResources.Billab
+        column_name="Billable",         # ProjectResource.Billable
         multi_value=False,              # Boolean — last-wins
         sql_type="boolean",
         domains=["resource", "project"],
@@ -232,22 +234,13 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         column_name="StatusId",  # Use StatusId for filtering
         multi_value=False,
         sql_type="numeric",  # Changed from text to numeric
-        domains=["client", "project", "resource"],
+        domains=["client", "project"],  # "resource" removed — resource status handled by active_resources (NO_FILTER_INTENTS); table_alias="c" is invalid in resource queries
         aliases=[],
         example_values=["Active", "Inactive", "Closed", "On hold", "Others", "Completed"],
         extraction_hints=["status", "is", "state"],
         isactive_column="IsActive",  # Dual-filter: IsActive + StatusId
         status_map=DOMAIN_STATUS_IDS,  # Domain-specific StatusId mappings
-    ),
-
-    # ── PROJECT MANAGER ───────────────────────────────────────────────────
-    "project_manager": FieldConfig(
-        field_name="project_manager",
-        column_name="Project Manager",
-        multi_value=False,
-        sql_type="text",
-        domains=["project"],
-        aliases=["pm"],
+        table_alias="c",  # "c" for Client table in client domain
     ),
 
     # ── MIN BUDGET ────────────────────────────────────────────────────────

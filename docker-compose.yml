@@ -33,7 +33,7 @@ services:
       app-db:
         condition: service_healthy
     volumes: []
-    command: bash -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: bash -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
   frontend:
     build:
@@ -57,5 +57,29 @@ services:
     volumes: []
     command: npm run dev -- --host
 
+  ollama:
+    image: ollama/ollama
+    profiles:
+      - ollama-docker
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: "/usr/bin/ollama"
+    command: "serve"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    profiles:
+      - pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@querywise.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - app-db
+
 volumes:
   app_db_data:
+  ollama_data:

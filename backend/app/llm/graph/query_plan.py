@@ -29,6 +29,26 @@ class FilterClause(BaseModel):
     op: Literal["eq", "in", "lt", "gt", "between"]
     values: list[str]
 
+    @field_validator("values", mode="before")
+    @classmethod
+    def coerce_values_to_str(cls, v: object) -> list[str]:
+        """Coerce non-string values (bool, int, float) to strings before strict validation.
+
+        LLMs frequently return booleans (True/False) for boolean fields like 'billable'.
+        Map Python booleans to '1'/'0' to match SQL Server BIT column convention.
+        """
+        if not isinstance(v, list):
+            v = [v]
+        coerced = []
+        for item in v:
+            if isinstance(item, bool):
+                coerced.append("1" if item else "0")
+            elif not isinstance(item, str):
+                coerced.append(str(item))
+            else:
+                coerced.append(item)
+        return coerced
+
     @field_validator("values")
     @classmethod
     def validate_values(cls, v: list[str]) -> list[str]:

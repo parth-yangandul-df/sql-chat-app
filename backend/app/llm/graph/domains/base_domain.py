@@ -87,8 +87,8 @@ class BaseDomainAgent(ABC):
         """
         # Lazy imports allow importlib.reload() in tests to pick up updated settings
         from app.config import settings
-        from app.llm.graph.query_plan import QueryPlan
         from app.llm.graph.nodes.sql_compiler import compile_query
+        from app.llm.graph.query_plan import QueryPlan
 
         intent = state["intent"] or ""
         params = state.get("params") or {}
@@ -105,7 +105,50 @@ class BaseDomainAgent(ABC):
             query_plan_dict = state.get("query_plan")
             if query_plan_dict:
                 plan = QueryPlan.from_untrusted_dict(query_plan_dict)
-                sql, sql_params = compile_query(plan, resource_id=state.get("resource_id"))
+                try:
+                    sql, sql_params = compile_query(plan, resource_id=state.get("resource_id"))
+                except ValueError as exc:
+                    # user_self domain requires resource_id — admin users have none.
+                    # Fall back to _run_intent so the error surfaces gracefully.
+                    logger.warning(
+                        "execute: compile_query failed (%s) — falling back to _run_intent "
+                        "domain=%s intent=%s",
+                        exc, domain, intent,
+                    )
+                    try:
+                        sql, result = await self._run_intent(intent, params, connector, state)
+                    except ValueError as exc2:
+                        # Both compile_query and _run_intent raised ValueError (no resource_id).
+                        # Return graceful error response instead of crashing.
+                        from app.connectors.base_connector import QueryResult
+                        logger.error(
+                            "execute: _run_intent also failed for user_self "
+                            "domain (resource_id=None). "
+                            "domain=%s intent=%s exc=%s",
+                            domain, intent, exc2,
+                        )
+                        empty = QueryResult(
+                            columns=[], column_types=[], rows=[], row_count=0,
+                            execution_time_ms=0.0, truncated=False,
+                        )
+                        return {
+                            "sql": None,
+                            "result": empty,
+                            "generated_sql": None,
+                            "explanation": None,
+                            "llm_provider": "domain_tool",
+                            "llm_model": intent,
+                            "error": f"user_self requires resource_id: {exc2}",
+                        }
+                    return {
+                        "sql": sql,
+                        "result": result,
+                        "generated_sql": None,
+                        "explanation": None,
+                        "llm_provider": "domain_tool",
+                        "llm_model": intent,
+                        "error": None,
+                    }
                 
                 # ── Log generated SQL ─────────────────────────────────────────
                 logger.info(

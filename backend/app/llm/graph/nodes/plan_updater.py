@@ -22,6 +22,26 @@ from app.llm.graph.state import GraphState
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# NO_FILTER_INTENTS — intents with fully self-contained SQL (no dynamic filters)
+# ---------------------------------------------------------------------------
+NO_FILTER_INTENTS: frozenset[str] = frozenset({
+    # NOTE: benched_resources is intentionally absent here.
+    # It allows skill refinement via _run_refinement — filters must pass through
+    # so that a follow-up like "from these benched resources who knows SQL?" can
+    # accumulate a skill_name filter and the domain agent routes correctly.
+    # benched_resources IS still in sql_compiler.py's NO_FILTER_INTENTS (query plan
+    # compiler path, separate feature flag) — that entry is correct and must remain.
+    "active_resources",       # hardcoded WHERE r.IsActive = 1 AND r.statusid = 8
+    "resource_availability",  # hardcoded subquery exclusion
+    "active_projects",        # hardcoded WHERE p.IsActive = 1 AND p.ProjectStatusId = 4
+    "overdue_projects",       # hardcoded WHERE p.EndDate < GETDATE()
+    "active_clients",         # hardcoded WHERE c.IsActive = 1 AND c.StatusId = 2
+    "approved_timesheets",    # hardcoded approval flags
+    "unapproved_timesheets",  # hardcoded unapproved flags
+    "my_utilization",         # hardcoded self-contained SQL with EmployeeId parameter
+})
+
+# ---------------------------------------------------------------------------
 # Lazy import for semantic_resolver value_map normalization
 # ---------------------------------------------------------------------------
 try:
@@ -51,10 +71,80 @@ async def update_query_plan(state: GraphState) -> dict[str, Any]:
     existing_plan_dict: dict | None = state.get("query_plan")
     new_filters: list[FilterClause] = state.get("filters") or []
 
+    # ── 0. Intent-aware field remap ──────────────────────────────────────
+    # Deterministically correct LLM field misidentification based on intent semantics.
+    # When the intent makes the correct field unambiguous, swap the wrong field to the
+    # right one — no matter what the LLM extracted.
+    #
+    # Remap table: intent → {wrong_field: correct_field}
+    # Each entry here encodes a domain invariant: "for this intent, X is always Y".
+    _intent_field_remap: dict[str, dict[str, str]] = {
+        # project_resources: "show who is working on <NAME>" — NAME is always a project,
+        # never a resource. LLM confuses resource_name / project_name for short project names.
+        "project_resources": {"resource_name": "project_name"},
+        # project_by_client: filter is always a client, not a resource
+        "project_by_client": {"resource_name": "client_name"},
+        # project_timeline / project_budget / project_status: the named entity is always a project
+        "project_timeline": {"resource_name": "project_name"},
+        "project_budget":   {"resource_name": "project_name"},
+        "project_status":   {"resource_name": "project_name"},
+        # resource_skills_list: "show skills of <NAME>" — NAME is a person (resource_name),
+        # not a skill. LLM extracts skill_name but intent expects resource_name filter.
+        "resource_skills_list": {"skill_name": "resource_name"},
+        # reports_to: LLM may extract manager name as project_name instead of resource_name
+        "reports_to": {"project_name": "resource_name"},
+    }
+    if intent and new_filters:
+        remap = _intent_field_remap.get(intent, {})
+        if remap:
+            remapped = []
+            for fc in new_filters:
+                fc_field = fc["field"] if isinstance(fc, dict) else fc.field
+                if fc_field in remap:
+                    correct_field = remap[fc_field]
+                    fc_op = fc["op"] if isinstance(fc, dict) else fc.op
+                    fc_values = fc["values"] if isinstance(fc, dict) else fc.values
+                    logger.info(
+                        "plan_updater: intent=%s remapped field '%s' → '%s' (values=%s)",
+                        intent, fc_field, correct_field, fc_values,
+                    )
+                    if isinstance(fc, dict):
+                        remapped.append({**fc, "field": correct_field})
+                    else:
+                        remapped.append(
+                            FilterClause(field=correct_field, op=fc_op, values=fc_values)
+                        )
+                else:
+                    remapped.append(fc)
+            new_filters = remapped
+
     # ── 1. LLM fallback path ─────────────────────────────────────────────
     if not domain or not intent:
         logger.debug("plan_updater: no domain/intent (LLM fallback path), returning None plan")
         return {"query_plan": None}
+    
+    # ── 1b. Self-contained intents with hardcoded WHERE clauses ───────────────
+    # These intents already contain complete WHERE clauses and should not
+    # receive additional filters from the pipeline
+    if intent in NO_FILTER_INTENTS:
+        logger.debug(
+            "plan_updater: intent '%s' is self-contained with hardcoded WHERE clause, forcing empty filters",
+            intent
+        )
+        
+        # Get base SQL from params if available (e.g. _prior_sql from param_extractor)
+        params: dict = state.get("params") or {}
+        base_intent_sql: str = params.get("_prior_sql", "")
+        
+        plan = QueryPlan(
+            domain=domain,
+            intent=intent,
+            filters=[],  # Empty filters for self-contained intents
+            base_intent_sql=base_intent_sql,
+            schema_version=1,
+        )
+        
+        return {"query_plan": plan.to_api_dict()}
 
     # ── Plan 04: Normalize filter values through cached value_map ─────────
     if new_filters and get_cached_value_map is not None and normalize_values_batch is not None:

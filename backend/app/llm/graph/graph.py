@@ -5,9 +5,7 @@ Graph topology (default — embedding + regex path):
        |
        ├─ confidence >= threshold → extract_filters → update_query_plan → run_domain_tool
        │                                                                    ├─ rows > 0 → interpret_result
-       │                                                                    └─ 0 rows + fallback_intent? → run_fallback_intent
-       │                                                                                    ├─ rows > 0 → interpret_result
-       │                                                                                    └─ 0 rows   → llm_fallback
+       │                                                                    └─ 0 rows / error → llm_fallback
        └─ confidence < threshold  → llm_fallback
                                            │
                                      interpret_result
@@ -21,9 +19,7 @@ Graph topology (USE_GROQ_EXTRACTOR=true — unified Groq path):
        |
        ├─ confidence >= 0.60 → update_query_plan → run_domain_tool
        │                                            ├─ rows > 0 → interpret_result
-       │                                            └─ 0 rows + fallback_intent? → run_fallback_intent
-       │                                                            ├─ rows > 0 → interpret_result
-       │                                                            └─ 0 rows   → llm_fallback
+       │                                            └─ 0 rows / error → llm_fallback
        └─ confidence < 0.60  → llm_fallback
                                       │
                                 interpret_result
@@ -47,9 +43,7 @@ Graph topology (USE_HYBRID_MODE=true — Phase 8 hybrid path):
        |
        ├─ confidence >= 0.7 → update_query_plan → run_domain_tool
        │                                            ├─ rows > 0 → interpret_result
-       │                                            └─ 0 rows + fallback_intent? → run_fallback_intent
-       │                                                            ├─ rows > 0 → interpret_result
-       │                                                            └─ 0 rows   → llm_fallback
+       │                                            └─ 0 rows / error → llm_fallback
        └─ confidence < 0.7  → llm_fallback
                                       │
                                 interpret_result
@@ -63,11 +57,7 @@ from langgraph.graph import END, StateGraph
 
 from app.config import settings
 from app.llm.graph.domains.registry import run_domain_tool
-from app.llm.graph.nodes.fallback_intent import (
-    route_after_domain_tool,
-    route_after_fallback_intent,
-    run_fallback_intent,
-)
+from app.llm.graph.nodes.domain_routing import route_after_domain_tool
 from app.llm.graph.nodes.filter_extractor import extract_filters
 from app.llm.graph.nodes.history_writer import write_history
 from app.llm.graph.nodes.intent_classifier import classify_intent, route_after_classify
@@ -84,7 +74,6 @@ def _build_graph():
 
     # ── Shared nodes (all paths) ────────────────────────────────────────────
     graph.add_node("run_domain_tool", run_domain_tool)
-    graph.add_node("run_fallback_intent", run_fallback_intent)
     graph.add_node("llm_fallback", llm_fallback)
     graph.add_node("interpret_result", interpret_result)
     graph.add_node("write_history", write_history)
@@ -165,16 +154,6 @@ def _build_graph():
     graph.add_conditional_edges(
         "run_domain_tool",
         route_after_domain_tool,
-        {
-            "interpret_result": "interpret_result",
-            "run_fallback_intent": "run_fallback_intent",
-            "llm_fallback": "llm_fallback",
-        },
-    )
-
-    graph.add_conditional_edges(
-        "run_fallback_intent",
-        route_after_fallback_intent,
         {
             "interpret_result": "interpret_result",
             "llm_fallback": "llm_fallback",

@@ -9,6 +9,7 @@ import { MetricsPage } from './pages/MetricsPage';
 import { DictionaryPage } from './pages/DictionaryPage';
 import { KnowledgePage } from './pages/KnowledgePage';
 import { HistoryPage } from './pages/HistoryPage';
+import { UsersPage } from './pages/UsersPage';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/dictionary" element={<DictionaryPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/users" element={<UsersPage />} />
         </Route>
       </Route>
     </Routes>

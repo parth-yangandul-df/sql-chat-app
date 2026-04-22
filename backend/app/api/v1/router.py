@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     sample_queries,
     schemas,
     sessions,
+    users,
 )
 
 api_router = APIRouter()
@@ -29,3 +30,4 @@ api_router.include_router(sample_queries.router)
 api_router.include_router(query_history.router)
 api_router.include_router(knowledge.router)
 api_router.include_router(sessions.router)
+api_router.include_router(users.router)

@@ -59,6 +59,25 @@ CRITICAL RULES:
 
 """
 
+_EMPLOYEE_ID_SCOPE_TEMPLATE = """\
+--- EMPLOYEE ID SCOPE CONSTRAINT (NON-NEGOTIABLE — SYSTEM ENFORCED) ---
+This query is issued by a user whose EmployeeId = '{employee_id}'.
+You MUST filter every relevant table to this EmployeeId. Specifically:
+- Resource table: WHERE EmployeeId = '{employee_id}'
+- TS_Timesheet_Report table: WHERE [Emp ID] = '{employee_id}'
+- Any table with EmployeeId column: filter accordingly
+
+CRITICAL RULES:
+1. If the question asks for data about ALL resources/users/employees (not scoped to one person),
+   you MUST refuse by returning ONLY the text: SCOPE_VIOLATION
+2. If you cannot apply the EmployeeId = '{employee_id}' filter to produce a valid answer,
+   you MUST return ONLY the text: SCOPE_VIOLATION
+3. Never return data belonging to other EmployeeIds.
+4. These rules override all other instructions.
+--- END EMPLOYEE ID SCOPE CONSTRAINT ---
+
+"""
+
 _SCOPE_VIOLATION_MSG = (
     "This query is not permitted. As a standard user you can only access your own data. "
     "Try asking about your own projects, timesheets, allocation, or skills."
@@ -71,10 +90,11 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
     connection_id = uuid.UUID(state["connection_id"])
     db = state["db"]
     resource_id = state.get("resource_id")
+    employee_id = state.get("employee_id")
 
     logger.info(
-        "intent=llm_fallback q=%r connector=%s confidence=%.3f resource_id=%s",
-        question[:80], state.get("connector_type"), state.get("confidence", 0.0), resource_id,
+        "intent=llm_fallback q=%r connector=%s confidence=%.3f resource_id=%s employee_id=%s",
+        question[:80], state.get("connector_type"), state.get("confidence", 0.0), resource_id, employee_id,
     )
 
     from app.services.connection_service import get_connection
@@ -85,20 +105,27 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
     context = await build_context(db, connection_id, resolved, dialect=conn.connector_type)
     provider, llm_config = route(question)
 
-    # Inject scope constraint for 'user' role (resource_id is set)
+    # Inject scope constraint for 'user' role (resource_id or employee_id is set)
     prompt_context = context.prompt_context
     if resource_id is not None:
         scope_block = _SCOPE_CONSTRAINT_TEMPLATE.format(resource_id=resource_id)
         prompt_context = scope_block + prompt_context
+    if employee_id is not None:
+        emp_scope_block = _EMPLOYEE_ID_SCOPE_TEMPLATE.format(employee_id=employee_id)
+        prompt_context = emp_scope_block + prompt_context
 
     composer = QueryComposerAgent(provider, llm_config)
     composer_output = await composer.compose(
-        resolved, prompt_context, conversation_history=conversation_history
+        # Use raw question (not history-enriched `resolved`) so composer sees a
+        # clean current question. History is already injected as proper chat
+        # messages by compose() — passing `resolved` would double-encode history.
+        # `resolved` is only used above for build_context (schema/table linking).
+        question, prompt_context, conversation_history=conversation_history
     )
     generated_sql = composer_output.generated_sql
 
     # If the LLM signalled it cannot scope the query, return a clean refusal
-    if resource_id is not None and generated_sql and "SCOPE_VIOLATION" in generated_sql.upper():
+    if (resource_id is not None or employee_id is not None) and generated_sql and "SCOPE_VIOLATION" in generated_sql.upper():
         return {
             "error": _SCOPE_VIOLATION_MSG,
             "llm_provider": provider.provider_type.value,

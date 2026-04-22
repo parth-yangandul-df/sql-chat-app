@@ -7,11 +7,12 @@ import {
   IconVocabulary,
   IconFileText,
   IconHistory,
+  IconUsers,
   IconLogout,
 } from '@tabler/icons-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { EmbeddingStatusBanner } from '../common/EmbeddingStatusBanner';
-import { clearToken } from '../../utils/auth';
+import { clearToken, getToken } from '../../utils/auth';
 
 const NAV_ITEMS = [
   { label: 'Query', path: '/query', icon: IconMessageQuestion },
@@ -21,11 +22,27 @@ const NAV_ITEMS = [
   { label: 'Dictionary', path: '/dictionary', icon: IconVocabulary },
   { label: 'Knowledge', path: '/knowledge', icon: IconFileText },
   { label: 'History', path: '/history', icon: IconHistory },
+  { label: 'Users', path: '/users', icon: IconUsers, adminOnly: true },
 ];
 
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Decode JWT to get user role
+  const token = getToken();
+  let userRole = 'user';
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      userRole = payload.role || 'user';
+    } catch { /* ignore */ }
+  }
+
+  // Filter nav items based on role
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => !item.adminOnly || userRole === 'admin'
+  );
 
   function handleSignOut() {
     clearToken();
@@ -57,7 +74,7 @@ export function AppLayout() {
       </AppShell.Header>
 
       <AppShell.Navbar p="xs">
-        {NAV_ITEMS.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.path}
             label={item.label}

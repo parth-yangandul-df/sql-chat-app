@@ -23,6 +23,24 @@ from app.llm.graph.query_plan import FilterClause, QueryPlan
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# NO_FILTER_INTENTS — intents with fully self-contained SQL (no dynamic filters)
+# ---------------------------------------------------------------------------
+NO_FILTER_INTENTS: frozenset[str] = frozenset({
+    "benched_resources",      # hardcoded WHERE p.ProjectId = 119
+    "benched_by_skill",       # skill handled via {skill_filter} token; ProjectId=119 hardcoded
+    "active_resources",       # hardcoded WHERE r.IsActive = 1 AND r.statusid = 8
+    "resource_availability",   # hardcoded subquery exclusion
+    "resource_by_skill",       # status filter maps to c.IsActive alias; not valid in this query
+    "active_projects",        # hardcoded WHERE p.IsActive = 1 AND p.ProjectStatusId = 4
+    "overdue_projects",       # hardcoded WHERE p.EndDate < GETDATE()
+    "active_clients",         # hardcoded WHERE c.IsActive = 1 AND c.StatusId = 2
+    "approved_timesheets",    # hardcoded approval flags
+    "unapproved_timesheets",  # hardcoded unapproved flags
+    "my_utilization",         # hardcoded self-contained SQL with EmployeeId parameter
+    "reports_to",             # manager name baked into WHERE via param; no extra filters
+})
+
 
 # ---------------------------------------------------------------------------
 # MetricFragment — injectable metric SQL for SELECT / JOIN / GROUP BY
@@ -56,7 +74,7 @@ class MetricFragment:
 BASE_QUERIES: dict[str, str] = {
 
     # ═══════════════════════════════════════════════════════════════════════
-    # RESOURCE DOMAIN (6 active intents)
+    # RESOURCE DOMAIN (7 active intents)
     # ═══════════════════════════════════════════════════════════════════════
 
     "active_resources": (
@@ -76,6 +94,20 @@ BASE_QUERIES: dict[str, str] = {
         "JOIN Project p ON pr.ProjectId = p.ProjectId "
         "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId{join_extras} "
         "WHERE p.ProjectId = 119 "  # hardcoded bench project; confirmed constant
+        "ORDER BY r.ResourceName"
+    ),
+
+    "benched_by_skill": (
+        "SELECT DISTINCT r.employeeid as [EMPID], r.ResourceName as [Name], r.EmailId, "
+        "t.TechCategoryName as [Tech Category], s.Name as [Skill]{select_extras} "
+        "FROM Resource r "
+        "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
+        "JOIN Project p ON pr.ProjectId = p.ProjectId "
+        "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId "
+        "JOIN PA_ResourceSkills rs ON rs.ResourceId = r.ResourceId "
+        "JOIN PA_Skills s ON s.SkillId = rs.SkillId{join_extras} "
+        "WHERE p.ProjectId = 119 "  # same bench project filter
+        "AND ({skill_filter}) "
         "ORDER BY r.ResourceName"
     ),
 
@@ -103,7 +135,7 @@ BASE_QUERIES: dict[str, str] = {
         "CAST(pr.StartDate AS DATE) AS [Start Date], "
         "CAST(pr.EndDate AS DATE) AS [End Date], "
         "pr.resourcerole as [Role], pr.PercentageAllocation as [Allocation], "
-        "pr.Billab{select_extras} "
+        "pr.Billable{select_extras} "
         "FROM Resource r "
         "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
         "JOIN Project p ON pr.ProjectId = p.ProjectId{join_extras}"
@@ -115,6 +147,13 @@ BASE_QUERIES: dict[str, str] = {
         "JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId "
         "JOIN PA_Skills s ON rs.SkillId = s.SkillId{join_extras} "
         "WHERE r.IsActive = 1"
+    ),
+
+    "reports_to": (
+        "SELECT r.EmployeeId, r.ResourceName, pm.ResourceName as [Reporting To]{select_extras} "
+        "FROM Resource r "
+        "JOIN Resource pm ON pm.ResourceId = r.ReportingTo{join_extras} "
+        "WHERE pm.ResourceName LIKE ? AND r.IsActive = 1"
     ),
 
     # Deferred intents — #baadme (not yet production-ready)
@@ -130,7 +169,7 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT distinct c.ClientName, c.Description, c.CountryId{select_extras} "
         "FROM Client c "
         "JOIN Status st ON c.StatusId = st.StatusId AND st.ReferenceId = 1{join_extras} "
-        "WHERE 1=1"
+        "WHERE c.IsActive = 1"
     ),
 
     "client_projects": (
@@ -192,6 +231,18 @@ BASE_QUERIES: dict[str, str] = {
         "FROM Project{join_extras}"
     ),
 
+    "project_status": (
+        "SELECT p.ProjectName as [Project Name], c.ClientName as [Client], "
+        "s.StatusName as [Status], "
+        "cast(p.StartDate as date) as [Start Date], "
+        "COALESCE(CONVERT(VARCHAR(10), p.EndDate, 120), 'NA') AS [End Date], "
+        "r.ResourceName as [Project Manager]{select_extras} "
+        "FROM Project p "
+        "JOIN Client c ON p.ClientId = c.ClientId "
+        "JOIN Status s ON s.StatusId = p.ProjectStatusId "
+        "JOIN Resource r ON r.ResourceId = p.ProjectManagerId{join_extras}"
+    ),
+
     "overdue_projects": (
         "SELECT p.ProjectId, p.ProjectName, p.EndDate, c.ClientName{select_extras} "
         "FROM Project p "
@@ -242,8 +293,8 @@ BASE_QUERIES: dict[str, str] = {
 
     "my_projects": (
         "SELECT p.ProjectName, r.ResourceName AS [Employee Name], "
-        "COALESCE(CAST(p.StartDate AS DATE), 'NA') AS [Start Date], "
-        "COALESCE(CAST(p.EndDate AS DATE), 'NA') AS [End Date]{select_extras} "
+        "COALESCE(CONVERT(VARCHAR(10), p.StartDate, 120), 'NA') AS [Start Date], "
+        "COALESCE(CONVERT(VARCHAR(10), p.EndDate, 120), 'NA') AS [End Date]{select_extras} "
         "FROM Project p "
         "JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId "
         "JOIN Resource r ON r.ResourceId = pr.ResourceId{join_extras} "
@@ -261,7 +312,7 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT ts.Title, ts.Category, ts.Activity, ts.[Effort Hours], ts.[File Date]{select_extras} "
         "FROM TS_Timesheet_Report ts "
         "JOIN Resource r ON r.EmployeeId = ts.[Emp ID]{join_extras} "
-        "WHERE r.ResourceId = ? "
+        "WHERE CAST(r.EmployeeId AS INT) = ? "
         "ORDER BY ts.[File Date] DESC"
     ),
 
@@ -276,53 +327,11 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT ts.Title, SUM(ts.[Effort Hours]) AS TotalHours, ts.[File Date]{select_extras} "
         "FROM TS_Timesheet_Report ts "
         "JOIN Resource r ON r.EmployeeId = ts.[Emp ID]{join_extras} "
-        "WHERE r.ResourceId = ? "
+        "WHERE CAST(r.EmployeeId AS INT) = ? "
         "GROUP BY ts.Title, ts.[File Date] "
         "ORDER BY ts.[File Date] DESC"
     ),
 }
-
-# ---------------------------------------------------------------------------
-# Fallback intent mapping — maps each intent to its broader sibling for 0-row retry
-# None means no fallback (broadest intent in that domain)
-# ---------------------------------------------------------------------------
-
-FALLBACK_INTENTS: dict[str, str | None] = {
-    # Resource domain (6 intents)
-    "active_resources": None,  # Broadest - no fallback
-    "benched_resources": None,  # Broadest - no fallback
-    "resource_by_skill": "active_resources",
-    "resource_availability": "active_resources",
-    "resource_project_assignments": "active_resources",
-    "resource_skills_list": "active_resources",
-
-    # Client domain (3 intents)
-    "active_clients": None,  # Broadest - no fallback
-    "client_projects": "active_clients",
-    "client_status": "active_clients",
-
-    # Project domain (6 intents)
-    "active_projects": None,  # Broadest - no fallback
-    "project_by_client": "active_projects",
-    "project_budget": "active_projects",
-    "project_resources": "active_projects",
-    "project_timeline": "active_projects",
-    "overdue_projects": "active_projects",
-
-    # Timesheet domain (4 intents)
-    "approved_timesheets": None,  # Broadest - no fallback
-    "timesheet_by_period": "approved_timesheets",
-    "unapproved_timesheets": "approved_timesheets",
-    "timesheet_by_project": "approved_timesheets",
-
-    # User Self domain (5 intents - no fallback needed, requires resource_id)
-    "my_projects": None,
-    "my_allocation": None,
-    "my_timesheets": None,
-    "my_skills": None,
-    "my_utilization": None,
-}
-
 
 # ---------------------------------------------------------------------------
 # detect_metrics — keyword-based metric detection stub
@@ -386,6 +395,7 @@ def build_in_clause(column: str, values: list[str]) -> tuple[str, tuple]:
 def build_filter_clause(
     filter_clause: FilterClause,
     field_config: FieldConfig,
+    domain: str = "",
 ) -> tuple[str, tuple]:
     """Compile a single FilterClause to a SQL WHERE fragment and param tuple.
 
@@ -423,16 +433,24 @@ def build_filter_clause(
     if first_value in NULL_INDICATORS and op == "eq":
         # For description field, check both NULL and empty string
         if field_config.field_name == "description":
-            return f"({col} IS NULL OR {col} = '')", ()
-        return f"{col} IS NULL", ()
+            table_alias = field_config.table_alias or ''
+            alias_prefix = f'{table_alias}.' if table_alias else ''
+            return f"({alias_prefix}{col} IS NULL OR {alias_prefix}{col} = '')", ()
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
+        return f"{alias_prefix}{col} IS NULL", ()
     
     # If it's "not missing", "not null", "has value" etc., generate IS NOT NULL
     NOT_NULL_INDICATORS = frozenset({"not missing", "not null", "has value", "filled", "complete"})
     if first_value in NOT_NULL_INDICATORS and op == "eq":
         # For description field, check both NOT NULL AND not empty string
         if field_config.field_name == "description":
-            return f"({col} IS NOT NULL AND {col} != '')", ()
-        return f"{col} IS NOT NULL", ()
+            table_alias = field_config.table_alias or ''
+            alias_prefix = f'{table_alias}.' if table_alias else ''
+            return f"({alias_prefix}{col} IS NOT NULL AND {alias_prefix}{col} != '')", ()
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
+        return f"{alias_prefix}{col} IS NOT NULL", ()
     
     # ── Boolean coercion ──────────────────────────────────────────────────
     if sql_type == "boolean":
@@ -443,11 +461,16 @@ def build_filter_clause(
             else:
                 coerced.append(0)
         values = [str(c) for c in coerced]
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
         # Boolean always uses eq
-        return f"{col} = ?", (coerced[0] if len(coerced) == 1 else coerced[0],)
+        return f"{alias_prefix}{col} = ?", (coerced[0] if len(coerced) == 1 else coerced[0],)
 
     # ── Text fields: wrap with % for LIKE ─────────────────────────────────
     if sql_type == "text":
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
+        
         # Special case: status field in client/project domain uses Status table
         if field_config.field_name == "status" and field_config.column_name == "StatusName":
             if op == "eq":
@@ -458,24 +481,27 @@ def build_filter_clause(
         # Regular text handling
         if op == "eq":
             v = values[0] if values else ""
-            return f"{col} LIKE ?", (f"%{v}%",)
+            return f"{alias_prefix}{col} LIKE ?", (f"%{v}%",)
         if op == "in":
             # For text IN: each value gets its own LIKE (OR chain is safer
             # for text search than IN which requires exact match)
             if not values:
                 return "1=0", ()
-            like_parts = " OR ".join(f"{col} LIKE ?" for _ in values)
+            like_parts = " OR ".join(f"{alias_prefix}{col} LIKE ?" for _ in values)
             params = tuple(f"%{v}%" for v in values)
             return f"({like_parts})", params
         if op == "lt":
-            return f"{col} < ?", (values[0],)
+            return f"{alias_prefix}{col} < ?", (values[0],)
         if op == "gt":
-            return f"{col} >= ?", (values[0],)
+            return f"{alias_prefix}{col} >= ?", (values[0],)
         if op == "between":
-            return f"{col} BETWEEN ? AND ?", (values[0], values[1])
+            return f"{alias_prefix}{col} BETWEEN ? AND ?", (values[0], values[1])
 
     # ── Date / Numeric fields: exact values ───────────────────────────────
     if sql_type in ("date", "numeric"):
+        table_alias = field_config.table_alias or ''
+        alias_prefix = f'{table_alias}.' if table_alias else ''
+        
         # Special handling for status field - use dual filter: IsActive + StatusId
         if field_config.field_name == "status" and op == "eq":
             status_value = str(values[0]).strip() if values else ""
@@ -491,22 +517,22 @@ def build_filter_clause(
             
             if status_id and isactive_col:
                 # Generate both filters: IsActive=1 AND StatusId=X
-                return f"({isactive_col} = 1 AND {col} = ?)", (status_id,)
+                return f"({alias_prefix}{isactive_col} = 1 AND {alias_prefix}{col} = ?)", (status_id,)
             elif status_id:
                 # Fallback: just StatusId
-                return f"{col} = ?", (status_id,)
+                return f"{alias_prefix}{col} = ?", (status_id,)
         
         if op == "eq":
             v = values[0] if values else ""
-            return f"{col} = ?", (v,)
+            return f"{alias_prefix}{col} = ?", (v,)
         if op == "lt":
-            return f"{col} < ?", (values[0],)
+            return f"{alias_prefix}{col} < ?", (values[0],)
         if op == "gt":
-            return f"{col} >= ?", (values[0],)
+            return f"{alias_prefix}{col} >= ?", (values[0],)
         if op == "between":
-            return f"{col} BETWEEN ? AND ?", (values[0], values[1])
+            return f"{alias_prefix}{col} BETWEEN ? AND ?", (values[0], values[1])
         if op == "in":
-            clause, params = build_in_clause(col, values)
+            clause, params = build_in_clause(f"{alias_prefix}{col}", values)
             return clause, params
 
     # ── Fallback: unknown type or op ──────────────────────────────────────
@@ -591,39 +617,70 @@ def compile_query(
     remaining_filters = list(plan.filters)
 
     if "{skill_filter}" in sql:
-        skill_clauses = [f for f in remaining_filters if f.field == "skill"]
+        skill_clauses = [f for f in remaining_filters if f.field in ("skill", "skill_name")]
         if skill_clauses:
             sf = skill_clauses[0]
             v = f"%{sf.values[0]}%"
-            skill_fragment = (
-                "r.PrimarySkill LIKE ? OR r.SecondarySkill LIKE ? "
-                "OR tc.TechCategoryName LIKE ? OR psk.Name LIKE ?"
-            )
+            # benched_by_skill uses s (PA_Skills alias) — 3 params
+            # resource_by_skill uses tc (TechCatagory) and psk (PA_Skills) — 4 params
+            if plan.intent == "benched_by_skill":
+                skill_fragment = (
+                    "s.Name LIKE ? OR r.PrimarySkill LIKE ? OR r.SecondarySkill LIKE ?"
+                )
+                skill_params = [v, v, v]
+            else:
+                skill_fragment = (
+                    "r.PrimarySkill LIKE ? OR r.SecondarySkill LIKE ? "
+                    "OR tc.TechCategoryName LIKE ? OR psk.Name LIKE ?"
+                )
+                skill_params = [v, v, v, v]
             sql = sql.replace("{skill_filter}", skill_fragment)
-            skill_params = [v, v, v, v]
-            # Remove skill from remaining filters so it isn't double-processed
-            remaining_filters = [f for f in remaining_filters if f.field != "skill"]
+            # Remove both "skill" and "skill_name" variants so they aren't double-processed
+            remaining_filters = [f for f in remaining_filters if f.field not in ("skill", "skill_name")]
         else:
             # No skill filter — return all (IsActive=1 still applies from base WHERE)
             sql = sql.replace("{skill_filter}", "1=1")
 
-    # ── Build filter WHERE clauses from remaining filters ─────────────────
-    where_fragments: list[str] = []
-    filter_params: list[Any] = []
+    # ── Skip filter application for self-contained intents ───────────────────
+    # These intents have hardcoded WHERE clauses and should not receive 
+    # additional filters to avoid SQL conflicts
+    if plan.intent in NO_FILTER_INTENTS:
+        logger.debug(
+            "compile_query: intent '%s' has self-contained filters, skipping filter application",
+            plan.intent
+        )
+        where_fragments: list[str] = []
+        filter_params: list[Any] = []
+    else:
+        # ── Build filter WHERE clauses from remaining filters ─────────────────
+        where_fragments: list[str] = []
+        filter_params: list[Any] = []
 
-    for f in remaining_filters:
-        field_config = FIELD_REGISTRY.get(f.field)
-        if field_config is None:
-            logger.warning(
-                "compile_query: field '%s' not found in FIELD_REGISTRY — skipping filter",
-                f.field,
-            )
-            continue
+        for f in remaining_filters:
+            field_config = FIELD_REGISTRY.get(f.field)
+            if field_config is None:
+                logger.warning(
+                    "compile_query: field '%s' not found in FIELD_REGISTRY — skipping filter",
+                    f.field,
+                )
+                continue
 
-        fragment, params = build_filter_clause(f, field_config)
-        if fragment and fragment not in ("1=1",):
-            where_fragments.append(fragment)
-            filter_params.extend(params)
+            fragment, params = build_filter_clause(f, field_config, domain=plan.domain)
+            if fragment and fragment not in ("1=1",):
+                where_fragments.append(fragment)
+                filter_params.extend(params)
+
+    # ── reports_to: extract manager name param from filters ───────────────────
+    # Base SQL has hardcoded WHERE pm.ResourceName LIKE ? — param must come from
+    # the resource_name filter, not the generic filter loop (which is skipped).
+    reports_to_params: tuple = ()
+    if plan.intent == "reports_to":
+        name_filter = next((f for f in plan.filters if f.field == "resource_name"), None)
+        if name_filter and name_filter.values:
+            name_val = f"%{name_filter.values[0]}%"
+        else:
+            name_val = "%"  # fallback: return all (no manager specified)
+        reports_to_params = (name_val,)
 
     # ── Assemble final SQL ─────────────────────────────────────────────────
     # For user_self intents: the base SQL already contains "WHERE ... = ?"
@@ -657,7 +714,7 @@ def compile_query(
     if needs_group_by:
         sql = _inject_group_by(sql, plan)
 
-    all_params = tuple(skill_params) + tuple(filter_params)
+    all_params = reports_to_params + tuple(skill_params) + tuple(filter_params)
     logger.debug(
         "compile_query: domain=%s intent=%s filters=%d params=%d",
         plan.domain, plan.intent, len(plan.filters), len(all_params),
