@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 
 import openai
 
+from app.core.exceptions import raise_if_provider_rate_limited
 from app.llm.base_provider import (
     BaseLLMProvider,
     LLMConfig,
@@ -32,14 +33,18 @@ class GroqProvider(BaseLLMProvider):
         oai_messages = [{"role": m.role, "content": m.content} for m in messages]
 
         start = time.monotonic()
-        response = await self._client.chat.completions.create(
-            model=config.model,
-            messages=oai_messages,
-            temperature=config.temperature,
-            max_completion_tokens=config.max_tokens,
-            top_p=config.top_p,
-            stop=config.stop_sequences or None,
-        )
+        try:
+            response = await self._client.chat.completions.create(
+                model=config.model,
+                messages=oai_messages,
+                temperature=config.temperature,
+                max_completion_tokens=config.max_tokens,
+                top_p=config.top_p,
+                stop=config.stop_sequences or None,
+            )
+        except Exception as err:
+            raise_if_provider_rate_limited(err, "Groq")
+            raise
         elapsed_ms = (time.monotonic() - start) * 1000
 
         choice = response.choices[0]
@@ -67,15 +72,19 @@ class GroqProvider(BaseLLMProvider):
         oai_messages = [{"role": m.role, "content": m.content} for m in messages]
 
         start = time.monotonic()
-        response = await self._client.chat.completions.create(
-            model=config.model,
-            messages=oai_messages,
-            tools=tools,
-            tool_choice="required",
-            temperature=config.temperature,
-            max_completion_tokens=config.max_tokens,
-            top_p=config.top_p,
-        )
+        try:
+            response = await self._client.chat.completions.create(
+                model=config.model,
+                messages=oai_messages,
+                tools=tools,
+                tool_choice="required",
+                temperature=config.temperature,
+                max_completion_tokens=config.max_tokens,
+                top_p=config.top_p,
+            )
+        except Exception as err:
+            raise_if_provider_rate_limited(err, "Groq")
+            raise
         elapsed_ms = (time.monotonic() - start) * 1000
 
         choice = response.choices[0]
@@ -108,13 +117,17 @@ class GroqProvider(BaseLLMProvider):
     ) -> AsyncIterator[str]:
         oai_messages = [{"role": m.role, "content": m.content} for m in messages]
 
-        stream = await self._client.chat.completions.create(
-            model=config.model,
-            messages=oai_messages,
-            temperature=config.temperature,
-            max_completion_tokens=config.max_tokens,
-            stream=True,
-        )
+        try:
+            stream = await self._client.chat.completions.create(
+                model=config.model,
+                messages=oai_messages,
+                temperature=config.temperature,
+                max_completion_tokens=config.max_tokens,
+                stream=True,
+            )
+        except Exception as err:
+            raise_if_provider_rate_limited(err, "Groq")
+            raise
 
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:

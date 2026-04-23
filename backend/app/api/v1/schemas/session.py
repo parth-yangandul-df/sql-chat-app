@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
+from app.api.v1.schemas.query import TurnContext
 
 
 class SessionCreate(BaseModel):
@@ -33,6 +34,7 @@ class SessionMessageResponse(BaseModel):
     execution_time_ms: float | None
     retry_count: int
     result_summary: str | None
+    turn_context: TurnContext | None = None
     is_favorite: bool
     created_at: datetime
 

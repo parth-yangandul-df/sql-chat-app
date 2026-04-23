@@ -1,18 +1,26 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useOutletContext } from 'react-router-dom'
-import { queryApi, type ConversationTurn } from '@/api/queryApi'
+import { queryApi, type ConversationTurn, type QueryStageEvent } from '@/api/queryApi'
 import { useSessionMessages } from '@/hooks/useThreads'
 import { PureMultimodalInput } from '@/components/ui/multimodal-ai-chat-input'
 import { SpotlightTable } from '@/components/ui/spotlight-table'
-import { MorphLoading } from '@/components/ui/morph-loading'
 import { RecentQuestions, saveRecentQuestion } from '@/components/widget/RecentQuestions'
-import type { QueryResult } from '@/types/api'
+import { loadPersistedChatMessages, persistChatMessages } from '@/lib/chat-session-cache'
+import type { QueryResult, TurnContext } from '@/types/api'
 import type { ChatLayoutContext } from '@/components/layout/ChatLayout'
-import { Bot, User, AlertCircle, ChevronDown, ChevronUp, Copy, Check, Zap, MessageSquareOff } from 'lucide-react'
+import { Bot, User, AlertCircle, ChevronDown, ChevronUp, Copy, Check, Zap, MessageSquareOff, Loader2 } from 'lucide-react'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const CONVERSATION_HISTORY_TURNS = 3 // last N turns (N user + N assistant = 2N messages)
+const MIN_PIPELINE_VISIBILITY_MS = 1100
+const STAGE_TIMELINE_FRACTIONS = [0, 0.25, 0.5, 0.75] as const
+const PIPELINE_STAGES: QueryStageEvent[] = [
+  { type: 'stage', stage: 'extracting', label: 'Extracting', progress: 25 },
+  { type: 'stage', stage: 'composing', label: 'Composing', progress: 50 },
+  { type: 'stage', stage: 'validating', label: 'Validating', progress: 75 },
+  { type: 'stage', stage: 'interpreting', label: 'Interpreting', progress: 100 },
+]
 
 // ── Message types ──────────────────────────────────────────────────────────────
 type ChatMessage =
@@ -64,7 +72,6 @@ function SqlBlock({ sql }: { sql: string }) {
 // ── Assistant message bubble ───────────────────────────────────────────────────
 function AssistantMessage({
   result,
-  onFollowup,
 }: {
   result: QueryResult
   onFollowup: (q: string) => void
@@ -110,22 +117,6 @@ function AssistantMessage({
           />
         )}
         {result.final_sql && <SqlBlock sql={result.final_sql} />}
-        {result.suggested_followups.length > 0 && (
-          <div className="pt-1">
-            <p className="text-xs text-muted-foreground mb-2 font-medium">Continue exploring:</p>
-            <div className="flex flex-wrap gap-2">
-              {result.suggested_followups.map((q, i) => (
-                <button
-                  key={i}
-                  onClick={() => onFollowup(q)}
-                  className="px-3 py-1.5 text-xs rounded-full border border-border bg-background hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -163,15 +154,27 @@ function ErrorMessage({ message }: { message: string }) {
 }
 
 // ── Typing indicator ───────────────────────────────────────────────────────────
-function TypingIndicator() {
+function TypingIndicator({ stage }: { stage: QueryStageEvent | null }) {
+  const progress = stage?.progress ?? 15
+
   return (
-    <div className="flex gap-3 items-center">
+    <div className="flex gap-3 items-start">
       <div className="shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
         <Bot className="h-4 w-4 text-gray-700" />
       </div>
-      <div className="flex items-center gap-2 px-4 py-3 rounded-2xl rounded-tl-sm bg-muted">
-        <MorphLoading size="sm" className="w-10 h-10" />
-        <span className="text-xs text-muted-foreground">Analyzing your question...</span>
+      <div className="min-w-[260px] max-w-[340px] px-4 py-3 rounded-2xl rounded-tl-sm bg-muted">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-5 w-5 shrink-0 animate-spin text-gray-700" />
+          <div className="flex-1 min-w-0">
+            <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gray-900 transition-all duration-500 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">{stage?.label ?? 'Extracting intent...'}</p>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -246,6 +249,7 @@ function buildMessagesFromHistory(
     row_count: number | null
     execution_time_ms: number | null
     retry_count: number
+    turn_context: TurnContext | null
   }>
 ): ChatMessage[] {
   const messages: ChatMessage[] = []
@@ -281,7 +285,7 @@ function buildMessagesFromHistory(
         llm_provider: '',
         llm_model: '',
         retry_count: item.retry_count,
-        turn_context: null,
+        turn_context: item.turn_context,
         topic_switch_detected: false,
       }
       messages.push({
@@ -302,8 +306,30 @@ export function ChatQueryPage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
+  const [lastTurnContext, setLastTurnContext] = useState<TurnContext | null>(null)
+  const [pipelineStage, setPipelineStage] = useState<QueryStageEvent | null>(null)
   const [attachments, setAttachments] = useState<{ url: string; name: string; contentType: string; size: number }[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const pipelineTimerRefs = useRef<number[]>([])
+
+  const clearPipelineTimer = useCallback(() => {
+    for (const timerId of pipelineTimerRefs.current) {
+      window.clearTimeout(timerId)
+    }
+    pipelineTimerRefs.current = []
+  }, [])
+
+  const startPipelineTimeline = useCallback(() => {
+    clearPipelineTimer()
+    setPipelineStage(PIPELINE_STAGES[0])
+
+    pipelineTimerRefs.current = PIPELINE_STAGES.slice(1).map((stage, index) =>
+      window.setTimeout(
+        () => setPipelineStage(stage),
+        Math.round(MIN_PIPELINE_VISIBILITY_MS * STAGE_TIMELINE_FRACTIONS[index + 1]),
+      ),
+    )
+  }, [clearPipelineTimer])
 
   // Load session history on mount / thread change
   const { data: sessionMessages, isLoading: loadingHistory } = useSessionMessages(threadId)
@@ -312,15 +338,47 @@ export function ChatQueryPage() {
     // Reset when thread changes
     setMessages([])
     setHistoryLoaded(false)
+    setLastTurnContext(null)
   }, [threadId])
 
   useEffect(() => {
+    if (!threadId || historyLoaded) {
+      return
+    }
+
+    const cachedMessages = loadPersistedChatMessages(threadId)
+    if (cachedMessages) {
+      const restoredTurnContext = [...cachedMessages]
+        .reverse()
+        .find((item) => item.role === 'assistant')
+      setMessages(cachedMessages)
+      setLastTurnContext(restoredTurnContext?.role === 'assistant' ? restoredTurnContext.result.turn_context : null)
+      setHistoryLoaded(true)
+      return
+    }
+
     if (sessionMessages && !historyLoaded) {
       const restored = buildMessagesFromHistory(sessionMessages)
+      const restoredTurnContext = [...sessionMessages]
+        .reverse()
+        .find((item) => item.turn_context)?.turn_context ?? null
       setMessages(restored)
+      setLastTurnContext(restoredTurnContext)
       setHistoryLoaded(true)
     }
-  }, [sessionMessages, historyLoaded])
+  }, [historyLoaded, sessionMessages, threadId])
+
+  useEffect(() => {
+    if (!threadId || !historyLoaded) {
+      return
+    }
+
+    persistChatMessages(threadId, messages)
+  }, [historyLoaded, messages, threadId])
+
+  useEffect(() => () => {
+    clearPipelineTimer()
+  }, [clearPipelineTimer])
 
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
@@ -331,15 +389,38 @@ export function ChatQueryPage() {
     scrollToBottom()
   }, [messages, scrollToBottom])
 
-  const mutation = useMutation({
-    mutationFn: ({ question, connId, history }: { question: string; connId: string; history: ConversationTurn[] }) =>
-      queryApi.execute({
-        connection_id: connId,
-        question,
-        session_id: threadId,
-        conversation_history: history,
-      }),
+  const mutation = useMutation<QueryResult, Error, { question: string; connId: string; history: ConversationTurn[] }>({
+    mutationFn: async ({ question, connId, history }: { question: string; connId: string; history: ConversationTurn[] }) => {
+      const startedAt = Date.now()
+      const result = await queryApi.executeStream(
+        {
+          connection_id: connId,
+          question,
+          session_id: threadId,
+          conversation_history: history,
+          last_turn_context: lastTurnContext ?? undefined,
+        },
+        () => {},
+      )
+
+      const remaining = MIN_PIPELINE_VISIBILITY_MS - (Date.now() - startedAt)
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining))
+      }
+
+      return result
+    },
+    onMutate: () => {
+      startPipelineTimeline()
+    },
     onSuccess: (result) => {
+      clearPipelineTimer()
+      setPipelineStage(null)
+      if (result.topic_switch_detected) {
+        setLastTurnContext(null)
+      } else {
+        setLastTurnContext(result.turn_context)
+      }
       setMessages((prev) => [
         ...prev,
         { id: `${Date.now()}-assistant`, role: 'assistant', result },
@@ -351,6 +432,8 @@ export function ChatQueryPage() {
       }
     },
     onError: (error: unknown) => {
+      clearPipelineTimer()
+      setPipelineStage(null)
       const message = error instanceof Error ? error.message : 'An unexpected error occurred'
       setMessages((prev) => [
         ...prev,
@@ -378,10 +461,8 @@ export function ChatQueryPage() {
         return next
       })
     },
-    [connectionId, mutation],
+    [connectionId, lastTurnContext, mutation, queryClient, threadId],
   )
-
-  const handleFollowup = useCallback((q: string) => sendMessage(q), [sendMessage])
 
   const hasMessages = messages.length > 0
 
@@ -413,7 +494,10 @@ export function ChatQueryPage() {
       <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
         {loadingHistory ? (
           <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-xs text-gray-400">Loading conversation...</div>
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Loading conversation...</span>
+            </div>
           </div>
         ) : !hasMessages ? (
           <WelcomeScreen onExample={sendMessage} />
@@ -428,13 +512,13 @@ export function ChatQueryPage() {
                   <AssistantMessage
                     key={msg.id}
                     result={msg.result}
-                    onFollowup={handleFollowup}
+                    onFollowup={sendMessage}
                   />
                 )
               }
               return <ErrorMessage key={msg.id} message={msg.message} />
             })}
-            {mutation.isPending && <TypingIndicator />}
+            {mutation.isPending && <TypingIndicator stage={pipelineStage} />}
             <div ref={messagesEndRef} />
           </div>
         )}

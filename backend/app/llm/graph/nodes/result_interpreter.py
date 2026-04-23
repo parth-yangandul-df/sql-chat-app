@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from app.llm.agents.result_interpreter import ResultInterpreterAgent
+from app.llm.agents.result_interpreter import ResultInterpreterAgent, format_single_value_result
 from app.llm.graph.state import GraphState
 from app.llm.router import route
 
@@ -20,6 +20,14 @@ async def interpret_result(state: GraphState) -> dict[str, Any]:
     if not result or not result.rows:
         return {
             "answer": None,
+            "highlights": [],
+            "suggested_followups": [],
+        }
+
+    single_value = format_single_value_result(result.rows)
+    if single_value is not None:
+        return {
+            "answer": single_value,
             "highlights": [],
             "suggested_followups": [],
         }
@@ -48,5 +56,5 @@ async def interpret_result(state: GraphState) -> dict[str, Any]:
     return {
         "answer": interpretation.summary,
         "highlights": interpretation.highlights,
-        "suggested_followups": interpretation.suggested_followups,
+        "suggested_followups": [],
     }

@@ -16,6 +16,8 @@ class TurnContext(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
     columns: list[str] = Field(default_factory=list)
     sql: str = ""
+    question: str | None = None
+    query_plan: dict[str, Any] | None = None
 
 
 class QueryRequest(BaseModel):

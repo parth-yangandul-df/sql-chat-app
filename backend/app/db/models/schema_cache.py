@@ -85,6 +85,8 @@ class CachedRelationship(Base):
         UUID(as_uuid=True), ForeignKey("database_connections.id", ondelete="CASCADE"), nullable=False
     )
     constraint_name: Mapped[str | None] = mapped_column(String(255))
+    is_manual: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    relationship_type: Mapped[str | None] = mapped_column(String(50))  # explicit_fk | bridge | hierarchical | implicit_join
     source_table_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cached_tables.id", ondelete="CASCADE"), nullable=False
     )

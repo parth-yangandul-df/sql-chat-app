@@ -20,6 +20,7 @@ export interface ChatSessionMessage {
   execution_time_ms: number | null
   retry_count: number
   result_summary: string | null
+  turn_context: TurnContext | null
   is_favorite: boolean
   created_at: string
 }
@@ -82,6 +83,8 @@ export interface TurnContext {
   params: Record<string, unknown>
   columns: string[]
   sql: string
+  question?: string | null
+  query_plan?: Record<string, unknown> | null
 }
 
 export interface QueryResult {

@@ -14,7 +14,7 @@ from app.db.models.query_history import QueryExecution
 from app.db.models.user import User
 from app.llm.agents.error_handler import ErrorHandlerAgent
 from app.llm.agents.query_composer import QueryComposerAgent
-from app.llm.agents.result_interpreter import ResultInterpreterAgent
+from app.llm.agents.result_interpreter import ResultInterpreterAgent, format_single_value_result
 from app.llm.agents.sql_validator import SQLValidatorAgent, ValidationStatus
 from app.llm.graph.graph import get_compiled_graph
 from app.llm.graph.nodes.intent_classifier import _is_topic_switch
@@ -158,6 +158,13 @@ async def execute_nl_query(
     else:
         turn_context = None
 
+    execution_id = final_state.get("execution_id")
+    if execution_id is not None:
+        execution = await db.get(QueryExecution, execution_id)
+        if execution is not None:
+            execution.turn_context = turn_context
+            await db.flush()
+
     return {
         "id": final_state.get("execution_id"),
         "question": question,
@@ -261,23 +268,26 @@ async def execute_raw_sql(
     question_text = original_question or "(manual SQL)"
 
     if result.rows:
-        try:
-            provider, llm_config = route(question_text)
-            interpreter = ResultInterpreterAgent(provider, llm_config)
-            interpretation = await interpreter.interpret(
-                question=question_text,
-                sql=sql,
-                columns=result.columns,
-                rows=result.rows,
-                row_count=result.row_count,
-            )
-            summary = interpretation.summary
-            highlights = interpretation.highlights
-            followups = interpretation.suggested_followups
-            llm_provider_name = provider.provider_type.value
-            llm_model_name = llm_config.model
-        except Exception:
-            pass  # Interpretation is best-effort; don't fail the query
+        single_value = format_single_value_result(result.rows)
+        if single_value is not None:
+            summary = single_value
+        else:
+            try:
+                provider, llm_config = route(question_text)
+                interpreter = ResultInterpreterAgent(provider, llm_config)
+                interpretation = await interpreter.interpret(
+                    question=question_text,
+                    sql=sql,
+                    columns=result.columns,
+                    rows=result.rows,
+                    row_count=result.row_count,
+                )
+                summary = interpretation.summary
+                highlights = interpretation.highlights
+                llm_provider_name = provider.provider_type.value
+                llm_model_name = llm_config.model
+            except Exception:
+                pass  # Interpretation is best-effort; don't fail the query
 
     # Step 4: Save to history
     execution = QueryExecution(
@@ -310,7 +320,7 @@ async def execute_raw_sql(
         "truncated": result.truncated,
         "summary": summary,
         "highlights": highlights,
-        "suggested_followups": followups,
+        "suggested_followups": [],
         "llm_provider": llm_provider_name,
         "llm_model": llm_model_name,
         "retry_count": 0,

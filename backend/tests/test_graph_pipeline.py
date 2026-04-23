@@ -252,6 +252,40 @@ async def test_execute_nl_query_domain_tool_provider(mock_db, mock_query_result)
 
 
 @pytest.mark.asyncio
+async def test_execute_nl_query_persists_turn_context(mock_db, mock_query_result):
+    """execute_nl_query() persists the final turn_context onto the saved execution row."""
+    import uuid
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    final_state = _make_final_state(mock_query_result)
+    mock_compiled = MagicMock()
+    mock_compiled.ainvoke = AsyncMock(return_value=final_state)
+
+    mock_conn = MagicMock()
+    mock_conn.connector_type = "sqlserver"
+    mock_conn.max_query_timeout_seconds = 30
+    mock_conn.max_rows = 100
+
+    execution = MagicMock()
+    mock_db.get = AsyncMock(return_value=execution)
+
+    with (
+        patch("app.services.query_service.get_compiled_graph", return_value=mock_compiled),
+        patch("app.services.query_service.get_connection", AsyncMock(return_value=mock_conn)),
+        patch("app.services.query_service.get_decrypted_connection_string", return_value="dsn=test"),
+    ):
+        from app.services.query_service import execute_nl_query
+        result = await execute_nl_query(
+            db=mock_db,
+            connection_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            question="show active resources",
+        )
+
+    assert execution.turn_context == result["turn_context"]
+    assert execution.turn_context["question"] == "show active resources"
+
+
+@pytest.mark.asyncio
 async def test_execute_nl_query_error_raises(mock_db, mock_query_result):
     """execute_nl_query() raises AppError when graph returns error with no result."""
     import uuid

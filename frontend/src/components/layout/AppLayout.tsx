@@ -9,6 +9,7 @@ import {
   IconHistory,
   IconUsers,
   IconLogout,
+  IconListDetails,
 } from '@tabler/icons-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { EmbeddingStatusBanner } from '../common/EmbeddingStatusBanner';
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { label: 'Metrics', path: '/metrics', icon: IconChartBar },
   { label: 'Dictionary', path: '/dictionary', icon: IconVocabulary },
   { label: 'Knowledge', path: '/knowledge', icon: IconFileText },
+  { label: 'Sample Queries', path: '/sample-queries', icon: IconListDetails, adminOnly: true },
   { label: 'History', path: '/history', icon: IconHistory },
   { label: 'Users', path: '/users', icon: IconUsers, adminOnly: true },
 ];

@@ -199,6 +199,27 @@ def _post_process_extraction(args: dict, question: str) -> dict:
     filters = args.get("filters", [])
     domain = args.get("domain", "")
     question_lower = question.lower()
+
+    # Fix 0: project name cleanup - Groq sometimes includes the relational noun
+    # from phrasing like "on Project Riggs Tree" as part of the project value,
+    # which turns a broad LIKE into an overly specific miss.
+    if domain == "project":
+        normalized_filters = []
+        for filter_item in filters:
+            if filter_item.get("field") == "project_name":
+                values = []
+                for value in filter_item.get("values", []):
+                    cleaned = value.strip()
+                    if cleaned.lower().startswith("project ") and (
+                        " on project " in f" {question_lower} "
+                        or " for project " in f" {question_lower} "
+                    ):
+                        cleaned = cleaned[8:].strip()
+                    values.append(cleaned)
+                normalized_filters.append({**filter_item, "values": values})
+            else:
+                normalized_filters.append(filter_item)
+        filters = normalized_filters
     
     # Fix 1: resource_skills_list - "skills of {name}" pattern
     if intent == "resource_skills_list" and domain == "resource":

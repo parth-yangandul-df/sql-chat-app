@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 import httpx
 
 from app.config import settings
+from app.core.exceptions import raise_if_provider_rate_limited
 from app.llm.base_provider import (
     BaseLLMProvider,
     LLMConfig,
@@ -91,6 +92,9 @@ class OllamaProvider(BaseLLMProvider):
                 f"Cannot connect to Ollama at {settings.ollama_llm_base_url or settings.ollama_base_url}. "
                 "Is Ollama running? Start it with: ollama serve"
             ) from err
+        except httpx.HTTPStatusError as err:
+            raise_if_provider_rate_limited(err, "Ollama")
+            raise
         elapsed_ms = (time.monotonic() - start) * 1000
 
         data = resp.json()
@@ -140,6 +144,9 @@ class OllamaProvider(BaseLLMProvider):
                 f"Cannot connect to Ollama at {settings.ollama_llm_base_url or settings.ollama_base_url}. "
                 "Is Ollama running? Start it with: ollama serve"
             ) from err
+        except httpx.HTTPStatusError as err:
+            raise_if_provider_rate_limited(err, "Ollama")
+            raise
 
     async def generate_embedding(self, text: str) -> list[float]:
         """Generate embeddings using Ollama's embedding endpoint.
@@ -152,6 +159,7 @@ class OllamaProvider(BaseLLMProvider):
         try:
             return await self._embed_new_api(text, model)
         except httpx.HTTPStatusError as err:
+            raise_if_provider_rate_limited(err, "Ollama")
             if err.response.status_code == 404:
                 return await self._embed_legacy_api(text, model)
             raise
@@ -188,6 +196,9 @@ class OllamaProvider(BaseLLMProvider):
                 f"Cannot connect to Ollama at {settings.ollama_base_url}. "
                 "Is Ollama running? Start it with: ollama serve"
             ) from err
+        except httpx.HTTPStatusError as err:
+            raise_if_provider_rate_limited(err, "Ollama")
+            raise
         data = resp.json()
         embedding = data.get("embedding", [])
         if not embedding:

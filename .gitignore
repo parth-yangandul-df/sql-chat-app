@@ -93,3 +93,6 @@ graphify-out
 .planning/
 .truecourse/
 opencode.json
+
+test_connection.ipynb
+github-pr.md

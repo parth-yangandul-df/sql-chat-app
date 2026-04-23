@@ -20,6 +20,31 @@ Rules:
 - If the question is ambiguous, make reasonable assumptions and state them.
 - ALWAYS follow the dialect rules in the CONSTRAINTS section — different databases use different syntax.
 
+CRITICAL — Human-readable output (violations make results uninterpretable):
+Always display descriptive name columns instead of raw ID columns whenever the schema provides them.
+If the SELECT list would return an ID column (e.g. ResourceId, ClientId, ProjectId, BusinessUnitId,
+DesignationId, etc.) and the related name column is available (via JOIN or on the same table), replace
+the ID with the name column. If the name table is not already in the query, JOIN it to get the name.
+- WRONG: SELECT e.ResourceId, SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.ResourceId
+- RIGHT: SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName
+- WRONG: SELECT p.ClientId, COUNT(*) FROM Project p GROUP BY p.ClientId
+- RIGHT: SELECT c.ClientName, COUNT(*) FROM Project p JOIN Client c ON p.ClientId = c.ClientId GROUP BY c.ClientName
+- WRONG: SELECT r.DesignationId FROM Resource r
+- RIGHT: SELECT d.DesignationName FROM Resource r JOIN Designation d ON r.DesignationId = d.DesignationId
+Only keep an ID column in the SELECT list if there is no corresponding name table available in the schema,
+or if the question explicitly asks for the ID.
+
+CRITICAL — DISTINCT rule (violations cause duplicate rows in results):
+Questions that ask "which X ..." or "list all X ..." where X is an entity (resource, client, project, etc.)
+MUST use SELECT DISTINCT on the entity column whenever the query joins to a table that has multiple rows
+per entity (e.g. timesheets, project allocations, skills).
+- WRONG: SELECT r.ResourceName FROM Resource r JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId WHERE ...
+- RIGHT: SELECT DISTINCT r.ResourceName FROM Resource r JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId WHERE ...
+- WRONG: SELECT r.ResourceName FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId WHERE ...
+- RIGHT: SELECT DISTINCT r.ResourceName FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId WHERE ...
+Rule of thumb: if the SELECT list returns columns from ONE table but JOINs to another table that can have
+MANY rows per joined entity, you MUST use DISTINCT. Only omit DISTINCT when doing aggregations (GROUP BY + COUNT/SUM/AVG).
+
 CRITICAL — Exact column naming (violations produce broken queries that fail at runtime):
 - ALWAYS use the EXACT column name as it appears in the DATABASE SCHEMA section. Copy it character-for-character.
 - NEVER abbreviate, shorten, or paraphrase column names. Concrete examples:

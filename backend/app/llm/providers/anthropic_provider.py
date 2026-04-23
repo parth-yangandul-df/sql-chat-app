@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 
 import anthropic
 
+from app.core.exceptions import raise_if_provider_rate_limited
 from app.llm.base_provider import (
     BaseLLMProvider,
     LLMConfig,
@@ -43,7 +44,11 @@ class AnthropicProvider(BaseLLMProvider):
         if config.stop_sequences:
             kwargs["stop_sequences"] = config.stop_sequences
 
-        response = await self._client.messages.create(**kwargs)
+        try:
+            response = await self._client.messages.create(**kwargs)
+        except Exception as err:
+            raise_if_provider_rate_limited(err, "Anthropic")
+            raise
         elapsed_ms = (time.monotonic() - start) * 1000
 
         return LLMResponse(
@@ -77,9 +82,13 @@ class AnthropicProvider(BaseLLMProvider):
         if system_msg:
             kwargs["system"] = system_msg
 
-        async with self._client.messages.stream(**kwargs) as stream:
-            async for text in stream.text_stream:
-                yield text
+        try:
+            async with self._client.messages.stream(**kwargs) as stream:
+                async for text in stream.text_stream:
+                    yield text
+        except Exception as err:
+            raise_if_provider_rate_limited(err, "Anthropic")
+            raise
 
     async def generate_embedding(self, text: str) -> list[float]:
         raise NotImplementedError(

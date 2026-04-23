@@ -18,12 +18,16 @@ def test_turn_context_with_all_fields():
         params={"skill": "Python", "limit": 10},
         columns=["Name", "Role"],
         sql="SELECT Name, Role FROM Resources WHERE IsActive=1",
+        question="show active resources",
+        query_plan={"intent": "active_resources"},
     )
     assert ctx.intent == "active_resources"
     assert ctx.domain == "resource"
     assert ctx.params == {"skill": "Python", "limit": 10}
     assert ctx.columns == ["Name", "Role"]
     assert ctx.sql == "SELECT Name, Role FROM Resources WHERE IsActive=1"
+    assert ctx.question == "show active resources"
+    assert ctx.query_plan == {"intent": "active_resources"}
 
 
 def test_turn_context_defaults():
@@ -32,6 +36,8 @@ def test_turn_context_defaults():
     assert ctx.params == {}
     assert ctx.columns == []
     assert ctx.sql == ""
+    assert ctx.question is None
+    assert ctx.query_plan is None
 
 
 # ── QueryRequest backward compatibility ─────────────────────────────────────
