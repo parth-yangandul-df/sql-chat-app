@@ -84,11 +84,11 @@ class Settings(BaseSettings):
     # QueryPlan compiler feature flag (Phase 7)
     use_query_plan_compiler: bool = False  # MIGRATION FLAG: remove after phase validation
 
-    # Groq unified intent + filter extractor (replaces embedding classifier + regex filter_extractor)
-    use_groq_extractor: bool = False  # Enable via USE_GROQ_EXTRACTOR=true in .env
+    # DEPRECATED — Groq path is now the only path
+    use_groq_extractor: bool = True  # DEPRECATED — Groq path is now the only path
 
-    # Hybrid Mode (Phase 8) — context-aware query system with deterministic override
-    use_hybrid_mode: bool = False  # Enable via USE_HYBRID_MODE=true in .env
+    # DEPRECATED — removed in favour of Groq-native path
+    use_hybrid_mode: bool = False  # DEPRECATED — removed in favour of Groq-native path
 
     # Logging
     log_level: str = "INFO"

@@ -192,7 +192,34 @@ async def extract_filters(state: GraphState) -> dict[str, Any]:
     if not domain:
         # No domain classified → LLM fallback path, return empty
         logger.debug("filter_extractor: no domain set, returning empty filters")
-        return {"filters": filters}
+    return {"filters": filters}
+
+
+def validate_groq_filters(domain: str, raw_filters: list[dict]) -> list[dict]:
+    """Validate and normalize Groq-extracted filters against the FieldRegistry.
+
+    Drops filters whose field name is not in the registry for the given domain.
+    Resolves field aliases. Returns only valid, normalized filter dicts.
+    """
+    from app.llm.graph.nodes.field_registry import FIELD_REGISTRY_BY_DOMAIN, resolve_alias
+
+    domain_fields = FIELD_REGISTRY_BY_DOMAIN.get(domain, {})
+    valid = []
+    for f in raw_filters:
+        field = f.get("field", "")
+        # Try alias resolution
+        resolved = resolve_alias(domain, field)
+        if resolved:
+            field = resolved
+        if field not in domain_fields:
+            logger.warning(
+                "validate_groq_filters: field '%s' not in registry for domain '%s' — dropping",
+                field,
+                domain,
+            )
+            continue
+        valid.append({**f, "field": field})
+    return valid
 
     # ── 0. Glossary hint resolution (Plan 04 wiring) ─────────────────────
     # Resolve available field hints from glossary terms to aid disambiguation.

@@ -650,6 +650,10 @@ def compile_query(
             remaining_filters = [f for f in remaining_filters if f.field not in ("skill", "skill_name")]
         else:
             # No skill filter — return all (IsActive=1 still applies from base WHERE)
+            logger.warning(
+                "sql_compiler: {skill_filter} token unresolved for intent=%s — using 1=1 fallback",
+                plan.intent,
+            )
             sql = sql.replace("{skill_filter}", "1=1")
 
     # ── Skip filter application for self-contained intents ───────────────────
