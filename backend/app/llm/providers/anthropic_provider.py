@@ -2,6 +2,7 @@ import time
 from collections.abc import AsyncIterator
 
 import anthropic
+import httpx
 
 from app.core.exceptions import raise_if_provider_rate_limited
 from app.llm.base_provider import (
@@ -11,14 +12,19 @@ from app.llm.base_provider import (
     LLMProviderType,
     LLMResponse,
 )
+from app.llm.retry import llm_retry
 
 
 class AnthropicProvider(BaseLLMProvider):
     provider_type = LLMProviderType.ANTHROPIC
 
     def __init__(self, api_key: str | None = None):
-        self._client = anthropic.AsyncAnthropic(api_key=api_key)
+        self._client = anthropic.AsyncAnthropic(
+            api_key=api_key,
+            timeout=httpx.Timeout(60.0, connect=10.0),
+        )
 
+    @llm_retry()
     async def complete(
         self,
         messages: list[LLMMessage],

@@ -124,7 +124,7 @@ async def test_extract_no_match_returns_empty():
 
 def test_has_person_name_two_capitalized_words():
     """Two consecutive capitalized words trigger person name detection."""
-    from app.llm.graph.nodes.intent_classifier import _has_person_name
+    from app.llm.graph.nodes.classifier_keywords import _has_person_name
 
     assert _has_person_name("Show Gautham R M project assignments")
     assert _has_person_name("John Smith works on Python")
@@ -135,7 +135,7 @@ def test_has_person_name_two_capitalized_words():
 
 def test_has_person_name_single_capitalized_word():
     """Single capitalized word (like "Python" or "SQL") does NOT trigger."""
-    from app.llm.graph.nodes.intent_classifier import _has_person_name
+    from app.llm.graph.nodes.classifier_keywords import _has_person_name
 
     assert not _has_person_name("Show me my Python projects")
     assert not _has_person_name("What is my SQL timesheet")
@@ -144,7 +144,7 @@ def test_has_person_name_single_capitalized_word():
 
 def test_has_person_name_no_names():
     """Questions without person names return False."""
-    from app.llm.graph.nodes.intent_classifier import _has_person_name
+    from app.llm.graph.nodes.classifier_keywords import _has_person_name
 
     assert not _has_person_name("show active resources")
     assert not _has_person_name("what are benched developers")

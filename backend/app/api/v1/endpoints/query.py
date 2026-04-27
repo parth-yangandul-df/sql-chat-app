@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_optional_user
+from app.api.deps import get_current_user
 from app.api.v1.schemas.query import ExecuteSQLRequest, QueryRequest, SQLOnlyResponse
 from app.core.exceptions import AppError, InternalServerError
 from app.db.models.user import User
@@ -43,7 +43,7 @@ def _encode_stream_event(payload: dict) -> str:
 async def execute_query(
     body: QueryRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User | None = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Submit a natural language question and get SQL + results + interpretation."""
     result = await query_service.execute_nl_query(
@@ -63,7 +63,7 @@ async def execute_query(
 async def stream_query(
     body: QueryRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User | None = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Stream coarse-grained NL pipeline progress followed by the final result."""
 
@@ -118,7 +118,7 @@ async def stream_query(
 async def execute_sql(
     body: ExecuteSQLRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User | None = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Execute user-provided SQL directly (no LLM generation)."""
     result = await query_service.execute_raw_sql(
@@ -131,7 +131,7 @@ async def execute_sql(
 async def generate_sql_only(
     body: QueryRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User | None = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Generate SQL without executing it."""
     result = await query_service.generate_sql_only(

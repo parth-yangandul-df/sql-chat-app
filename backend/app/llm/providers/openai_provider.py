@@ -11,14 +11,16 @@ from app.llm.base_provider import (
     LLMProviderType,
     LLMResponse,
 )
+from app.llm.retry import llm_retry
 
 
 class OpenAIProvider(BaseLLMProvider):
     provider_type = LLMProviderType.OPENAI
 
     def __init__(self, api_key: str | None = None):
-        self._client = openai.AsyncOpenAI(api_key=api_key, timeout=30.0)
+        self._client = openai.AsyncOpenAI(api_key=api_key, timeout=60.0)
 
+    @llm_retry()
     async def complete(
         self,
         messages: list[LLMMessage],
@@ -74,6 +76,7 @@ class OpenAIProvider(BaseLLMProvider):
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
+    @llm_retry()
     async def generate_embedding(self, text: str) -> list[float]:
         try:
             response = await self._client.embeddings.create(

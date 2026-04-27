@@ -92,12 +92,22 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
     resource_id = state.get("resource_id")
     employee_id = state.get("employee_id")
 
+    # Preserve prior turn_context for multi-turn after fallback
+    last_turn_context = state.get("last_turn_context")
+    prior_intent = last_turn_context.get("intent") if last_turn_context else None
+    prior_domain = last_turn_context.get("domain") if last_turn_context else None
+
     logger.info(
         "intent=llm_fallback q=%r connector=%s confidence=%.3f resource_id=%s employee_id=%s",
-        question[:80], state.get("connector_type"), state.get("confidence", 0.0), resource_id, employee_id,
+        question[:80],
+        state.get("connector_type"),
+        state.get("confidence", 0.0),
+        resource_id,
+        employee_id,
     )
 
     from app.services.connection_service import get_connection
+
     conn = await get_connection(db, connection_id)
 
     conversation_history = state.get("conversation_history") or []
@@ -120,12 +130,18 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
         # clean current question. History is already injected as proper chat
         # messages by compose() — passing `resolved` would double-encode history.
         # `resolved` is only used above for build_context (schema/table linking).
-        question, prompt_context, conversation_history=conversation_history
+        question,
+        prompt_context,
+        conversation_history=conversation_history,
     )
     generated_sql = composer_output.generated_sql
 
     # If the LLM signalled it cannot scope the query, return a clean refusal
-    if (resource_id is not None or employee_id is not None) and generated_sql and "SCOPE_VIOLATION" in generated_sql.upper():
+    if (
+        (resource_id is not None or employee_id is not None)
+        and generated_sql
+        and "SCOPE_VIOLATION" in generated_sql.upper()
+    ):
         return {
             "error": _SCOPE_VIOLATION_MSG,
             "llm_provider": provider.provider_type.value,
@@ -177,6 +193,7 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
             validation = await validator.validate(final_sql, schema_tables)
 
     from app.services.connection_service import get_decrypted_connection_string
+
     connection_string = get_decrypted_connection_string(conn)
     connector = await get_or_create_connector(
         state["connection_id"], conn.connector_type, connection_string
@@ -197,6 +214,8 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
             "llm_provider": provider.provider_type.value,
             "llm_model": llm_config.model,
             "explanation": composer_output.explanation,
+            "intent": prior_intent,  # Preserve for turn_context
+            "domain": prior_domain,  # Preserve for turn_context
         }
 
     return {
@@ -208,4 +227,6 @@ async def llm_fallback(state: GraphState) -> dict[str, Any]:
         "llm_provider": provider.provider_type.value,
         "llm_model": llm_config.model,
         "explanation": composer_output.explanation,
+        "intent": prior_intent,  # Preserve for turn_context
+        "domain": prior_domain,  # Preserve for turn_context
     }

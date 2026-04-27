@@ -6,29 +6,27 @@ export function getApiBaseUrl() {
   return sessionStorage.getItem('qw_api_url') || API_BASE
 }
 
-export function getAuthToken() {
-  let token = sessionStorage.getItem('qw_auth_token')
-  if (!token) {
-    const urlToken = new URLSearchParams(window.location.search).get('token')
-    if (urlToken) {
-      token = urlToken
-      sessionStorage.setItem('qw_auth_token', urlToken)
-    }
-  }
-  return token
+/** Read a cookie value by name (non-HttpOnly cookies only). */
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
 }
 
 export const api = axios.create({
   baseURL: `${API_BASE}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
+  // Send HttpOnly cookies automatically on every cross-origin request
+  withCredentials: true,
 })
 
-// Widget: reads sessionStorage on every request so Angular can set these before any call fires.
-// Fallback: if sessionStorage is empty (e.g. timing edge on first render), read ?token= from URL directly.
+// Widget: resolves base URL from sessionStorage on every request (Angular sets it before first call).
+// Attaches CSRF token header for mutating requests.
 api.interceptors.request.use((config) => {
   config.baseURL = `${getApiBaseUrl()}/api/v1`
-  const token = getAuthToken()
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  const csrfToken = getCookie('csrf_token')
+  if (csrfToken) {
+    config.headers['X-CSRF-Token'] = csrfToken
+  }
   return config
 })
 

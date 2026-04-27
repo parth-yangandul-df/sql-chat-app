@@ -21,6 +21,7 @@ from typing import Any
 from app.config import settings
 from app.llm.base_provider import LLMConfig, LLMMessage
 from app.llm.graph.intent_catalog import INTENT_CATALOG
+from app.llm.graph.nodes.classifier_keywords import _keyword_route
 from app.llm.graph.nodes.field_registry import FIELD_REGISTRY_BY_DOMAIN
 from app.llm.graph.nodes.intent_classifier import _is_refinement_followup, _semantic_followup_check
 from app.llm.graph.nodes.sql_compiler import BASE_QUERIES, NO_FILTER_INTENTS
@@ -34,26 +35,33 @@ logger = logging.getLogger(__name__)
 # Error recovery — parse failed_generation from Groq error response
 # ---------------------------------------------------------------------------
 
+
 def _parse_failed_generation(error_str: str) -> dict | None:
     """Extract intent/filters from Groq's failed_generation error response.
-    
+
     Groq returns partial model output in the 'failed_generation' field when
     tool calling fails. We can recover valid intent/filters from it.
     """
-    # Groq error format: "... 'failed_generation': '<function=...>{\"intent\": ..., ...}'"
-    match = re.search(r"'failed_generation': '<function=\w+>(.+?)'", error_str, re.DOTALL)
+    import re as _re
+
+    # Find the start of the JSON payload after '<function=name>'
+    match = _re.search(r"'failed_generation':\s*'<function=\w+>\s*", error_str)
     if not match:
         return None
-    try:
-        # The captured group may have trailing garbage, try to extract valid JSON
-        json_str = match.group(1).rstrip(">")
-        return json.loads(json_str)
-    except json.JSONDecodeError:
+    start = error_str.find("{", match.end())
+    if start == -1:
         return None
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(error_str, start)
+        return obj if isinstance(obj, dict) else None
+    except (json.JSONDecodeError, ValueError):
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Tool schema — built once at module load from live catalog + registry
 # ---------------------------------------------------------------------------
+
 
 def _build_tool_schema() -> list[dict]:
     """Build Groq tool calling schema from INTENT_CATALOG descriptions and FIELD_REGISTRY."""
@@ -83,7 +91,9 @@ def _build_tool_schema() -> list[dict]:
     # Build field catalog as one compact line per domain
     domain_field_lines: list[str] = []
     for domain, fields in FIELD_REGISTRY_BY_DOMAIN.items():
-        field_parts = [f"{fname}[{fc.sql_type[0]}]" for fname, fc in fields.items()]  # e.g. skill[t], billable[b]
+        field_parts = [
+            f"{fname}[{fc.sql_type[0]}]" for fname, fc in fields.items()
+        ]  # e.g. skill[t], billable[b]
         domain_field_lines.append(f"  {domain}: {', '.join(field_parts)}")
     field_catalog_str = "\n".join(domain_field_lines)
 
@@ -110,7 +120,14 @@ def _build_tool_schema() -> list[dict]:
                         },
                         "domain": {
                             "type": "string",
-                            "enum": ["resource", "client", "project", "timesheet", "user_self", "unknown"],
+                            "enum": [
+                                "resource",
+                                "client",
+                                "project",
+                                "timesheet",
+                                "user_self",
+                                "unknown",
+                            ],
                             "description": "Domain that the intent belongs to, or 'unknown' if the intent is unknown.",
                         },
                         "confidence": {
@@ -190,9 +207,10 @@ _SYSTEM_PROMPT = (
 # Post-processing heuristics — fix common extraction failures
 # ---------------------------------------------------------------------------
 
+
 def _post_process_extraction(args: dict, question: str) -> dict:
     """Fix common extraction failures with pattern matching heuristics.
-    
+
     This catches cases where Groq doesn't extract filters correctly.
     """
     intent = args.get("intent", "")
@@ -220,7 +238,7 @@ def _post_process_extraction(args: dict, question: str) -> dict:
             else:
                 normalized_filters.append(filter_item)
         filters = normalized_filters
-    
+
     # Fix 1: resource_skills_list - "skills of {name}" pattern
     if intent == "resource_skills_list" and domain == "resource":
         # Check if question has "skills of {person}" pattern
@@ -230,35 +248,40 @@ def _post_process_extraction(args: dict, question: str) -> dict:
             # Check if we already have a resource_name filter
             if not any(f.get("field") == "resource_name" for f in filters):
                 filters.append({"field": "resource_name", "op": "eq", "values": [name]})
-    
+
     # Fix 2: resource_by_skill - common skill names
     if intent == "resource_by_skill" and not any(f.get("field") == "skill" for f in filters):
         skill_pattern = r"\b(python|java|react|angular|sql|javascript|typescript|\.net|nodejs|golang|rust|php|swift|kotlin|docker|kubernetes|aws|azure|gcp)\b"
         if match := re.search(skill_pattern, question_lower):
             skill = match.group(1).capitalize()
             filters.append({"field": "skill", "op": "eq", "values": [skill]})
-    
+
     # Fix 3: project_by_client - "projects for {client}" pattern
     if intent == "project_by_client" and not any(f.get("field") == "client_name" for f in filters):
-        client_pattern = r"(?:projects?\s+(?:for|of)\s+|client\s+)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)"
+        client_pattern = (
+            r"(?:projects?\s+(?:for|of)\s+|client\s+)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)"
+        )
         if match := re.search(client_pattern, question, re.IGNORECASE):
             client = match.group(1).strip()
             filters.append({"field": "client_name", "op": "eq", "values": [client]})
-    
+
     # Fix 4: timesheet_by_period - date range patterns
-    if intent == "timesheet_by_period" and not any(f.get("field") in ("start_date", "end_date") for f in filters):
+    if intent == "timesheet_by_period" and not any(
+        f.get("field") in ("start_date", "end_date") for f in filters
+    ):
         # Try to extract date patterns
         date_pattern = r"(?:last\s+)?(week|month|year)|(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})"
         if match := re.search(date_pattern, question_lower):
             if match.group(1):  # "last week", "last month"
                 # Would add date filters here based on period: match.group(1)
                 pass
-    
+
     return {
         "intent": intent,
         "domain": domain,
         "filters": filters,
     }
+
 
 # ---------------------------------------------------------------------------
 # Main extraction function
@@ -283,13 +306,35 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
     user_role = state.get("user_role")
     last_turn_context = state.get("last_turn_context")
 
+    # ── 0. Keyword pre-check (BEFORE refinement follow-up) ─────────────────────
+    keyword_result = _keyword_route(question)
+    if keyword_result:
+        intent, domain = keyword_result
+        logger.info(
+            "groq_extractor: keyword_precheck q=%r → intent=%s domain=%s",
+            question[:80],
+            intent,
+            domain,
+        )
+        # RBAC gate: user role cannot access cross-user domains
+        if user_role == "user" and domain != "user_self":
+            return {"domain": None, "intent": None, "confidence": 0.0, "filters": []}
+        return {
+            "domain": domain,
+            "intent": intent,
+            "confidence": 0.98,
+            "filters": [],
+        }
+
     # ── 1. Refinement follow-up fast path ──────────────────────────────────
     if _is_refinement_followup(question, last_turn_context):
         inherited_domain = last_turn_context["domain"]  # type: ignore[index]
         inherited_intent = last_turn_context["intent"]  # type: ignore[index]
         logger.info(
             "groq_extractor: followup_detected q=%r → inheriting intent=%s domain=%s",
-            question[:80], inherited_intent, inherited_domain,
+            question[:80],
+            inherited_intent,
+            inherited_domain,
         )
         if user_role == "user" and inherited_domain != "user_self":
             return {"domain": None, "intent": None, "confidence": 0.0, "filters": []}
@@ -308,7 +353,9 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
             inherited_intent = last_turn_context["intent"]
             logger.info(
                 "groq_extractor: semantic_followup q=%r → inheriting intent=%s domain=%s",
-                question[:80], inherited_intent, inherited_domain,
+                question[:80],
+                inherited_intent,
+                inherited_domain,
             )
             if user_role == "user" and inherited_domain != "user_self":
                 return {"domain": None, "intent": None, "confidence": 0.0, "filters": []}
@@ -332,8 +379,8 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
     ]
     config = LLMConfig(
         model=settings.groq_model,
-        temperature=0.0,   # deterministic extraction
-        max_tokens=512,    # tool call response is small
+        temperature=0.0,  # deterministic extraction
+        max_tokens=512,  # tool call response is small
         top_p=1.0,
     )
 
@@ -343,13 +390,18 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
         args = result["arguments"]
         latency_ms = result["latency_ms"]
     except Exception as e:
+        from app.core.exceptions import RateLimitError as _RateLimitError
+
+        if isinstance(e, _RateLimitError):
+            raise  # let @llm_retry() on complete_with_tools handle it
         error_str = str(e)
         # Try to recover from failed_generation in the error response
         recovered = _parse_failed_generation(error_str)
         if recovered:
             logger.info(
                 "groq_extractor: recovered from failed_generation intent=%s domain=%s",
-                recovered.get("intent"), recovered.get("domain"),
+                recovered.get("intent"),
+                recovered.get("domain"),
             )
             return {
                 "domain": recovered.get("domain"),
@@ -378,14 +430,20 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
 
     logger.info(
         "groq_extractor: q=%r intent=%s domain=%s confidence=%.2f filters=%d latency=%.0fms",
-        question[:80], intent, domain, confidence, len(raw_filters), latency_ms,
+        question[:80],
+        intent,
+        domain,
+        confidence,
+        len(raw_filters),
+        latency_ms,
     )
 
     # ── 3. RBAC gate ────────────────────────────────────────────────────────
     if user_role == "user" and domain != "user_self":
         logger.info(
             "groq_extractor: rbac_gate role=user domain=%s intent=%s → llm_fallback",
-            domain, intent,
+            domain,
+            intent,
         )
         return {"domain": None, "intent": None, "confidence": 0.0, "filters": []}
 
@@ -409,7 +467,8 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
         if field_name not in domain_fields:
             logger.warning(
                 "groq_extractor: field '%s' not in registry for domain '%s' — dropping",
-                field_name, domain,
+                field_name,
+                domain,
             )
             continue
 
@@ -421,11 +480,24 @@ async def groq_extract(state: GraphState) -> dict[str, Any]:
             continue
 
     # Normalize 'unknown' intent/domain to None so llm_fallback generates fresh SQL
-    # without trying to look up a domain agent or use a prior SQL template.
+    # Try keyword recovery as last-resort before llm_fallback
     if intent == "unknown" or domain == "unknown":
-        intent = None
-        domain = None
-        confidence = 0.0
+        keyword_result = _keyword_route(question)
+        if keyword_result:
+            intent, domain = keyword_result
+            confidence = 0.75  # Higher than <0.6 threshold to reach domain tool
+            logger.info(
+                "groq_extractor: keyword_recovery intent=unknown → keyword_match intent=%s domain=%s",
+                intent,
+                domain,
+            )
+            # RBAC gate
+            if user_role == "user" and domain != "user_self":
+                return {"domain": None, "intent": None, "confidence": 0.0, "filters": []}
+        else:
+            intent = None
+            domain = None
+            confidence = 0.0
 
     return {
         "domain": domain,

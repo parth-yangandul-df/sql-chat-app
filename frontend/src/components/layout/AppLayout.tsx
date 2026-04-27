@@ -13,7 +13,8 @@ import {
 } from '@tabler/icons-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { EmbeddingStatusBanner } from '../common/EmbeddingStatusBanner';
-import { clearToken, getToken } from '../../utils/auth';
+import { clearUserInfo, getUserInfo } from '../../utils/auth';
+import { api } from '../../api/client';
 
 const NAV_ITEMS = [
   { label: 'Query', path: '/query', icon: IconMessageQuestion },
@@ -31,23 +32,22 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Decode JWT to get user role
-  const token = getToken();
-  let userRole = 'user';
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      userRole = payload.role || 'user';
-    } catch { /* ignore */ }
-  }
+  // Role is stored in localStorage from the login response body (token is HttpOnly — not accessible to JS)
+  const userInfo = getUserInfo();
+  const userRole = userInfo?.role ?? 'user';
 
   // Filter nav items based on role
   const visibleNavItems = NAV_ITEMS.filter(
     (item) => !item.adminOnly || userRole === 'admin'
   );
 
-  function handleSignOut() {
-    clearToken();
+  async function handleSignOut() {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Best-effort — clear local state regardless
+    }
+    clearUserInfo();
     navigate('/login', { replace: true });
   }
 
@@ -68,7 +68,7 @@ export function AppLayout() {
             </Text>
           </Group>
           <Tooltip label="Sign out" position="left">
-            <ActionIcon variant="subtle" color="gray" onClick={handleSignOut} aria-label="Sign out">
+            <ActionIcon variant="subtle" color="gray" onClick={() => void handleSignOut()} aria-label="Sign out">
               <IconLogout size={18} stroke={1.5} />
             </ActionIcon>
           </Tooltip>

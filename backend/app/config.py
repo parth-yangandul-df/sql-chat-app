@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://querywise:querywise_dev@localhost:5432/querywise"
 
     # Security
-    encryption_key: str = "dev-encryption-key-change-in-production"
+    encryption_key: str
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://localhost:5174",
@@ -68,7 +68,10 @@ class Settings(BaseSettings):
     # Embedding provider override (leave empty to auto-derive from default_llm_provider)
     # Set to "ollama" to use Ollama for embeddings while using a different provider for LLM.
     # Valid values: "", "openai", "ollama", "anthropic"
-    embedding_provider: str
+    embedding_provider: str = ""
+
+    # Auto-setup sample DB (only enable in development/demo)
+    auto_setup_sample_db: bool = False
 
     # Rate limiting
     max_queries_per_minute: int = 30
@@ -79,7 +82,7 @@ class Settings(BaseSettings):
     embedding_dimension: int = 1536
 
     # QueryPlan compiler feature flag (Phase 7)
-    use_query_plan_compiler: bool   # MIGRATION FLAG: remove after phase validation
+    use_query_plan_compiler: bool = False  # MIGRATION FLAG: remove after phase validation
 
     # Groq unified intent + filter extractor (replaces embedding classifier + regex filter_extractor)
     use_groq_extractor: bool = False  # Enable via USE_GROQ_EXTRACTOR=true in .env

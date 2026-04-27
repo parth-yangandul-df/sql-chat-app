@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_optional_user, require_role
+from app.api.deps import get_current_user, get_optional_user, require_role
 from app.core.exceptions import NotFoundError
 from app.db.models.sample_query import SampleQuery
 from app.db.models.user import User

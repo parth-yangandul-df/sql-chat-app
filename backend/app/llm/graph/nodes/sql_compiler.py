@@ -37,9 +37,12 @@ NO_FILTER_INTENTS: frozenset[str] = frozenset({
     "active_clients",         # hardcoded WHERE c.IsActive = 1 AND c.StatusId = 2
     "approved_timesheets",    # hardcoded approval flags
     "unapproved_timesheets",  # hardcoded unapproved flags
-    "my_utilization",         # hardcoded self-contained SQL with EmployeeId parameter
+    "my_utilization",         # self-contained SQL; EmployeeId param (string)
     "reports_to",             # manager name baked into WHERE via param; no extra filters
 })
+
+# Intents that use EmployeeId (string) instead of ResourceId (integer PK)
+_EMPLOYEE_ID_INTENTS: frozenset[str] = frozenset({"my_timesheets", "my_utilization"})
 
 
 # ---------------------------------------------------------------------------
@@ -312,7 +315,7 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT ts.Title, ts.Category, ts.Activity, ts.[Effort Hours], ts.[File Date]{select_extras} "
         "FROM TS_Timesheet_Report ts "
         "JOIN Resource r ON r.EmployeeId = ts.[Emp ID]{join_extras} "
-        "WHERE CAST(r.EmployeeId AS INT) = ? "
+        "WHERE r.EmployeeId = ? "
         "ORDER BY ts.[File Date] DESC"
     ),
 
@@ -327,7 +330,7 @@ BASE_QUERIES: dict[str, str] = {
         "SELECT ts.Title, SUM(ts.[Effort Hours]) AS TotalHours, ts.[File Date]{select_extras} "
         "FROM TS_Timesheet_Report ts "
         "JOIN Resource r ON r.EmployeeId = ts.[Emp ID]{join_extras} "
-        "WHERE CAST(r.EmployeeId AS INT) = ? "
+        "WHERE r.EmployeeId = ? "
         "GROUP BY ts.Title, ts.[File Date] "
         "ORDER BY ts.[File Date] DESC"
     ),
@@ -550,6 +553,7 @@ def build_filter_clause(
 def compile_query(
     plan: QueryPlan,
     resource_id: int | None = None,
+    employee_id: str | None = None,
     select_extras: str = "",
     join_extras: str = "",
     metrics: list[MetricFragment] | None = None,
@@ -558,7 +562,8 @@ def compile_query(
 
     Args:
         plan: The validated QueryPlan (domain, intent, filters).
-        resource_id: Required for user_self domain (RBAC guard).
+        resource_id: Required for user_self intents that join on ResourceId (int PK).
+        employee_id: Required for user_self intents that join on EmployeeId (string column).
         select_extras: Additional SELECT columns to inject at {select_extras} token.
         join_extras: Additional JOIN clauses to inject at {join_extras} token.
         metrics: Optional list of MetricFragment for aggregation injection.
@@ -569,15 +574,21 @@ def compile_query(
         (sql, params_tuple) — ready for connector.execute_query().
 
     Raises:
-        ValueError: If plan.domain == "user_self" and resource_id is None.
+        ValueError: If plan.domain == "user_self" and required ID is None.
         ValueError: If plan.intent is not found in BASE_QUERIES.
     """
-    # ── RBAC guard: user_self requires resource_id ─────────────────────────
-    if plan.domain == "user_self" and resource_id is None:
-        raise ValueError(
-            "compile_query: user_self domain requires resource_id — "
-            "this should only be reached by authenticated 'user' role accounts."
-        )
+    # ── RBAC guard: user_self requires resource_id or employee_id ─────────
+    if plan.domain == "user_self":
+        if plan.intent in _EMPLOYEE_ID_INTENTS and employee_id is None:
+            raise ValueError(
+                f"compile_query: user_self intent '{plan.intent}' requires employee_id — "
+                "EmployeeId is a string column, not an integer ResourceId."
+            )
+        if plan.intent not in _EMPLOYEE_ID_INTENTS and resource_id is None:
+            raise ValueError(
+                "compile_query: user_self domain requires resource_id — "
+                "this should only be reached by authenticated 'user' role accounts."
+            )
 
     # ── Look up base SQL template ──────────────────────────────────────────
     base_sql = BASE_QUERIES.get(plan.intent)
@@ -684,9 +695,10 @@ def compile_query(
 
     # ── Assemble final SQL ─────────────────────────────────────────────────
     # For user_self intents: the base SQL already contains "WHERE ... = ?"
-    # with resource_id as the first param.
+    # with the appropriate ID (resource_id int or employee_id string) as the first param.
     if plan.domain == "user_self":
-        base_params: tuple = (resource_id,)
+        user_self_id = employee_id if plan.intent in _EMPLOYEE_ID_INTENTS else resource_id
+        base_params: tuple = (user_self_id,)
 
         if where_fragments:
             additional = " AND ".join(where_fragments)

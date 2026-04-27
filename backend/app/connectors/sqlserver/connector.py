@@ -1,10 +1,18 @@
 """SQL Server connector for QueryWise — Azure SQL via ODBC Driver 18.
 
 Connection string format (enter in the UI):
-    DRIVER={ODBC Driver 18 for SQL Server};SERVER=tcp:{server}.database.windows.net,1433;
-    DATABASE={db};UID={user};PWD={password};Encrypt=yes;TrustServerCertificate=yes;
+    DRIVER={ODBC Driver 18 for SQL Server};Server={server}.database.windows.net;
+    Database={db};UID={user};PWD={password};Encrypt=yes;TrustServerCertificate=no;
+
+    For Azure SQL (recommended):
+        TrustServerCertificate=no  — validates the Azure CA-signed cert (correct for Azure SQL)
+        TrustServerCertificate=yes — skips cert validation (use only for on-prem/self-signed certs)
 
 Falls back to ODBC Driver 17 automatically if Driver 18 is not installed.
+
+**Security note:** SQL Server connections should use a read-only database role.
+All queries are executed within a transaction that is always rolled back, ensuring
+no DML statements can persist even if they bypass the SQL blocklist.
 """
 
 import asyncio
@@ -12,6 +20,7 @@ import time
 from typing import Any
 
 import aioodbc
+from loguru import logger
 
 from app.connectors.base_connector import (
     BaseConnector,
@@ -311,7 +320,7 @@ class SQLServerConnector(BaseConnector):
         start = time.monotonic()
         try:
             result = await asyncio.wait_for(
-                self._run_query(wrapped_sql, params),
+                self._run_query_readonly(wrapped_sql, params),
                 timeout=timeout_seconds,
             )
         except TimeoutError as e:
@@ -331,6 +340,41 @@ class SQLServerConnector(BaseConnector):
             execution_time_ms=elapsed_ms,
             truncated=truncated,
         )
+
+    async def _run_query_readonly(
+        self, sql: str, params: tuple[Any, ...] | None = None
+    ) -> tuple[list[Any], list[str], list[str]]:
+        """Execute a query inside a transaction that always rolls back.
+
+        This ensures no writes can ever persist, even if the SQL contains
+        DML statements that bypass the blocklist.
+        """
+        if self._pool is None:
+            raise ConnectionError("Connector not connected — call connect() first")
+        async with self._pool.acquire() as conn:
+            # Begin a transaction, execute, then always rollback
+            await conn.execute("BEGIN TRANSACTION")
+            try:
+                cursor = await conn.cursor()
+                try:
+                    if params:
+                        await cursor.execute(sql, params)
+                    else:
+                        await cursor.execute(sql)
+                    rows = await cursor.fetchall()
+                    if not rows:
+                        return [], [], []
+                    col_names = [desc[0] for desc in cursor.description]
+                    col_types = [_mssql_type_name(desc[1]) for desc in cursor.description]
+                    return rows, col_names, col_types
+                finally:
+                    await cursor.close()
+            finally:
+                # Always rollback — never commit, ensuring read-only safety
+                try:
+                    await conn.execute("ROLLBACK TRANSACTION")
+                except Exception:
+                    pass
 
     async def _run_query(
         self, sql: str, params: tuple[Any, ...] | None = None

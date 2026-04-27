@@ -11,25 +11,32 @@ from app.llm.base_provider import (
     LLMProviderType,
     LLMResponse,
 )
+from app.llm.retry import llm_retry
 
 
 class GroqProvider(BaseLLMProvider):
     provider_type = LLMProviderType.GROQ
 
     def __init__(self, api_key: str | None = None):
-        if api_key is None:
-            api_key = "placeholder-api-key"
+        if not api_key:
+            raise ValueError(
+                "GROQ_API_KEY not configured — set GROQ_API_KEY in environment "
+                "or use a different provider"
+            )
         self._client = openai.AsyncOpenAI(
             api_key=api_key,
             base_url="https://api.groq.com/openai/v1",
             timeout=30.0,
         )
 
+    @llm_retry()
     async def complete(
         self,
         messages: list[LLMMessage],
         config: LLMConfig,
     ) -> LLMResponse:
+        if not self._client.api_key:
+            raise ValueError("GROQ_API_KEY not configured")
         oai_messages = [{"role": m.role, "content": m.content} for m in messages]
 
         start = time.monotonic()
@@ -57,6 +64,7 @@ class GroqProvider(BaseLLMProvider):
             latency_ms=elapsed_ms,
         )
 
+    @llm_retry()
     async def complete_with_tools(
         self,
         messages: list[LLMMessage],
@@ -83,6 +91,12 @@ class GroqProvider(BaseLLMProvider):
                 top_p=config.top_p,
             )
         except Exception as err:
+            import logging as _logging
+            _logging.getLogger(__name__).debug(
+                "Groq complete_with_tools error (status=%s): %s",
+                getattr(err, "status_code", "?"),
+                err,
+            )
             raise_if_provider_rate_limited(err, "Groq")
             raise
         elapsed_ms = (time.monotonic() - start) * 1000
@@ -110,6 +124,7 @@ class GroqProvider(BaseLLMProvider):
             "output_tokens": response.usage.completion_tokens if response.usage else 0,
         }
 
+    @llm_retry()
     async def stream(
         self,
         messages: list[LLMMessage],

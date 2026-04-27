@@ -4,7 +4,7 @@ import { queryApi, type ConversationTurn, type QueryStageEvent } from '@/api/que
 import { sessionApi } from '@/api/sessionApi'
 import { PureMultimodalInput } from '@/components/ui/multimodal-ai-chat-input'
 import { SpotlightTable } from '@/components/ui/spotlight-table'
-import { RecentQuestions, saveRecentQuestion } from '@/components/widget/RecentQuestions'
+import { RecentQuestions, saveRecentQuestion } from '@/components/RecentQuestions'
 import { loadPersistedChatMessages, persistChatMessages } from '@/lib/chat-session-cache'
 import type { QueryResult, ChatSessionMessage, TurnContext } from '@/types/api'
 import {
@@ -22,8 +22,8 @@ import {
 // ── Constants ──────────────────────────────────────────────────────────────────
 const CONVERSATION_HISTORY_TURNS = 3
 const SESSION_STORAGE_KEY = 'qw_session_id'
-const MIN_PIPELINE_VISIBILITY_MS = 1100
-const STAGE_TIMELINE_FRACTIONS = [0, 0.25, 0.5, 0.75] as const
+const MIN_PIPELINE_VISIBILITY_MS = 5000
+const STAGE_TIMELINE_FRACTIONS = [0, 0.25, 0.55, 0.80] as const
 const PIPELINE_STAGES: QueryStageEvent[] = [
   { type: 'stage', stage: 'extracting', label: 'Extracting', progress: 25 },
   { type: 'stage', stage: 'composing', label: 'Composing', progress: 50 },
@@ -415,7 +415,7 @@ export function StandaloneChatPage() {
       history: ConversationTurn[]
     }) => {
       const startedAt = Date.now()
-      const result = await queryApi.executeStream(
+      const result = await queryApi.execute(
         {
           connection_id: connectionId,
           question,
@@ -423,7 +423,6 @@ export function StandaloneChatPage() {
           conversation_history: history,
           last_turn_context: lastTurnContext ?? undefined,
         },
-        () => {},
       )
 
       const remaining = MIN_PIPELINE_VISIBILITY_MS - (Date.now() - startedAt)

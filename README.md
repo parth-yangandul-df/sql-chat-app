@@ -60,6 +60,8 @@ A full-stack application that translates natural language questions into SQL que
 - Docker and Docker Compose
 - An LLM API key (Anthropic and/or OpenAI) **or** Ollama for fully local operation
 
+> 📖 **For detailed step-by-step instructions**, see the [Onboarding Guide](docs/onboarding-guide.md).
+
 ### Run with Docker
 
 ```bash
@@ -277,41 +279,6 @@ For development, `docker compose up app-db` starts the app database without the 
 | `JWT_SECRET` | — | JWT authentication secret key |
 | `JWT_ALGORITHM` | `HS256` | JWT algorithm |
 | `JWT_EXPIRY_SECONDS` | `3600` | JWT token expiry in seconds |
-
----
-
-## Angular Widget Integration
-
-QueryWise provides a self-contained IIFE widget that can be integrated into any web application, including Angular. The widget is built from the chatbot-frontend and exposes the QueryWise chat interface via a single script tag.
-
-### Building the Widget
-
-```bash
-# Build the IIFE bundle from chatbot-frontend/
-npm run build:widget
-```
-
-This creates `querywise-chat.js` in the chatbot-frontend dist folder.
-
-### Integration
-
-Add the widget to any HTML page:
-
-```html
-<script src="https://your-host/querywise-chat.js"></script>
-<script>
-  // Initialize the widget
-  QueryWiseChat.init({
-    apiUrl: 'http://localhost:8000',  // Your backend URL
-    container: '#querywise-container', // DOM element to render into
-    theme: 'light'                    // or 'dark'
-  });
-</script>
-```
-
-### Testing
-
-The `angular-test/` directory contains an Angular 21 application used for testing and demonstrating the widget integration in an Angular context.
 
 ---
 

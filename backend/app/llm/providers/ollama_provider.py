@@ -15,6 +15,7 @@ from app.llm.base_provider import (
     LLMProviderType,
     LLMResponse,
 )
+from app.llm.retry import llm_retry
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -53,14 +54,15 @@ class OllamaProvider(BaseLLMProvider):
         # Separate clients: LLM client (possibly cloud + auth), embedding client (local, no auth)
         self._client = httpx.AsyncClient(
             base_url=llm_base_url,
-            timeout=120.0,
+            timeout=60.0,
             headers=llm_headers,
         )
         self._embed_client = httpx.AsyncClient(
             base_url=embedding_base_url,
-            timeout=120.0,
+            timeout=60.0,
         )
 
+    @llm_retry()
     async def complete(
         self,
         messages: list[LLMMessage],
@@ -148,6 +150,7 @@ class OllamaProvider(BaseLLMProvider):
             raise_if_provider_rate_limited(err, "Ollama")
             raise
 
+    @llm_retry()
     async def generate_embedding(self, text: str) -> list[float]:
         """Generate embeddings using Ollama's embedding endpoint.
 

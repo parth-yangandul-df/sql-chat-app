@@ -11,6 +11,7 @@ Outputs:
 
 from __future__ import annotations
 
+import contextvars
 import datetime as _dt
 import gzip
 import json
@@ -210,8 +211,8 @@ def setup_logging(
             str(log_dir / f"{app_name}_{{time:YYYY-MM-DD}}.jsonl"),
             format="{extra[_serialized]}\n",
             level="DEBUG",
-            rotation="1 day",
-            retention=_make_retention_fn(log_dir, compress_after_days=10),
+            rotation=rotation,
+            retention=retention,
         )
 
     # Intercept stdlib logging so existing getLogger(__name__) calls work
@@ -229,6 +230,19 @@ def setup_logging(
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
+# Context variable for propagating request IDs through async call chains
+_request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
+
+
+def set_request_id(request_id: str) -> None:
+    """Store the request ID in the current async context for log correlation."""
+    _request_id_ctx.set(request_id)
+
+
 def get_trace_id() -> str:
-    """Generate a UUID4 trace ID for correlating async operations."""
-    return str(uuid4())
+    """Return the request ID from context if available, otherwise generate a UUID4.
+
+    Falls back to a fresh UUID4 when no request ID has been set in the current
+    async context (e.g. background tasks, startup).
+    """
+    return _request_id_ctx.get() or str(uuid4())

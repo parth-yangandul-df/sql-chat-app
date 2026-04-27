@@ -106,7 +106,11 @@ class BaseDomainAgent(ABC):
             if query_plan_dict:
                 plan = QueryPlan.from_untrusted_dict(query_plan_dict)
                 try:
-                    sql, sql_params = compile_query(plan, resource_id=state.get("resource_id"))
+                    sql, sql_params = compile_query(
+                        plan,
+                        resource_id=state.get("resource_id"),
+                        employee_id=state.get("employee_id"),
+                    )
                 except ValueError as exc:
                     # user_self domain requires resource_id — admin users have none.
                     # Fall back to _run_intent so the error surfaces gracefully.

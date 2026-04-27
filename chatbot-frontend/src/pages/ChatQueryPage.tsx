@@ -5,7 +5,7 @@ import { queryApi, type ConversationTurn, type QueryStageEvent } from '@/api/que
 import { useSessionMessages } from '@/hooks/useThreads'
 import { PureMultimodalInput } from '@/components/ui/multimodal-ai-chat-input'
 import { SpotlightTable } from '@/components/ui/spotlight-table'
-import { RecentQuestions, saveRecentQuestion } from '@/components/widget/RecentQuestions'
+import { RecentQuestions, saveRecentQuestion } from '@/components/RecentQuestions'
 import { loadPersistedChatMessages, persistChatMessages } from '@/lib/chat-session-cache'
 import type { QueryResult, TurnContext } from '@/types/api'
 import type { ChatLayoutContext } from '@/components/layout/ChatLayout'
@@ -13,8 +13,8 @@ import { Bot, User, AlertCircle, ChevronDown, ChevronUp, Copy, Check, Zap, Messa
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const CONVERSATION_HISTORY_TURNS = 3 // last N turns (N user + N assistant = 2N messages)
-const MIN_PIPELINE_VISIBILITY_MS = 1100
-const STAGE_TIMELINE_FRACTIONS = [0, 0.25, 0.5, 0.75] as const
+const MIN_PIPELINE_VISIBILITY_MS = 5000
+const STAGE_TIMELINE_FRACTIONS = [0, 0.25, 0.55, 0.80] as const
 const PIPELINE_STAGES: QueryStageEvent[] = [
   { type: 'stage', stage: 'extracting', label: 'Extracting', progress: 25 },
   { type: 'stage', stage: 'composing', label: 'Composing', progress: 50 },
@@ -392,7 +392,7 @@ export function ChatQueryPage() {
   const mutation = useMutation<QueryResult, Error, { question: string; connId: string; history: ConversationTurn[] }>({
     mutationFn: async ({ question, connId, history }: { question: string; connId: string; history: ConversationTurn[] }) => {
       const startedAt = Date.now()
-      const result = await queryApi.executeStream(
+      const result = await queryApi.execute(
         {
           connection_id: connId,
           question,
@@ -400,7 +400,6 @@ export function ChatQueryPage() {
           conversation_history: history,
           last_turn_context: lastTurnContext ?? undefined,
         },
-        () => {},
       )
 
       const remaining = MIN_PIPELINE_VISIBILITY_MS - (Date.now() - startedAt)

@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_optional_user, require_role
+from app.api.deps import get_current_user, get_optional_user, require_role
 from app.api.v1.schemas.connection import (
     ConnectionCreate,
     ConnectionResponse,
@@ -101,7 +101,7 @@ async def delete_connection(
 async def test_connection(
     connection_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User | None = Depends(get_optional_user),
+    current_user: User = Depends(require_role("admin")),
 ):
     success, message = await connection_service.test_connection(db, connection_id)
     return ConnectionTestResult(success=success, message=message)

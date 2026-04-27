@@ -3,13 +3,13 @@ from app.llm.graph.intent_catalog import INTENT_CATALOG, ensure_catalog_embedded
 
 
 def test_catalog_total_count():
-    assert len(INTENT_CATALOG) == 24
+    assert len(INTENT_CATALOG) == 27
 
 
 def test_catalog_domain_counts():
     from collections import Counter
     counts = Counter(e.domain for e in INTENT_CATALOG)
-    assert counts["resource"] == 6
+    assert counts["resource"] == 8
     assert counts["client"] == 3
     assert counts["project"] == 6
     assert counts["timesheet"] == 4

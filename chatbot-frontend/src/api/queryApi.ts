@@ -1,4 +1,4 @@
-import { api, getApiBaseUrl, getAuthToken } from './client'
+import { api, getApiBaseUrl } from './client'
 import type { QueryResult, QueryHistory, TurnContext } from '../types/api'
 
 export interface ConversationTurn {
@@ -73,14 +73,18 @@ export const queryApi = {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
-    const token = getAuthToken()
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
+
+    // Read CSRF token from the non-HttpOnly cookie and attach as header
+    const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)
+    const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[1]) : null
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken
     }
 
     const response = await fetch(`${getApiBaseUrl()}/api/v1/query/stream`, {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: JSON.stringify(data),
     })
 

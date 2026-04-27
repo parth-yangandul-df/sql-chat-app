@@ -41,9 +41,13 @@ export function GlossaryPage() {
 
   const connOptions =
     connections?.map((c) => ({ value: c.id, label: c.name })) ?? [];
-  if (!connectionId && connOptions.length > 0) {
-    setConnectionId(connOptions[0].value);
-  }
+
+  useEffect(() => {
+    if (!connectionId && connOptions.length > 0) {
+      setConnectionId(connOptions[0].value);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connections]);
 
   const { data: terms, isLoading } = useQuery({
     queryKey: ['glossary', connectionId],
