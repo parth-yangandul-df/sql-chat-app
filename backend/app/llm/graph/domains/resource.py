@@ -171,7 +171,7 @@ class ResourceAgent(BaseDomainAgent):
             skill = params.get("skill_name", params.get("skill", ""))
             sql = (
                 "SELECT DISTINCT r.employeeid as [EMPID], r.ResourceName as [Name], r.EmailId, "
-                "t.TechCategoryName as [Tech Category], s.Name as [Skill] "
+                "t.TechCategoryName as [Tech Category]"
                 "FROM Resource r "
                 "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
                 "JOIN Project p ON pr.ProjectId = p.ProjectId "

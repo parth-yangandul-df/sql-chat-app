@@ -62,6 +62,18 @@ DOMAIN_STATUS_IDS: dict[str, dict[str, int]] = {
     },
 }
 
+# Canonical alias map — maps user-typed variants to DOMAIN_STATUS_IDS keys
+STATUS_ALIASES: dict[str, str] = {
+    "close": "Closed",
+    "closed": "Closed",
+    "on-hold": "On hold",
+    "onhold": "On hold",
+    "on hold": "On hold",
+    "active": "Active",
+    "inactive": "Inactive",
+    "others": "Others",
+}
+
 
 # ---------------------------------------------------------------------------
 # FIELD REGISTRY — canonical field_name → FieldConfig
@@ -234,7 +246,7 @@ FIELD_REGISTRY: dict[str, FieldConfig] = {
         column_name="StatusId",  # Use StatusId for filtering
         multi_value=False,
         sql_type="numeric",  # Changed from text to numeric
-        domains=["client", "project"],  # "resource" removed — resource status handled by active_resources (NO_FILTER_INTENTS); table_alias="c" is invalid in resource queries
+        domains=["client", "project", "resource"],  # resource added — STATUS_ALIASES normalizes variants
         aliases=[],
         example_values=["Active", "Inactive", "Closed", "On hold", "Others", "Completed"],
         extraction_hints=["status", "is", "state"],

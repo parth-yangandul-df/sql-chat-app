@@ -253,6 +253,13 @@ CURRENT: show their skills
 [PRIOR TURN: intent=benched_resources, domain=resource, question="show benched"]
 CURRENT: show all clients
 → active_clients, client, 0.95, [], out_of_scope=false, is_follow_up=false, follow_up_type=topic_switch
+
+## STATUS CATALOG
+Valid status names per domain (use exact casing when extracting status filters):
+  Client:   Active, Inactive, Closed
+  Project:  Active, Inactive, On hold, Others, Closed
+  Resource: Active, Inactive
+The downstream SQL compiler resolves these names to the correct StatusId integers automatically.
 """
 
 # ---------------------------------------------------------------------------

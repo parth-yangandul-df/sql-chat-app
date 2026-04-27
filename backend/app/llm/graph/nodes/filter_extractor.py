@@ -16,7 +16,7 @@ import logging
 import re
 from typing import Any
 
-from app.llm.graph.nodes.field_registry import lookup_field, resolve_alias
+from app.llm.graph.nodes.field_registry import STATUS_ALIASES, lookup_field, resolve_alias
 from app.llm.graph.query_plan import FilterClause, _sanitize_value
 from app.llm.graph.state import GraphState
 
@@ -365,20 +365,10 @@ def validate_groq_filters(domain: str, raw_filters: list[dict]) -> list[dict]:
     # Map to canonical "status" field which resolves to StatusName column
     status_match = _STATUS_RE.search(question)
     if status_match:
-        status_value = status_match.group(1).capitalize()
-        # Map lowercase variations to canonical status values
-        status_map = {
-            "active": "Active",
-            "inactive": "Inactive",
-            "pending": "Pending",
-            "completed": "Completed",
-            "closed": "Closed",
-            "open": "Open",
-            "approved": "Approved",
-            "unapproved": "Unapproved",
-        }
-        canonical_status = status_map.get(status_value.lower(), status_value)
-        fc = _make_filter("status", "eq", [canonical_status], domain)
+        status_val = status_match.group(1)
+        # Normalize via STATUS_ALIASES — keeps canonical casing aligned with DOMAIN_STATUS_IDS
+        canonical = STATUS_ALIASES.get(status_val.lower(), status_val.capitalize())
+        fc = _make_filter("status", "eq", [canonical], domain)
         if fc:
             filters.append(fc)
 

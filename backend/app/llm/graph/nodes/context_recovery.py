@@ -31,7 +31,7 @@ KNOWN_SKILLS = {
 KNOWN_STATUS = {
     "active", "inactive", "pending", "approved", "rejected",
     "benched", "allocated", "assigned", "completed", "ongoing",
-    "closed", "cancelled", "on-hold",
+    "closed", "cancelled", "on hold",
 }
 
 #: Known date patterns

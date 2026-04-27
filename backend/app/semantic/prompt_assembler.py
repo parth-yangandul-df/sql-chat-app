@@ -1,5 +1,6 @@
 """Assembles the LLM prompt from selected semantic context."""
 
+from app.llm.graph.nodes.field_registry import DOMAIN_STATUS_IDS
 from app.semantic.glossary_resolver import (
     ResolvedDictionary,
     ResolvedGlossary,
@@ -141,6 +142,23 @@ def assemble_prompt(
             sample_lines.append(f"  SQL: {sq.sql_query}")
             sample_lines.append("")
         sections.append("\n".join(sample_lines))
+
+    # Status catalog — always injected so LLM uses correct StatusId integers
+    status_lines = ["\n=== STATUS CATALOG ==="]
+    status_lines.append(
+        "Use these exact StatusId integers when filtering by status"
+        " — do NOT use StatusName strings in WHERE clauses:"
+    )
+    for domain_name, statuses in DOMAIN_STATUS_IDS.items():
+        entries = ", ".join(f"{name}={sid}" for name, sid in statuses.items())
+        status_lines.append(f"  {domain_name.capitalize()}: {entries}")
+    status_lines.append("JOIN pattern when you need the Status label:")
+    status_lines.append(
+        "  JOIN Status st ON [entity].StatusId = st.StatusId"
+        " AND st.ReferenceId = [1=Client|2=Project|3=Resource]"
+    )
+    status_lines.append("ReferenceId values: Client=1, Project=2, Resource=3")
+    sections.append("\n".join(status_lines))
 
     # Constraints section
     constraint_lines = ["\n=== CONSTRAINTS ==="]

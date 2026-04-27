@@ -18,7 +18,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from app.llm.graph.nodes.field_registry import FIELD_REGISTRY, FieldConfig, DOMAIN_STATUS_IDS
+from app.llm.graph.nodes.field_registry import DOMAIN_STATUS_IDS, FIELD_REGISTRY, FieldConfig
 from app.llm.graph.query_plan import FilterClause, QueryPlan
 
 logger = logging.getLogger(__name__)
@@ -96,20 +96,22 @@ BASE_QUERIES: dict[str, str] = {
         "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
         "JOIN Project p ON pr.ProjectId = p.ProjectId "
         "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId{join_extras} "
-        "WHERE p.ProjectId = 119 "  # hardcoded bench project; confirmed constant
+        "WHERE p.ProjectId = 119 "
+        "AND r.isactive = 1 and r.statusid = 8 "  # hardcoded bench project; confirmed constant
         "ORDER BY r.ResourceName"
     ),
 
     "benched_by_skill": (
         "SELECT DISTINCT r.employeeid as [EMPID], r.ResourceName as [Name], r.EmailId, "
-        "t.TechCategoryName as [Tech Category], s.Name as [Skill]{select_extras} "
+        "t.TechCategoryName as [Tech Category]{select_extras} "
         "FROM Resource r "
         "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
         "JOIN Project p ON pr.ProjectId = p.ProjectId "
         "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId "
         "JOIN PA_ResourceSkills rs ON rs.ResourceId = r.ResourceId "
         "JOIN PA_Skills s ON s.SkillId = rs.SkillId{join_extras} "
-        "WHERE p.ProjectId = 119 "  # same bench project filter
+        "WHERE p.ProjectId = 119 "
+        "AND r.isactive = 1 and r.statusid = 8 "  # same bench project filter
         "AND ({skill_filter}) "
         "ORDER BY r.ResourceName"
     ),
@@ -122,13 +124,13 @@ BASE_QUERIES: dict[str, str] = {
         "JOIN TechCatagory tc ON tc.TechCategoryId = r.TechCategoryId "
         "JOIN PA_ResourceSkills par ON par.ResourceId = r.ResourceId "
         "JOIN PA_Skills psk ON psk.SkillId = par.SkillId{join_extras} "
-        "WHERE r.IsActive = 1 AND ({skill_filter})"
+        "WHERE r.IsActive = 1 AND r.statusid = 8 AND ({skill_filter})"
     ),
 
     "resource_availability": (
         "SELECT ResourceId, ResourceName, EmailId{select_extras} "
         "FROM Resource{join_extras} "
-        "WHERE IsActive = 1 "
+        "WHERE IsActive = 1 and statusid != 7 "
         "AND ResourceId NOT IN (SELECT DISTINCT ResourceId FROM ProjectResource WHERE IsActive = 1)"
     ),
 
@@ -149,14 +151,14 @@ BASE_QUERIES: dict[str, str] = {
         "FROM Resource r "
         "JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId "
         "JOIN PA_Skills s ON rs.SkillId = s.SkillId{join_extras} "
-        "WHERE r.IsActive = 1"
+        "WHERE r.IsActive = 1 AND r.statusid != 7"
     ),
 
     "reports_to": (
         "SELECT r.EmployeeId, r.ResourceName, pm.ResourceName as [Reporting To]{select_extras} "
         "FROM Resource r "
         "JOIN Resource pm ON pm.ResourceId = r.ReportingTo{join_extras} "
-        "WHERE pm.ResourceName LIKE ? AND r.IsActive = 1"
+        "WHERE pm.ResourceName LIKE ? AND r.IsActive = 1 AND r.statusid != 7"
     ),
 
     # Deferred intents — #baadme (not yet production-ready)
