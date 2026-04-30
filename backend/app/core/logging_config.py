@@ -205,11 +205,23 @@ def setup_logging(
         log_dir = Path(__file__).parent.parent.parent / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
 
+        def _ensure_serialized(record: dict) -> bool:
+            """Ensure _serialized is present before the format string is applied.
+
+            Some records (e.g. from spawned processes or direct loguru calls) skip
+            InterceptHandler and arrive without _serialized in extra.  We populate
+            it here so the format string never raises KeyError.
+            """
+            if "_serialized" not in record["extra"]:
+                record["extra"]["_serialized"] = _format_record(record)
+            return True
+
         # Date-based filename: querywise_2026-04-13.jsonl
         # No enqueue=True so logs are written synchronously (real-time)
         logger.add(
             str(log_dir / f"{app_name}_{{time:YYYY-MM-DD}}.jsonl"),
             format="{extra[_serialized]}\n",
+            filter=_ensure_serialized,
             level="DEBUG",
             rotation=rotation,
             retention=retention,

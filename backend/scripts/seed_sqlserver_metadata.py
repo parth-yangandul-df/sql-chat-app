@@ -869,6 +869,7 @@ DICTIONARY_ENTRIES: dict[tuple[str, str], list[dict]] = {
         {"raw_value": "0", "display_value": "Inactive", "description": "Allocation inactive", "sort_order": 1},
         {"raw_value": "1", "display_value": "Active", "description": "Allocation active", "sort_order": 2},
     ],
+    
     ("Status", "ReferenceId"): [
         {"raw_value": "1", "display_value": "Client Status", "description": "Status applicable to clients", "sort_order": 1},
         {"raw_value": "2", "display_value": "Project Status", "description": "Status applicable to projects", "sort_order": 2},

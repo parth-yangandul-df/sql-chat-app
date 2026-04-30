@@ -27,15 +27,13 @@ logger = logging.getLogger(__name__)
 # NO_FILTER_INTENTS — intents with fully self-contained SQL (no dynamic filters)
 # ---------------------------------------------------------------------------
 NO_FILTER_INTENTS: frozenset[str] = frozenset({
-    "benched_resources",      # hardcoded WHERE p.ProjectId = 119
-    "benched_by_skill",       # skill handled via {skill_filter} token; ProjectId=119 hardcoded
+    "benched_resources",      # hardcoded WHERE pr.bench = 1 AND st.statusname = 'Active'
+    "benched_by_skill",       # skill handled via {skill_filter} token; bench=1 hardcoded
     "active_resources",       # hardcoded WHERE r.IsActive = 1 AND r.statusid = 8
     "resource_availability",   # hardcoded subquery exclusion
-    "resource_by_skill",       # status filter maps to c.IsActive alias; not valid in this query
-    "active_projects",        # hardcoded WHERE p.IsActive = 1 AND p.ProjectStatusId = 4
-    "overdue_projects",       # hardcoded WHERE p.EndDate < GETDATE()
-    "active_clients",         # hardcoded WHERE c.IsActive = 1 AND c.StatusId = 2
-    "approved_timesheets",    # hardcoded approval flags
+    "resource_by_skill",       # skill handled via {skill_filter} token
+    "active_projects",        # hardcoded WHERE EndDate/status filters
+    "active_clients",         # hardcoded WHERE c.IsActive = 1 AND st.statusname = 'Active'
     "unapproved_timesheets",  # hardcoded unapproved flags
     "my_utilization",         # self-contained SQL; EmployeeId param (string)
     "reports_to",             # manager name baked into WHERE via param; no extra filters
@@ -82,45 +80,47 @@ BASE_QUERIES: dict[str, str] = {
 
     "active_resources": (
         "SELECT r.EmployeeId as [EMPID], r.ResourceName as [Name], r.EmailId, "
-        "dr.designationname as [Designation]{select_extras} "
+        "b.businessunitname, dr.designationname as [Designation]{select_extras} "
         "FROM Resource r "
-        "JOIN Designation dr ON r.designationid = dr.designationid{join_extras} "
+        "JOIN Designation dr ON r.designationid = dr.designationid "
+        "JOIN BusinessUnit b ON b.businessunitid = r.businessunitid{join_extras} "
         "WHERE r.IsActive = 1 AND r.statusid = 8 "
         "ORDER BY r.ResourceName ASC"
     ),
 
     "benched_resources": (
         "SELECT DISTINCT r.employeeid as [EMPID], r.ResourceName as [Name], r.EmailId, "
-        "t.TechCategoryName{select_extras} "
+        "p.ProjectName, t.TechCategoryName, st.statusname, pr.bench{select_extras} "
         "FROM Resource r "
         "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
         "JOIN Project p ON pr.ProjectId = p.ProjectId "
-        "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId{join_extras} "
-        "WHERE p.ProjectId = 119 "
-        "AND r.isactive = 1 and r.statusid = 8 "  # hardcoded bench project; confirmed constant
+        "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId "
+        "JOIN Status st ON st.StatusId = r.StatusId{join_extras} "
+        "WHERE pr.bench = 1 AND st.statusname = 'Active' AND r.isactive = 1 "
         "ORDER BY r.ResourceName"
     ),
 
     "benched_by_skill": (
         "SELECT DISTINCT r.employeeid as [EMPID], r.ResourceName as [Name], r.EmailId, "
-        "t.TechCategoryName as [Tech Category]{select_extras} "
+        "p.ProjectName, t.TechCategoryName as [Tech Category], st.statusname, pr.bench{select_extras} "
         "FROM Resource r "
         "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
         "JOIN Project p ON pr.ProjectId = p.ProjectId "
         "JOIN TechCatagory t ON t.TechCategoryId = r.TechCategoryId "
+        "JOIN Status st ON st.StatusId = r.StatusId "
         "JOIN PA_ResourceSkills rs ON rs.ResourceId = r.ResourceId "
         "JOIN PA_Skills s ON s.SkillId = rs.SkillId{join_extras} "
-        "WHERE p.ProjectId = 119 "
-        "AND r.isactive = 1 and r.statusid = 8 "  # same bench project filter
+        "WHERE pr.bench = 1 AND st.statusname = 'Active' AND r.isactive = 1 "
         "AND ({skill_filter}) "
         "ORDER BY r.ResourceName"
     ),
 
     "resource_by_skill": (
         "SELECT distinct r.EmployeeId as [EMPID], r.ResourceName as [Name], r.EmailId, "
-        "dr.designationname as [Designation]{select_extras} "
+        "b.businessunitname, dr.designationname as [Designation]{select_extras} "
         "FROM Resource r "
         "JOIN Designation dr ON r.designationid = dr.designationid "
+        "JOIN BusinessUnit b ON b.businessunitid = r.businessunitid "
         "JOIN TechCatagory tc ON tc.TechCategoryId = r.TechCategoryId "
         "JOIN PA_ResourceSkills par ON par.ResourceId = r.ResourceId "
         "JOIN PA_Skills psk ON psk.SkillId = par.SkillId{join_extras} "
@@ -128,10 +128,11 @@ BASE_QUERIES: dict[str, str] = {
     ),
 
     "resource_availability": (
-        "SELECT ResourceId, ResourceName, EmailId{select_extras} "
-        "FROM Resource{join_extras} "
-        "WHERE IsActive = 1 and statusid != 7 "
-        "AND ResourceId NOT IN (SELECT DISTINCT ResourceId FROM ProjectResource WHERE IsActive = 1)"
+        "SELECT r.ResourceId, r.ResourceName, r.EmailId{select_extras} "
+        "FROM Resource r "
+        "JOIN Status st ON st.StatusId = r.StatusId{join_extras} "
+        "WHERE r.IsActive = 1 AND st.statusname = 'Active' "
+        "AND r.ResourceId NOT IN (SELECT DISTINCT ResourceId FROM ProjectResource WHERE IsActive = 1)"
     ),
 
     "resource_project_assignments": (
@@ -143,22 +144,26 @@ BASE_QUERIES: dict[str, str] = {
         "pr.Billable{select_extras} "
         "FROM Resource r "
         "JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId "
-        "JOIN Project p ON pr.ProjectId = p.ProjectId{join_extras}"
+        "JOIN Project p ON pr.ProjectId = p.ProjectId{join_extras} "
+        "WHERE pr.PercentageAllocation > 1 "
+        "AND (pr.EndDate > GETDATE() OR pr.EndDate IS NULL)"
     ),
 
     "resource_skills_list": (
         "SELECT DISTINCT r.ResourceName, s.Name, rs.SkillExperience{select_extras} "
         "FROM Resource r "
         "JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId "
-        "JOIN PA_Skills s ON rs.SkillId = s.SkillId{join_extras} "
-        "WHERE r.IsActive = 1 AND r.statusid != 7"
+        "JOIN PA_Skills s ON rs.SkillId = s.SkillId "
+        "JOIN Status st ON st.StatusId = r.StatusId{join_extras} "
+        "WHERE r.IsActive = 1 AND st.statusname = 'Active'"
     ),
 
     "reports_to": (
         "SELECT r.EmployeeId, r.ResourceName, pm.ResourceName as [Reporting To]{select_extras} "
         "FROM Resource r "
-        "JOIN Resource pm ON pm.ResourceId = r.ReportingTo{join_extras} "
-        "WHERE pm.ResourceName LIKE ? AND r.IsActive = 1 AND r.statusid != 7"
+        "JOIN Resource pm ON pm.ResourceId = r.ReportingTo "
+        "JOIN Status st ON st.StatusId = r.StatusId{join_extras} "
+        "WHERE pm.ResourceName LIKE ? AND r.IsActive = 1 AND st.statusname = 'Active'"
     ),
 
     # Deferred intents — #baadme (not yet production-ready)
@@ -173,20 +178,24 @@ BASE_QUERIES: dict[str, str] = {
     "active_clients": (
         "SELECT distinct c.ClientName, c.Description, c.CountryId{select_extras} "
         "FROM Client c "
-        "JOIN Status st ON c.StatusId = st.StatusId AND st.ReferenceId = 1{join_extras} "
-        "WHERE c.IsActive = 1"
+        "JOIN Status st ON c.StatusId = st.StatusId{join_extras} "
+        "WHERE c.IsActive = 1 AND st.statusname = 'Active'"
     ),
 
     "client_projects": (
         "SELECT c.ClientName, p.ProjectName, p.StartDate, p.EndDate{select_extras} "
         "FROM Client c "
-        "JOIN Project p ON c.ClientId = p.ClientId{join_extras}"
+        "JOIN Project p ON c.ClientId = p.ClientId "
+        "JOIN Status st ON c.StatusId = st.StatusId{join_extras} "
+        "WHERE (c.IsActive = 1 AND st.statusname = 'Active') "
+        "AND (p.EndDate > GETDATE() OR p.EndDate IS NULL) "
+        "ORDER BY c.ClientName"
     ),
 
     "client_status": (
         "SELECT c.ClientName, st.StatusName{select_extras} "
         "FROM Client c "
-        "JOIN Status st ON c.StatusId = st.StatusId AND st.ReferenceId = 1{join_extras}"
+        "JOIN Status st ON c.StatusId = st.StatusId{join_extras}"
     ),
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -194,21 +203,14 @@ BASE_QUERIES: dict[str, str] = {
     # ═══════════════════════════════════════════════════════════════════════
 
     "active_projects": (
-        "SELECT p.ProjectId, p.ProjectName, c.ClientName{select_extras} "
-        "FROM Project p "
-        "JOIN Client c ON p.ClientId = c.ClientId "
-        "JOIN Status st ON p.ProjectStatusId = st.StatusId AND st.ReferenceId = 2{join_extras} "
-        "WHERE st.StatusName = 'Active'"
-    ),
-
-    "project_by_client": (
         "SELECT p.ProjectName as [Project Name], c.clientname as [Client Name], "
         "cast(p.StartDate as date) as [Start date], cast(p.EndDate as date) as [End date], "
         "r.ResourceName as [Project Manager], s.StatusName as Status{select_extras} "
         "FROM Project p "
         "JOIN Client c ON p.ClientId = c.ClientId "
         "JOIN Status s ON s.StatusId = p.ProjectStatusId "
-        "JOIN Resource r ON r.ResourceId = p.ProjectManagerId{join_extras}"
+        "JOIN Resource r ON r.ResourceId = p.ProjectManagerId{join_extras} "
+        "WHERE (p.EndDate > GETDATE() OR p.EndDate IS NULL) AND s.StatusName = 'Active'"
     ),
 
     "project_budget": (
@@ -218,13 +220,15 @@ BASE_QUERIES: dict[str, str] = {
 
     "project_resources": (
         "SELECT p.ProjectName, c.ClientId, r.ResourceName, tc.TechCategoryName, "
-        "pr.Billable, pr.ResourceRole, pr.PercentageAllocation{select_extras} "
+        "pr.Billable, pr.ResourceRole, pr.PercentageAllocation, b.businessunitname{select_extras} "
         "FROM Project p "
         "JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId "
         "JOIN Resource r ON pr.ResourceId = r.ResourceId "
         "JOIN TechCatagory tc ON tc.TechCategoryId = r.TechCategoryId "
-        "JOIN Client c ON c.ClientId = pr.ClientId{join_extras} "
-        "WHERE pr.IsActive = 1"
+        "JOIN Client c ON c.ClientId = pr.ClientId "
+        "JOIN BusinessUnit b ON b.businessunitid = pr.businessunitid{join_extras} "
+        "WHERE r.IsActive = 1 AND pr.PercentageAllocation > 1 "
+        "AND (pr.Billable = 1 OR pr.Shadow = 1) AND pr.EndDate > GETDATE()"
     ),
 
     "project_timeline": (
@@ -236,36 +240,18 @@ BASE_QUERIES: dict[str, str] = {
         "FROM Project{join_extras}"
     ),
 
-    "project_status": (
-        "SELECT p.ProjectName as [Project Name], c.ClientName as [Client], "
-        "s.StatusName as [Status], "
-        "cast(p.StartDate as date) as [Start Date], "
-        "COALESCE(CONVERT(VARCHAR(10), p.EndDate, 120), 'NA') AS [End Date], "
-        "r.ResourceName as [Project Manager]{select_extras} "
-        "FROM Project p "
-        "JOIN Client c ON p.ClientId = c.ClientId "
-        "JOIN Status s ON s.StatusId = p.ProjectStatusId "
-        "JOIN Resource r ON r.ResourceId = p.ProjectManagerId{join_extras}"
-    ),
-
-    "overdue_projects": (
-        "SELECT p.ProjectId, p.ProjectName, p.EndDate, c.ClientName{select_extras} "
-        "FROM Project p "
-        "JOIN Client c ON p.ClientId = c.ClientId "
-        "JOIN Status st ON p.ProjectStatusId = st.StatusId AND st.ReferenceId = 2{join_extras} "
-        "WHERE p.EndDate < GETDATE() AND st.StatusName != 'Completed'"
-    ),
-
     # ═══════════════════════════════════════════════════════════════════════
     # TIMESHEET DOMAIN (4 active intents)
     # ═══════════════════════════════════════════════════════════════════════
 
     "approved_timesheets": (
-        "SELECT ts.TimesheetId, r.ResourceName, ts.WorkDate, ts.Hours, ts.Description{select_extras} "
-        "FROM Timesheet ts "
-        "JOIN Resource r ON ts.ResourceId = r.ResourceId{join_extras} "
+        "SELECT ts.id, r.ResourceName, ts.Project, ts.ActivityCode, "
+        "re.ResourceName as [Approver], ts.Reportdate, ts.Hrs, ts.Comment{select_extras} "
+        "FROM ts_eoddetails ts "
+        "JOIN Resource r ON ts.ResourceId = r.ResourceId "
+        "JOIN Resource re ON ts.ApprovedBy = re.EmailId{join_extras} "
         "WHERE ts.IsApproved = 1 AND ts.IsDeleted = 0 AND ts.IsRejected = 0 "
-        "ORDER BY ts.WorkDate DESC"
+        "ORDER BY ts.Reportdate DESC"
     ),
 
     "timesheet_by_period": (
