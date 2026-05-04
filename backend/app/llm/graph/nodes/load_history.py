@@ -31,8 +31,9 @@ async def load_history(state: GraphState) -> dict[str, Any]:
     if not session_id_str:
         return _empty_history()
 
-    if state.get("event_queue"):
-        await state["event_queue"].put(
+    event_queue = state.get("event_queue")
+    if event_queue is not None:
+        await event_queue.put(
             {
                 "type": "stage",
                 "stage": "understanding",

@@ -211,20 +211,21 @@ async def execute_raw_sql(
             timeout_seconds=conn.max_query_timeout_seconds,
             max_rows=conn.max_rows,
         )
-    except Exception as e:
-        # Save failed execution to history
+    except Exception:
+        # Log internally - never expose to client
+        logger.error("Query execution failed: %s", exc_info=True)
         execution = QueryExecution(
             connection_id=connection_id,
             natural_language=original_question or "(manual SQL)",
             generated_sql=None,
             final_sql=sql,
             execution_status="error",
-            error_message=str(e),
+            error_message="Query execution failed",
             retry_count=0,
         )
         db.add(execution)
         await db.flush()
-        raise AppError(f"Query execution failed: {e}") from e
+        raise AppError("Query execution failed. Please try again.")
 
     # Step 3: Interpret results (LLM summary + follow-ups)
     summary = None

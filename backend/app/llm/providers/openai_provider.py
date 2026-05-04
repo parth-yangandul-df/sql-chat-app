@@ -13,6 +13,8 @@ from app.llm.base_provider import (
 )
 from app.llm.retry import llm_retry
 
+logger = __import__("logging").getLogger(__name__)
+
 
 class OpenAIProvider(BaseLLMProvider):
     provider_type = LLMProviderType.OPENAI
@@ -37,13 +39,35 @@ class OpenAIProvider(BaseLLMProvider):
                 max_completion_tokens=config.max_tokens,
                 top_p=config.top_p,
                 stop=config.stop_sequences or None,
+                extra_body={
+                    "cache_control": {"type": "ephemeral", "ttl": "1h"}
+                },
             )
         except Exception as err:
             raise_if_provider_rate_limited(err, "OpenAI")
+            logger.error("OpenAI API error: %s", err, exc_info=True)
             raise
         elapsed_ms = (time.monotonic() - start) * 1000
 
         choice = response.choices[0]
+
+        # Log cache stats if available
+        if response.usage and hasattr(response.usage, "prompt_tokens_details"):
+            details = response.usage.prompt_tokens_details
+            cached = details.cached_tokens if details else 0
+            if cached:
+                total = response.usage.prompt_tokens
+                cache_hit_ratio = cached / total if total else 0
+                logger.info(
+                    "llm_cache_hit",
+                    extra={
+                        "model": response.model,
+                        "cached_tokens": cached,
+                        "total_prompt_tokens": total,
+                        "cache_hit_ratio": cache_hit_ratio,
+                    },
+                )
+
         return LLMResponse(
             content=choice.message.content or "",
             model=response.model,
@@ -67,9 +91,13 @@ class OpenAIProvider(BaseLLMProvider):
                 temperature=config.temperature,
                 max_completion_tokens=config.max_tokens,
                 stream=True,
+                extra_body={
+                    "cache_control": {"type": "ephemeral", "ttl": "1h"}
+                },
             )
         except Exception as err:
             raise_if_provider_rate_limited(err, "OpenAI")
+            logger.error("OpenAI stream error: %s", err, exc_info=True)
             raise
 
         async for chunk in stream:
@@ -87,6 +115,7 @@ class OpenAIProvider(BaseLLMProvider):
             )
         except Exception as err:
             raise_if_provider_rate_limited(err, "OpenAI")
+            logger.error("OpenAI embedding error: %s", err, exc_info=True)
             raise
         return response.data[0].embedding
 

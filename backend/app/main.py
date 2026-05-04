@@ -192,6 +192,17 @@ async def lifespan(app: FastAPI):
         except Exception:
             logger.warning("Auto-setup sample DB failed", exc_info=True)
 
+    # Initialize LangSmith tracing (if configured)
+    if settings.langsmith_tracing_enabled and settings.langsmith_api_key:
+        from app.llm.graph.graph import _setup_langsmith_tracing
+
+        logger.info("QueryWise startup: initializing LangSmith tracing")
+        try:
+            _setup_langsmith_tracing()
+            logger.info("QueryWise startup: LangSmith tracing enabled")
+        except Exception:
+            logger.warning("LangSmith tracing setup failed", exc_info=True)
+
     logger.info("QueryWise startup complete")
     yield
     # Shutdown

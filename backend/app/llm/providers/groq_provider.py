@@ -13,6 +13,8 @@ from app.llm.base_provider import (
 )
 from app.llm.retry import llm_retry
 
+logger = __import__("logging").getLogger(__name__)
+
 
 class GroqProvider(BaseLLMProvider):
     provider_type = LLMProviderType.GROQ
@@ -51,6 +53,7 @@ class GroqProvider(BaseLLMProvider):
             )
         except Exception as err:
             raise_if_provider_rate_limited(err, "Groq")
+            logger.error("Groq API error: %s", err, exc_info=True)
             raise
         elapsed_ms = (time.monotonic() - start) * 1000
 
@@ -92,14 +95,8 @@ class GroqProvider(BaseLLMProvider):
                 top_p=config.top_p,
             )
         except Exception as err:
-            import logging as _logging
-
-            _logging.getLogger(__name__).debug(
-                "Groq complete_with_tools error (status=%s): %s",
-                getattr(err, "status_code", "?"),
-                err,
-            )
             raise_if_provider_rate_limited(err, "Groq")
+            logger.error("Groq tool call error: %s", err, exc_info=True)
             raise
         elapsed_ms = (time.monotonic() - start) * 1000
 
@@ -144,6 +141,7 @@ class GroqProvider(BaseLLMProvider):
             )
         except Exception as err:
             raise_if_provider_rate_limited(err, "Groq")
+            logger.error("Groq stream error: %s", err, exc_info=True)
             raise
 
         async for chunk in stream:

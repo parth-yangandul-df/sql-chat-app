@@ -88,14 +88,10 @@ class SQLServerConnector(BaseConnector):
                 dsn=resolved, minsize=1, maxsize=5, autocommit=True
             )
             self._connection_string = resolved
-        except Exception as e:
+        except Exception:
             raise ConnectionError(
-                f"SQL Server connection failed: {e}\n\n"
-                "Expected connection string format:\n"
-                "  SERVER=tcp:<server>.database.windows.net,1433;"
-                "DATABASE=<db>;UID=<user>;PWD=<password>;"
-                "Encrypt=yes;TrustServerCertificate=yes;"
-            ) from e
+                "Unable to connect to the database. Please verify your connection string and try again."
+            )
 
     async def disconnect(self) -> None:
         if self._pool:
@@ -133,7 +129,7 @@ class SQLServerConnector(BaseConnector):
     async def introspect_schemas(self) -> list[str]:
         """Return user-accessible schemas, excluding system ones."""
         if self._pool is None:
-            raise ConnectionError("Connector not connected — call connect() first")
+            raise ConnectionError("Database connection lost. Please try again.")
         sql = """
             SELECT SCHEMA_NAME
             FROM INFORMATION_SCHEMA.SCHEMATA
@@ -157,7 +153,7 @@ class SQLServerConnector(BaseConnector):
     async def introspect_tables(self, schema: str = "dbo") -> list[TableInfo]:
         """Introspect all tables and views in a schema with columns."""
         if self._pool is None:
-            raise ConnectionError("Connector not connected — call connect() first")
+            raise ConnectionError("Database connection lost. Please try again.")
         async with self._pool.acquire() as conn:
             cursor = await conn.cursor()
             try:
@@ -308,10 +304,10 @@ class SQLServerConnector(BaseConnector):
         # Safety check (shared blocklist)
         issues = check_sql_safety(sql)
         if issues:
-            raise SQLSafetyError("; ".join(issues))
+            raise SQLSafetyError()
 
         if self._pool is None:
-            raise ConnectionError("Connector not connected — call connect() first")
+            raise ConnectionError("Database connection lost. Please try again.")
 
         # T-SQL uses TOP instead of LIMIT
         wrapped_sql = _inject_top(sql, max_rows + 1)
@@ -322,8 +318,8 @@ class SQLServerConnector(BaseConnector):
                 self._run_query_readonly(wrapped_sql, params),
                 timeout=timeout_seconds,
             )
-        except TimeoutError as e:
-            raise QueryTimeoutError(timeout_seconds) from e
+        except TimeoutError:
+            raise QueryTimeoutError(timeout_seconds)
 
         elapsed_ms = (time.monotonic() - start) * 1000
 
@@ -349,7 +345,7 @@ class SQLServerConnector(BaseConnector):
         DML statements that bypass the blocklist.
         """
         if self._pool is None:
-            raise ConnectionError("Connector not connected — call connect() first")
+            raise ConnectionError("Database connection lost. Please try again.")
         async with self._pool.acquire() as conn:
             # Begin a transaction, execute, then always rollback
             await conn.execute("BEGIN TRANSACTION")
@@ -379,7 +375,7 @@ class SQLServerConnector(BaseConnector):
         self, sql: str, params: tuple[Any, ...] | None = None
     ) -> tuple[list[Any], list[str], list[str]]:
         if self._pool is None:
-            raise ConnectionError("Connector not connected — call connect() first")
+            raise ConnectionError("Database connection lost. Please try again.")
         async with self._pool.acquire() as conn:
             cursor = await conn.cursor()
             try:
@@ -404,7 +400,7 @@ class SQLServerConnector(BaseConnector):
         self, schema: str, table: str, column: str, limit: int = 20
     ) -> list[Any]:
         if self._pool is None:
-            raise ConnectionError("Connector not connected — call connect() first")
+            raise ConnectionError("Database connection lost. Please try again.")
         sql = (
             f"SELECT DISTINCT TOP {limit} [{column}] "
             f"FROM [{schema}].[{table}] "

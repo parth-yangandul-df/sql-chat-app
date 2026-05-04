@@ -87,7 +87,7 @@ def _check_schema_references(
     This is a best-effort check using simple parsing. For complex queries,
     we rely on the database itself to report errors.
     """
-    issues = []
+    issues: list[str] = []
 
     # Try to parse with sqlparse if available
     try:
