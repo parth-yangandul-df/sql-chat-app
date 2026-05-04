@@ -1,7 +1,6 @@
 """E2E tests for authentication endpoints."""
 
 import httpx
-import pytest
 
 
 def test_login_success(base_url: str, admin_token: str) -> None:

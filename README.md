@@ -237,7 +237,7 @@ For development, `docker compose up app-db` starts the app database without the 
 | `CORS_ORIGINS` | `["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:4200", "http://localhost:4000"]` | Allowed CORS origins (JSON list) |
 | `DEFAULT_LLM_PROVIDER` | `anthropic` | Default LLM provider (`anthropic`, `openai`, `ollama`, `openrouter`, `groq`) |
 | `DEFAULT_LLM_MODEL` | `claude-sonnet-4-20250514` | Default model for SQL generation |
-| `EMBEDDING_MODEL` | `text-embedding-3-small` | Model for generating embeddings (OpenAI) |
+| `EMBEDDING_MODEL` | `openai/text-embedding-3-small` | Model for generating embeddings (used with OpenAI provider or `EMBEDDING_PROVIDER=openrouter`) |
 | `EMBEDDING_DIMENSION` | `1536` | Embedding vector dimension |
 | `DEFAULT_QUERY_TIMEOUT_SECONDS` | `30` | Max query execution time |
 | `DEFAULT_MAX_ROWS` | `1000` | Max rows returned per query |
@@ -247,9 +247,11 @@ For development, `docker compose up app-db` starts the app database without the 
 | `MAX_SAMPLE_QUERIES` | `3` | Max sample queries included in context |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama server URL |
 | `OLLAMA_MODEL` | `llama3.1:8b` | Ollama model for completions |
-| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model for embeddings (768-dim) |
+| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model for embeddings (only when using Ollama for embeddings) |
 | `OPENROUTER_API_KEY` | — | OpenRouter API key (required if using OpenRouter) |
-| `OPENROUTER_MODEL` | `openai/gpt-3.5-turbo` | OpenRouter model |
+| `OPENROUTER_MODEL` | `deepseek/deepseek-v3.2` | OpenRouter model for Composer (SQL generation + error correction) |
+| `RESOLVER_MODEL` | `openai/gpt-4.1-nano` | OpenRouter model for Resolver (intent classification + question rewrite) |
+| `INTERPRETER_MODEL` | `meta-llama/llama-3.1-8b-instruct` | OpenRouter model for Interpreter (result → natural language summary) |
 | `GROQ_API_KEY` | — | Groq API key (required if using Groq) |
 | `GROQ_MODEL` | `meta-llama/llama-3.1-70b-versatile` | Groq model |
 | `ANTHROPIC_API_KEY` | — | Anthropic API key (required if using Anthropic) |
@@ -270,7 +272,7 @@ For development, `docker compose up app-db` starts the app database without the 
 |----------|---------|-------------|
 | `OLLAMA_LLM_BASE_URL` | — | Cloud Ollama URL for LLM completions |
 | `OLLAMA_API_KEY` | — | API key for cloud Ollama |
-| `EMBEDDING_PROVIDER` | — | Explicit embedding provider override |
+| `EMBEDDING_PROVIDER` | — | Explicit embedding provider override (e.g., `openrouter` to route embeddings through OpenRouter) |
 
 ### Authentication
 

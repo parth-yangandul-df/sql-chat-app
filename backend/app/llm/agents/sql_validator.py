@@ -123,6 +123,14 @@ def _extract_from_tables(sql_upper: str) -> list[str]:
 
     tables = []
 
+    # SQL keywords that should NOT be treated as table names
+    sql_keywords = {
+        "BETWEEN", "EXISTS", "CASE", "WHEN", "THEN", "ELSE", "END",
+        "UNION", "INTERSECT", "EXCEPT", "ALL", "DISTINCT", "TOP",
+        "ORDER", "GROUP", "HAVING", "WHERE", "AND", "OR", "NOT", "IN",
+        "LIKE", "IS", "NULL", "AS", "ON", "WITH", "SELECT", "FROM",
+    }
+
     # Match FROM table_name and JOIN table_name patterns
     patterns = [
         r"\bFROM\s+([A-Za-z_][A-Za-z0-9_.]*)",
@@ -130,6 +138,10 @@ def _extract_from_tables(sql_upper: str) -> list[str]:
     ]
     for pattern in patterns:
         matches = re.findall(pattern, sql_upper, re.IGNORECASE)
-        tables.extend(matches)
+        for m in matches:
+            # Skip SQL keywords that incorrectly get matched
+            clean_name = m.split(".")[-1].split(" ")[0].strip('"').strip("'").upper()
+            if clean_name and clean_name not in sql_keywords:
+                tables.append(m)
 
     return tables

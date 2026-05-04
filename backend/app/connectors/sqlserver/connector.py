@@ -20,7 +20,6 @@ import time
 from typing import Any
 
 import aioodbc
-from loguru import logger
 
 from app.connectors.base_connector import (
     BaseConnector,
@@ -291,7 +290,7 @@ class SQLServerConnector(BaseConnector):
                     foreign_keys=foreign_keys_by_table.get(table_name, []),
                     row_count_estimate=None,
                 )
-                )
+            )
 
         return tables
 
@@ -425,6 +424,7 @@ class SQLServerConnector(BaseConnector):
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 def _inject_top(sql: str, n: int) -> str:
     """Wrap a SELECT statement with TOP N if no TOP/LIMIT is present.

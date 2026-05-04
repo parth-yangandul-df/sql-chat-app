@@ -1,6 +1,5 @@
 import asyncio
 import json
-import time
 from datetime import datetime
 from uuid import UUID
 
@@ -18,13 +17,14 @@ from app.services import query_service
 router = APIRouter(prefix="/query", tags=["query"])
 
 _STREAM_STAGES = [
-    {"stage": "extracting", "label": "Extracting intent...", "progress": 25},
-    {"stage": "composing", "label": "Composing SQL...", "progress": 50},
-    {"stage": "validating", "label": "Validating query...", "progress": 75},
+    {"stage": "understanding", "label": "Understanding your question...", "progress": 20},
+    {"stage": "generating_sql", "label": "Generating SQL...", "progress": 50},
+    {"stage": "running_query", "label": "Running query...", "progress": 75},
     {"stage": "interpreting", "label": "Interpreting results...", "progress": 95},
 ]
-_STREAM_STAGE_TIMELINE_S = (0.0, 1.1, 2.25, 3.45)
-_STREAM_POLL_INTERVAL_S = 0.2
+# Fallback timeline used only when no real stage events are emitted (e.g. errors before first node)
+_STREAM_STAGE_TIMELINE_S = (0.0, 1.5, 3.0, 4.5)
+_STREAM_POLL_INTERVAL_S = 0.05
 
 
 def _json_default(value: object) -> str:
@@ -51,9 +51,7 @@ async def execute_query(
         body.connection_id,
         body.question,
         session_id=body.session_id,
-        conversation_history=[t.model_dump() for t in body.conversation_history],
         current_user=current_user,
-        last_turn_context=body.last_turn_context.model_dump() if body.last_turn_context else None,
         clear_context=body.clear_context,
     )
     return result
@@ -65,43 +63,46 @@ async def stream_query(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Stream coarse-grained NL pipeline progress followed by the final result."""
+    """Stream real pipeline progress events followed by the final result.
+
+    Each SSE event is one of:
+      {"type": "stage", "stage": "...", "label": "...", "progress": N}
+      {"type": "token", "content": "..."}   — streaming interpreter tokens
+      {"type": "result", "data": {...}}      — final result object
+      {"type": "error", "message": "..."}   — error
+    """
 
     async def event_generator():
+        event_queue: asyncio.Queue = asyncio.Queue()
+
         query_task = asyncio.create_task(
             query_service.execute_nl_query(
                 db,
                 body.connection_id,
                 body.question,
                 session_id=body.session_id,
-                conversation_history=[t.model_dump() for t in body.conversation_history],
                 current_user=current_user,
-                last_turn_context=(body.last_turn_context.model_dump() if body.last_turn_context else None),
                 clear_context=body.clear_context,
+                event_queue=event_queue,
             )
         )
 
-        stage_index = 0
-        started_at = time.monotonic()
-        yield _encode_stream_event({"type": "stage", **_STREAM_STAGES[stage_index]})
-
         try:
-            while True:
+            while not query_task.done():
                 try:
-                    result = await asyncio.wait_for(
-                        asyncio.shield(query_task),
-                        timeout=_STREAM_POLL_INTERVAL_S,
-                    )
-                    yield _encode_stream_event({"type": "result", "data": result})
-                    break
-                except TimeoutError:
-                    elapsed = time.monotonic() - started_at
-                    while (
-                        stage_index < len(_STREAM_STAGES) - 1
-                        and elapsed >= _STREAM_STAGE_TIMELINE_S[stage_index + 1]
-                    ):
-                        stage_index += 1
-                        yield _encode_stream_event({"type": "stage", **_STREAM_STAGES[stage_index]})
+                    event = event_queue.get_nowait()
+                    yield _encode_stream_event(event)
+                except asyncio.QueueEmpty:
+                    await asyncio.sleep(_STREAM_POLL_INTERVAL_S)
+
+            # Drain any remaining events pushed before task completed
+            while not event_queue.empty():
+                event = event_queue.get_nowait()
+                yield _encode_stream_event(event)
+
+            result = query_task.result()
+            yield _encode_stream_event({"type": "result", "data": result})
+
         except asyncio.CancelledError:
             query_task.cancel()
             raise
@@ -134,7 +135,5 @@ async def generate_sql_only(
     current_user: User = Depends(get_current_user),
 ):
     """Generate SQL without executing it."""
-    result = await query_service.generate_sql_only(
-        db, body.connection_id, body.question
-    )
+    result = await query_service.generate_sql_only(db, body.connection_id, body.question)
     return SQLOnlyResponse(**result)

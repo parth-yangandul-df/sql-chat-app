@@ -3,7 +3,6 @@
 import uuid
 
 import httpx
-import pytest
 
 
 def test_create_session(user_client: httpx.Client, connection_id: str) -> None:
@@ -49,9 +48,7 @@ def test_list_sessions_filtered_by_connection(
         assert s["connection_id"] == connection_id
 
 
-def test_session_message_count_increments(
-    user_client: httpx.Client, connection_id: str
-) -> None:
+def test_session_message_count_increments(user_client: httpx.Client, connection_id: str) -> None:
     """Executing a query tied to a session should increment message_count."""
     # Create session
     create_resp = user_client.post(

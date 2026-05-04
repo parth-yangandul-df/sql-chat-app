@@ -16,19 +16,19 @@ logger = logging.getLogger(__name__)
 
 async def compute_embedding_node(state: dict[str, Any]) -> dict[str, Any]:
     """Compute embedding for the current question.
-    
+
     Args:
         state: Current GraphState containing the question
-        
+
     Returns:
         Dict with current_query_embedding
     """
     question = state.get("question", "")
-    
+
     if not question:
         logger.warning("No question provided for embedding")
         return {"current_query_embedding": None}
-    
+
     try:
         embedding = await embed_text(question)
         logger.debug("Computed embedding for question: %s", question[:50])

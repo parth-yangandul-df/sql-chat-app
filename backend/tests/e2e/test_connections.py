@@ -1,7 +1,6 @@
 """E2E tests for database connection management."""
 
 import httpx
-import pytest
 
 
 def test_list_connections_as_admin(admin_client: httpx.Client) -> None:
@@ -62,6 +61,7 @@ def test_create_and_delete_connection(admin_client: httpx.Client) -> None:
 
 def test_get_nonexistent_connection(admin_client: httpx.Client) -> None:
     import uuid
+
     fake_id = str(uuid.uuid4())
     resp = admin_client.get(f"/api/v1/connections/{fake_id}")
     assert resp.status_code == 404

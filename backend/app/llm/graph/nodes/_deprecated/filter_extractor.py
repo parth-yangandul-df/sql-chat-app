@@ -16,8 +16,9 @@ import logging
 import re
 from typing import Any
 
-from app.llm.graph.nodes.field_registry import STATUS_ALIASES, lookup_field, resolve_alias
 from app.llm.graph.query_plan import FilterClause, _sanitize_value
+
+from app.llm.graph.nodes.field_registry import STATUS_ALIASES, lookup_field, resolve_alias
 from app.llm.graph.state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -49,12 +50,40 @@ _SKILL_WORD_BEFORE_RE = re.compile(
     r"\b([A-Za-z0-9#+.\-]+)\s+skills?\b",
     re.IGNORECASE,
 )
-_SKILL_STOP_WORDS: frozenset[str] = frozenset({
-    "active", "inactive", "with", "the", "a", "an", "and", "or",
-    "no", "any", "all", "some", "their", "new", "old", "good", "bad",
-    "key", "top", "my", "his", "her", "our", "your", "other", "some",
-    "primary", "secondary", "additional", "required", "specific",
-})
+_SKILL_STOP_WORDS: frozenset[str] = frozenset(
+    {
+        "active",
+        "inactive",
+        "with",
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "no",
+        "any",
+        "all",
+        "some",
+        "their",
+        "new",
+        "old",
+        "good",
+        "bad",
+        "key",
+        "top",
+        "my",
+        "his",
+        "her",
+        "our",
+        "your",
+        "other",
+        "primary",
+        "secondary",
+        "additional",
+        "required",
+        "specific",
+    }
+)
 
 # ISO date: YYYY-MM-DD
 _DATE_RE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
@@ -129,13 +158,45 @@ _DAYS_OVERDUE_RE = re.compile(
 )
 
 # Fallback skill extraction for refine mode (bare word candidates)
-_REFINE_STOP: frozenset[str] = frozenset({
-    "which", "one", "of", "these", "those", "them", "who",
-    "the", "a", "an", "know", "knows", "can", "are", "is",
-    "and", "or", "have", "do", "does", "show", "me", "list",
-    "among", "filter", "only", "same", "ones", "from",
-    "skill", "skills", "with", "by", "in", "for",
-})
+_REFINE_STOP: frozenset[str] = frozenset(
+    {
+        "which",
+        "one",
+        "of",
+        "these",
+        "those",
+        "them",
+        "who",
+        "the",
+        "a",
+        "an",
+        "know",
+        "knows",
+        "can",
+        "are",
+        "is",
+        "and",
+        "or",
+        "have",
+        "do",
+        "does",
+        "show",
+        "me",
+        "list",
+        "among",
+        "filter",
+        "only",
+        "same",
+        "ones",
+        "from",
+        "skill",
+        "skills",
+        "with",
+        "by",
+        "in",
+        "for",
+    }
+)
 
 
 def _make_filter(field: str, op: str, values: list[str], domain: str) -> FilterClause | None:
@@ -148,14 +209,16 @@ def _make_filter(field: str, op: str, values: list[str], domain: str) -> FilterC
     if canonical is None:
         logger.warning(
             "filter_extractor: field '%s' not in registry for domain '%s' — dropping",
-            field, domain,
+            field,
+            domain,
         )
         return None
     fc_meta = lookup_field(canonical, domain)
     if fc_meta is None:
         logger.warning(
             "filter_extractor: canonical field '%s' not found in domain '%s' registry — dropping",
-            canonical, domain,
+            canonical,
+            domain,
         )
         return None
     sanitized = [_sanitize_value(v) for v in values if v and v.strip()]
@@ -183,9 +246,7 @@ async def extract_filters(state: GraphState) -> dict[str, Any]:
     # Detect same-intent follow-up (refine mode)
     prior_sql = last_turn_context.get("sql", "")
     prior_intent = last_turn_context.get("intent")
-    is_refine_mode = bool(
-        prior_sql and prior_intent and intent and prior_intent == intent
-    )
+    is_refine_mode = bool(prior_sql and prior_intent and intent and prior_intent == intent)
 
     filters: list[FilterClause] = []
 
@@ -233,7 +294,8 @@ def validate_groq_filters(domain: str, raw_filters: list[dict]) -> list[dict]:
             if glossary_hints:
                 logger.debug(
                     "filter_extractor: glossary hints for domain='%s': %s",
-                    domain, glossary_hints,
+                    domain,
+                    glossary_hints,
                 )
         except Exception:
             logger.warning(
@@ -258,7 +320,8 @@ def validate_groq_filters(domain: str, raw_filters: list[dict]) -> list[dict]:
     # Covers bare phrasing like "which of these know Python".
     if is_refine_mode and not any(f.field == "skill" for f in filters):
         candidates = [
-            w for w in re.findall(r"[A-Za-z][A-Za-z0-9#+.\-]*", question)
+            w
+            for w in re.findall(r"[A-Za-z][A-Za-z0-9#+.\-]*", question)
             if w.lower() not in _REFINE_STOP and len(w) >= 2
         ]
         if candidates:
@@ -377,16 +440,19 @@ def validate_groq_filters(domain: str, raw_filters: list[dict]) -> list[dict]:
         logger.debug(
             "filter_extractor: no regex matches for domain='%s', intent='%s'. "
             "LLM extraction deferred to Plan 04.",
-            domain, intent,
+            domain,
+            intent,
         )
 
     # ── Log extracted filters ─────────────────────────────────────────────
-    filter_summary = ", ".join(
-        f"{f.field}={f.op}:{f.values}" for f in filters
-    ) if filters else "none"
+    filter_summary = (
+        ", ".join(f"{f.field}={f.op}:{f.values}" for f in filters) if filters else "none"
+    )
     logger.info(
         "filter_extractor: domain=%s intent=%s extracted_filters=[%s]",
-        domain, intent, filter_summary,
+        domain,
+        intent,
+        filter_summary,
     )
 
     return {"filters": filters}

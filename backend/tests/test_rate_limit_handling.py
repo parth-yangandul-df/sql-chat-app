@@ -45,9 +45,7 @@ def test_openai_provider_complete_maps_rate_limit_to_app_error() -> None:
 
     provider._client = SimpleNamespace(
         chat=SimpleNamespace(
-            completions=SimpleNamespace(
-                create=AsyncMock(side_effect=DummyOpenAIRateLimit())
-            )
+            completions=SimpleNamespace(create=AsyncMock(side_effect=DummyOpenAIRateLimit()))
         )
     )
 

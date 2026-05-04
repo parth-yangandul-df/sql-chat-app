@@ -42,9 +42,7 @@ class SQLSafetyError(AppError):
 
 class QueryTimeoutError(AppError):
     def __init__(self, timeout_seconds: int):
-        super().__init__(
-            f"Query exceeded timeout of {timeout_seconds} seconds", status_code=408
-        )
+        super().__init__(f"Query exceeded timeout of {timeout_seconds} seconds", status_code=408)
 
 
 class RateLimitError(AppError):

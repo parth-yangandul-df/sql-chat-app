@@ -78,9 +78,11 @@ class OpenAIProvider(BaseLLMProvider):
 
     @llm_retry()
     async def generate_embedding(self, text: str) -> list[float]:
+        from app.config import settings
+
         try:
             response = await self._client.embeddings.create(
-                model="text-embedding-3-small",
+                model=settings.embedding_model,
                 input=text,
             )
         except Exception as err:

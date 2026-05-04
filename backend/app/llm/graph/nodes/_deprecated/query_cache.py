@@ -13,7 +13,6 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -28,6 +27,7 @@ DEFAULT_MAX_SIZE = 1000
 @dataclass
 class CacheEntry:
     """A single cache entry with result and metadata."""
+
     result: dict[str, Any]
     timestamp: float
     hits: int = 0
@@ -65,14 +65,14 @@ class QueryCache:
     def get(self, intent: str, filters: list[dict], sort: list[dict]) -> dict[str, Any] | None:
         """Get cached result if available and not expired."""
         key = self._make_key(intent, filters, sort)
-        
+
         if key not in self._cache:
             self._stats["misses"] += 1
             logger.debug("Cache miss for key: %s", key[:16])
             return None
 
         entry = self._cache[key]
-        
+
         # Check TTL
         age = time.time() - entry.timestamp
         if age > self._ttl_seconds:
@@ -86,15 +86,17 @@ class QueryCache:
         if key in self._access_order:
             self._access_order.remove(key)
         self._access_order.append(key)
-        
+
         # Update hit stats
         entry.hits += 1
         self._stats["hits"] += 1
-        
+
         logger.debug("Cache hit for key: %s (hits: %d)", key[:16], entry.hits)
         return entry.result
 
-    def set(self, intent: str, filters: list[dict], sort: list[dict], result: dict[str, Any]) -> None:
+    def set(
+        self, intent: str, filters: list[dict], sort: list[dict], result: dict[str, Any]
+    ) -> None:
         """Store result in cache with LRU eviction."""
         key = self._make_key(intent, filters, sort)
 
@@ -108,19 +110,19 @@ class QueryCache:
             timestamp=time.time(),
             hits=0,
         )
-        
+
         # Update access order
         if key in self._access_order:
             self._access_order.remove(key)
         self._access_order.append(key)
-        
+
         logger.debug("Cached result for key: %s", key[:16])
 
     def _evict_lru(self) -> None:
         """Evict least recently used entry."""
         if not self._access_order:
             return
-        
+
         lru_key = self._access_order.pop(0)
         del self._cache[lru_key]
         self._stats["evictions"] += 1
@@ -136,7 +138,7 @@ class QueryCache:
         """Get cache statistics."""
         total_requests = self._stats["hits"] + self._stats["misses"]
         hit_rate = self._stats["hits"] / total_requests if total_requests > 0 else 0
-        
+
         return {
             **self._stats,
             "size": len(self._cache),
@@ -154,12 +156,12 @@ def get_cached_result(
     sort: list[dict],
 ) -> dict[str, Any] | None:
     """Get cached query result.
-    
+
     Args:
         intent: Query intent
         filters: List of filter dicts
         sort: List of sort dicts
-    
+
     Returns:
         Cached result dict or None if not found/expired
     """
@@ -173,7 +175,7 @@ def cache_result(
     result: dict[str, Any],
 ) -> None:
     """Cache a query result.
-    
+
     Args:
         intent: Query intent
         filters: List of filter dicts

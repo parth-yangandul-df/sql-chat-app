@@ -77,6 +77,7 @@ class GroqProvider(BaseLLMProvider):
         parsed arguments dict, or raises ValueError if no tool call was returned.
         """
         import json as _json
+
         oai_messages = [{"role": m.role, "content": m.content} for m in messages]
 
         start = time.monotonic()
@@ -92,6 +93,7 @@ class GroqProvider(BaseLLMProvider):
             )
         except Exception as err:
             import logging as _logging
+
             _logging.getLogger(__name__).debug(
                 "Groq complete_with_tools error (status=%s): %s",
                 getattr(err, "status_code", "?"),

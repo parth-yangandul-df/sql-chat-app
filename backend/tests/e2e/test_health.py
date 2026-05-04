@@ -1,7 +1,6 @@
 """E2E tests for health and readiness endpoints."""
 
 import httpx
-import pytest
 
 
 def test_health_check(base_url: str) -> None:

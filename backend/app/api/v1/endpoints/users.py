@@ -86,9 +86,7 @@ async def update_user(
         if field not in ALLOWED_UPDATE_FIELDS:
             continue
         if field == "email":
-            result = await db.execute(
-                select(User).where(User.email == value, User.id != user_id)
-            )
+            result = await db.execute(select(User).where(User.email == value, User.id != user_id))
             if result.scalar_one_or_none():
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, "Email already registered")
         setattr(user, field, value)

@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OverrideResult:
     """Result of applying deterministic overrides."""
+
     final_follow_up_type: str  # "refine" | "replace" | "new"
     overrides_applied: list[str]  # List of override reasons
     was_overridden: bool  # True if any override was applied
@@ -55,7 +56,7 @@ def apply_overrides(
                 "forcing follow_up_type=new (was=%s)",
                 current_intent,
                 last_intent,
-                current_follow_up_type
+                current_follow_up_type,
             )
             overrides_applied.append(f"intent_mismatch: {last_intent} -> {current_intent}")
             current_follow_up_type = "new"
@@ -71,7 +72,7 @@ def apply_overrides(
         logger.info(
             "Deterministic override applied: %s, final follow_up_type=%s",
             overrides_applied,
-            current_follow_up_type
+            current_follow_up_type,
         )
 
     return OverrideResult(
@@ -136,14 +137,15 @@ def merge_override_with_extracted(
 # LangGraph Node Wrapper
 # =============================================================================
 
+
 async def deterministic_override_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraph node for deterministic override layer.
-    
+
     Applies deterministic rules that always win over LLM output.
-    
+
     Args:
         state: Current GraphState
-        
+
     Returns:
         Dict with final follow_up_type and confidence_breakdown
     """
@@ -154,21 +156,21 @@ async def deterministic_override_node(state: dict[str, Any]) -> dict[str, Any]:
         "limit": state.get("limit", 50),
         "follow_up_type": state.get("follow_up_type", "new"),
     }
-    
+
     # Get last intent from last_turn_context
     last_turn = state.get("last_turn_context")
     if last_turn:
         state["last_intent"] = last_turn.get("intent")
-    
+
     # Apply deterministic overrides
     override_result = apply_overrides(extracted, state)
-    
+
     logger.info(
         "Deterministic override node: was_overridden=%s, final_follow_up_type=%s",
         override_result.was_overridden,
-        override_result.final_follow_up_type
+        override_result.final_follow_up_type,
     )
-    
+
     return {
         "follow_up_type": override_result.final_follow_up_type,
         "confidence_breakdown": {

@@ -14,24 +14,84 @@ logger = logging.getLogger(__name__)
 
 #: Known skill patterns for heuristic extraction
 KNOWN_SKILLS = {
-    "python", "java", "javascript", "js", "typescript", "ts",
-    "c#", "c++", "csharp", "cpp", "go", "golang", "rust", "ruby",
-    "php", "swift", "kotlin", "scala", "perl", "r",
-    "react", "angular", "vue", "svelte", "nextjs", "nuxt",
-    "node", "nodejs", "express", "django", "flask", "fastapi",
-    "spring", "rails", "laravel", "aspnet", ".net",
-    "sql", "mysql", "postgresql", "postgres", "mongodb", "redis",
-    "aws", "azure", "gcp", "docker", "kubernetes", "k8s",
-    "graphql", "rest", "grpc", "grpc",
-    "machine learning", "ml", "ai", "data science",
-    "devops", "ci/cd", "jenkins", "gitlab", "github actions",
+    "python",
+    "java",
+    "javascript",
+    "js",
+    "typescript",
+    "ts",
+    "c#",
+    "c++",
+    "csharp",
+    "cpp",
+    "go",
+    "golang",
+    "rust",
+    "ruby",
+    "php",
+    "swift",
+    "kotlin",
+    "scala",
+    "perl",
+    "r",
+    "react",
+    "angular",
+    "vue",
+    "svelte",
+    "nextjs",
+    "nuxt",
+    "node",
+    "nodejs",
+    "express",
+    "django",
+    "flask",
+    "fastapi",
+    "spring",
+    "rails",
+    "laravel",
+    "aspnet",
+    ".net",
+    "sql",
+    "mysql",
+    "postgresql",
+    "postgres",
+    "mongodb",
+    "redis",
+    "aws",
+    "azure",
+    "gcp",
+    "docker",
+    "kubernetes",
+    "k8s",
+    "graphql",
+    "rest",
+    "grpc",
+    "machine learning",
+    "ml",
+    "ai",
+    "data science",
+    "devops",
+    "ci/cd",
+    "jenkins",
+    "gitlab",
+    "github actions",
 }
 
 #: Known status patterns
 KNOWN_STATUS = {
-    "active", "inactive", "pending", "approved", "rejected",
-    "benched", "allocated", "assigned", "completed", "ongoing",
-    "closed", "cancelled", "on hold",
+    "active",
+    "inactive",
+    "pending",
+    "approved",
+    "rejected",
+    "benched",
+    "allocated",
+    "assigned",
+    "completed",
+    "ongoing",
+    "closed",
+    "cancelled",
+    "on hold",
 }
 
 #: Known date patterns
@@ -99,10 +159,7 @@ def recover_from_context(
     threshold_filters = _extract_thresholds(question_lower)
     inferred_filters.extend(threshold_filters)
 
-    logger.info(
-        "Context recovery: inferred %d filters from question",
-        len(inferred_filters)
-    )
+    logger.info("Context recovery: inferred %d filters from question", len(inferred_filters))
 
     return inferred_filters
 
@@ -110,15 +167,17 @@ def recover_from_context(
 def _extract_skills(question: str) -> list[dict[str, Any]]:
     """Extract skill filters from question."""
     filters = []
-    
+
     for skill in KNOWN_SKILLS:
         if skill in question:
-            filters.append({
-                "field": "skill",
-                "operator": "contains",
-                "value": skill,
-                "_source": "context_recovery",
-            })
+            filters.append(
+                {
+                    "field": "skill",
+                    "operator": "contains",
+                    "value": skill,
+                    "_source": "context_recovery",
+                }
+            )
             break  # Only add one skill filter
 
     return filters
@@ -127,15 +186,17 @@ def _extract_skills(question: str) -> list[dict[str, Any]]:
 def _extract_status(question: str) -> list[dict[str, Any]]:
     """Extract status filters from question."""
     filters = []
-    
+
     for status in KNOWN_STATUS:
         if status in question:
-            filters.append({
-                "field": "status",
-                "operator": "eq",
-                "value": status,
-                "_source": "context_recovery",
-            })
+            filters.append(
+                {
+                    "field": "status",
+                    "operator": "eq",
+                    "value": status,
+                    "_source": "context_recovery",
+                }
+            )
             break  # Only add one status filter
 
     return filters
@@ -144,26 +205,30 @@ def _extract_status(question: str) -> list[dict[str, Any]]:
 def _extract_dates(question: str) -> list[dict[str, Any]]:
     """Extract date filters from question."""
     filters = []
-    
+
     for pattern, date_type in KNOWN_DATE_PATTERNS.items():
         if re.search(pattern, question):
             # Extract date values if present
             date_match = re.search(r"(\d{4}-\d{2}-\d{2})", question)
             if date_match:
-                filters.append({
-                    "field": "start_date",
-                    "operator": "eq",
-                    "value": date_match.group(1),
-                    "_source": "context_recovery",
-                })
+                filters.append(
+                    {
+                        "field": "start_date",
+                        "operator": "eq",
+                        "value": date_match.group(1),
+                        "_source": "context_recovery",
+                    }
+                )
             else:
                 # Just mark that date filtering is needed
-                filters.append({
-                    "field": "start_date",
-                    "operator": "eq",
-                    "value": date_type,
-                    "_source": "context_recovery",
-                })
+                filters.append(
+                    {
+                        "field": "start_date",
+                        "operator": "eq",
+                        "value": date_type,
+                        "_source": "context_recovery",
+                    }
+                )
             break
 
     return filters
@@ -172,7 +237,7 @@ def _extract_dates(question: str) -> list[dict[str, Any]]:
 def _extract_thresholds(question: str) -> list[dict[str, Any]]:
     """Extract numeric threshold filters from question."""
     filters = []
-    
+
     # Map threshold patterns to fields
     threshold_fields = {
         "more than": "min_allocation",
@@ -192,14 +257,20 @@ def _extract_thresholds(question: str) -> list[dict[str, Any]]:
             match = re.search(rf"{pattern}\s+(\d+)", question)
             if match:
                 value = match.group(1)
-                operator = "gte" if "at least" in pattern or "minimum" in pattern or "+" in question else "gt"
-                
-                filters.append({
-                    "field": field,
-                    "operator": operator,
-                    "value": value,
-                    "_source": "context_recovery",
-                })
+                operator = (
+                    "gte"
+                    if "at least" in pattern or "minimum" in pattern or "+" in question
+                    else "gt"
+                )
+
+                filters.append(
+                    {
+                        "field": field,
+                        "operator": operator,
+                        "value": value,
+                        "_source": "context_recovery",
+                    }
+                )
                 break
 
     return filters
@@ -217,13 +288,13 @@ def get_context_keywords() -> dict[str, set]:
 
 def add_known_pattern(category: str, pattern: str) -> None:
     """Add a new known pattern to the recovery system.
-    
+
     Args:
         category: One of "skills", "status", "date_patterns", "thresholds"
         pattern: The pattern to add
     """
     global KNOWN_SKILLS, KNOWN_STATUS, KNOWN_DATE_PATTERNS, KNOWN_THRESHOLDS
-    
+
     if category == "skills":
         KNOWN_SKILLS.add(pattern.lower())
     elif category == "status":

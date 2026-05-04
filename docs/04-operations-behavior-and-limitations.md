@@ -63,7 +63,7 @@ npm run dev
 | `OPENAI_API_KEY` | — | Required if `DEFAULT_LLM_PROVIDER=openai`, or when any non-Ollama provider needs embeddings |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama server URL. Use `http://ollama:11434` for Docker-in-Docker Ollama. |
 | `OLLAMA_MODEL` | `llama3.1:8b` | Ollama model for completions |
-| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model for embeddings |
+| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model for embeddings (only when using Ollama for embeddings) |
 | `TOOL_CONFIDENCE_THRESHOLD` | `0.65` | Cosine similarity cutoff for intent classification. Below this → LLM fallback path. |
 
 ---

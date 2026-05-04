@@ -1,11 +1,21 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+TurnType = Literal["query", "clarification", "show_sql", "explain_result"]
+ClarificationReason = Literal[
+    "low_confidence_rewrite",
+    "retry_exhausted",
+    "missing_previous_turn",
+    "missing_previous_sql",
+    "missing_previous_result",
+]
 
 
 class QueryExecution(Base):
@@ -36,9 +46,12 @@ class QueryExecution(Base):
     result_summary: Mapped[str | None] = mapped_column(Text)
     turn_context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Agentic multi-turn fields
+    turn_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default="query")
+    clarification_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    result_columns: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    result_preview_rows: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
     # Relationship back to session
     session: Mapped["ChatSession | None"] = relationship(  # noqa: F821

@@ -1,19 +1,15 @@
 """E2E tests for glossary, metrics, and sample queries (semantic layer)."""
 
-import uuid
 
 import httpx
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Glossary
 # ---------------------------------------------------------------------------
 
+
 class TestGlossary:
-    def test_list_glossary_terms(
-        self, admin_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_list_glossary_terms(self, admin_client: httpx.Client, connection_id: str) -> None:
         resp = admin_client.get(f"/api/v1/glossary?connection_id={connection_id}")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
@@ -50,17 +46,14 @@ class TestGlossary:
 # Metrics
 # ---------------------------------------------------------------------------
 
+
 class TestMetrics:
-    def test_list_metrics(
-        self, admin_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_list_metrics(self, admin_client: httpx.Client, connection_id: str) -> None:
         resp = admin_client.get(f"/api/v1/metrics?connection_id={connection_id}")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
-    def test_create_and_delete_metric(
-        self, admin_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_create_and_delete_metric(self, admin_client: httpx.Client, connection_id: str) -> None:
         create_resp = admin_client.post(
             "/api/v1/metrics",
             json={
@@ -85,10 +78,9 @@ class TestMetrics:
 # Sample Queries
 # ---------------------------------------------------------------------------
 
+
 class TestSampleQueries:
-    def test_list_sample_queries(
-        self, admin_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_list_sample_queries(self, admin_client: httpx.Client, connection_id: str) -> None:
         resp = admin_client.get(f"/api/v1/sample-queries?connection_id={connection_id}")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)

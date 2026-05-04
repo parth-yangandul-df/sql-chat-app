@@ -1,24 +1,23 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useOutletContext } from 'react-router-dom'
-import { queryApi, type ConversationTurn, type QueryStageEvent } from '@/api/queryApi'
+import { queryApi, type QueryStageEvent } from '@/api/queryApi'
 import { useSessionMessages } from '@/hooks/useThreads'
 import { PureMultimodalInput } from '@/components/ui/multimodal-ai-chat-input'
 import { SpotlightTable } from '@/components/ui/spotlight-table'
 import { RecentQuestions, saveRecentQuestion } from '@/components/RecentQuestions'
 import { loadPersistedChatMessages, persistChatMessages } from '@/lib/chat-session-cache'
-import type { QueryResult, TurnContext } from '@/types/api'
+import type { QueryResult } from '@/types/api'
 import type { ChatLayoutContext } from '@/components/layout/ChatLayout'
 import { Bot, User, AlertCircle, ChevronDown, ChevronUp, Copy, Check, Zap, MessageSquareOff, Loader2 } from 'lucide-react'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const CONVERSATION_HISTORY_TURNS = 3 // last N turns (N user + N assistant = 2N messages)
 const MIN_PIPELINE_VISIBILITY_MS = 5000
 const STAGE_TIMELINE_FRACTIONS = [0, 0.25, 0.55, 0.80] as const
 const PIPELINE_STAGES: QueryStageEvent[] = [
-  { type: 'stage', stage: 'extracting', label: 'Extracting', progress: 25 },
-  { type: 'stage', stage: 'composing', label: 'Composing', progress: 50 },
-  { type: 'stage', stage: 'validating', label: 'Validating', progress: 75 },
+  { type: 'stage', stage: 'understanding', label: 'Understanding your question...', progress: 20 },
+  { type: 'stage', stage: 'generating_sql', label: 'Generating SQL...', progress: 50 },
+  { type: 'stage', stage: 'running_query', label: 'Running query...', progress: 75 },
   { type: 'stage', stage: 'interpreting', label: 'Interpreting', progress: 100 },
 ]
 
@@ -72,18 +71,24 @@ function SqlBlock({ sql }: { sql: string }) {
 // ── Assistant message bubble ───────────────────────────────────────────────────
 function AssistantMessage({
   result,
+  onFollowup,
 }: {
   result: QueryResult
   onFollowup: (q: string) => void
 }) {
+  const primaryText = result.clarification_message ?? result.summary
+  const suggestionOptions = result.turn_type === 'clarification'
+    ? result.clarification_options
+    : result.suggested_followups
+
   return (
     <div className="flex gap-3 group">
       <div className="shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
         <Bot className="h-4 w-4 text-gray-700" />
       </div>
       <div className="flex-1 min-w-0 space-y-3">
-        {result.summary && (
-          <p className="text-sm text-gray-900 leading-relaxed">{result.summary}</p>
+        {primaryText && (
+          <p className="text-sm text-gray-900 leading-relaxed">{primaryText}</p>
         )}
         {result.highlights.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -94,6 +99,19 @@ function AssistantMessage({
               >
                 {h}
               </span>
+            ))}
+          </div>
+        )}
+        {suggestionOptions.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {suggestionOptions.map((option) => (
+              <button
+                key={option}
+                onClick={() => onFollowup(option)}
+                className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:border-gray-900 hover:text-gray-900"
+              >
+                {option}
+              </button>
             ))}
           </div>
         )}
@@ -249,7 +267,7 @@ function buildMessagesFromHistory(
     row_count: number | null
     execution_time_ms: number | null
     retry_count: number
-    turn_context: TurnContext | null
+    turn_type: string
   }>
 ): ChatMessage[] {
   const messages: ChatMessage[] = []
@@ -279,14 +297,15 @@ function buildMessagesFromHistory(
         row_count: item.row_count ?? 0,
         execution_time_ms: item.execution_time_ms ?? 0,
         truncated: false,
-        summary: item.result_summary,
+        summary: item.turn_type === 'clarification' ? null : item.result_summary,
         highlights: [],
         suggested_followups: [],
-        llm_provider: '',
-        llm_model: '',
+        llm_provider: null,
+        llm_model: null,
         retry_count: item.retry_count,
-        turn_context: item.turn_context,
-        topic_switch_detected: false,
+        turn_type: item.turn_type,
+        clarification_message: item.turn_type === 'clarification' ? item.result_summary : null,
+        clarification_options: [],
       }
       messages.push({
         id: `${item.id}-assistant`,
@@ -306,30 +325,9 @@ export function ChatQueryPage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
-  const [lastTurnContext, setLastTurnContext] = useState<TurnContext | null>(null)
   const [pipelineStage, setPipelineStage] = useState<QueryStageEvent | null>(null)
   const [attachments, setAttachments] = useState<{ url: string; name: string; contentType: string; size: number }[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const pipelineTimerRefs = useRef<number[]>([])
-
-  const clearPipelineTimer = useCallback(() => {
-    for (const timerId of pipelineTimerRefs.current) {
-      window.clearTimeout(timerId)
-    }
-    pipelineTimerRefs.current = []
-  }, [])
-
-  const startPipelineTimeline = useCallback(() => {
-    clearPipelineTimer()
-    setPipelineStage(PIPELINE_STAGES[0])
-
-    pipelineTimerRefs.current = PIPELINE_STAGES.slice(1).map((stage, index) =>
-      window.setTimeout(
-        () => setPipelineStage(stage),
-        Math.round(MIN_PIPELINE_VISIBILITY_MS * STAGE_TIMELINE_FRACTIONS[index + 1]),
-      ),
-    )
-  }, [clearPipelineTimer])
 
   // Load session history on mount / thread change
   const { data: sessionMessages, isLoading: loadingHistory } = useSessionMessages(threadId)
@@ -338,7 +336,6 @@ export function ChatQueryPage() {
     // Reset when thread changes
     setMessages([])
     setHistoryLoaded(false)
-    setLastTurnContext(null)
   }, [threadId])
 
   useEffect(() => {
@@ -348,22 +345,14 @@ export function ChatQueryPage() {
 
     const cachedMessages = loadPersistedChatMessages(threadId)
     if (cachedMessages) {
-      const restoredTurnContext = [...cachedMessages]
-        .reverse()
-        .find((item) => item.role === 'assistant')
       setMessages(cachedMessages)
-      setLastTurnContext(restoredTurnContext?.role === 'assistant' ? restoredTurnContext.result.turn_context : null)
       setHistoryLoaded(true)
       return
     }
 
     if (sessionMessages && !historyLoaded) {
       const restored = buildMessagesFromHistory(sessionMessages)
-      const restoredTurnContext = [...sessionMessages]
-        .reverse()
-        .find((item) => item.turn_context)?.turn_context ?? null
       setMessages(restored)
-      setLastTurnContext(restoredTurnContext)
       setHistoryLoaded(true)
     }
   }, [historyLoaded, sessionMessages, threadId])
@@ -376,10 +365,6 @@ export function ChatQueryPage() {
     persistChatMessages(threadId, messages)
   }, [historyLoaded, messages, threadId])
 
-  useEffect(() => () => {
-    clearPipelineTimer()
-  }, [clearPipelineTimer])
-
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -389,37 +374,24 @@ export function ChatQueryPage() {
     scrollToBottom()
   }, [messages, scrollToBottom])
 
-  const mutation = useMutation<QueryResult, Error, { question: string; connId: string; history: ConversationTurn[] }>({
-    mutationFn: async ({ question, connId, history }: { question: string; connId: string; history: ConversationTurn[] }) => {
-      const startedAt = Date.now()
-      const result = await queryApi.execute(
+  const mutation = useMutation<QueryResult, Error, { question: string; connId: string }>({
+    mutationFn: async ({ question, connId }: { question: string; connId: string }) => {
+      return await queryApi.executeStream(
         {
           connection_id: connId,
           question,
           session_id: threadId,
-          conversation_history: history,
-          last_turn_context: lastTurnContext ?? undefined,
+        },
+        (event) => {
+          if (event.type === 'stage') setPipelineStage(event)
         },
       )
-
-      const remaining = MIN_PIPELINE_VISIBILITY_MS - (Date.now() - startedAt)
-      if (remaining > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remaining))
-      }
-
-      return result
     },
     onMutate: () => {
-      startPipelineTimeline()
+      setPipelineStage(null)
     },
     onSuccess: (result) => {
-      clearPipelineTimer()
       setPipelineStage(null)
-      if (result.topic_switch_detected) {
-        setLastTurnContext(null)
-      } else {
-        setLastTurnContext(result.turn_context)
-      }
       setMessages((prev) => [
         ...prev,
         { id: `${Date.now()}-assistant`, role: 'assistant', result },
@@ -431,7 +403,6 @@ export function ChatQueryPage() {
       }
     },
     onError: (error: unknown) => {
-      clearPipelineTimer()
       setPipelineStage(null)
       const message = error instanceof Error ? error.message : 'An unexpected error occurred'
       setMessages((prev) => [
@@ -455,12 +426,11 @@ export function ChatQueryPage() {
 
       setMessages((prev) => {
         const next = [...prev, userMsg]
-        const history = buildConversationHistory(prev) // history = messages BEFORE this question
-        mutation.mutate({ question: content.trim(), connId: connectionId, history })
+        mutation.mutate({ question: content.trim(), connId: connectionId })
         return next
       })
     },
-    [connectionId, lastTurnContext, mutation, queryClient, threadId],
+    [connectionId, mutation, queryClient, threadId],
   )
 
   const hasMessages = messages.length > 0

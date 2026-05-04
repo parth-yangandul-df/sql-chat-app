@@ -5,7 +5,6 @@ Tests the sequence: login → list connections → create session → run query 
 """
 
 import httpx
-import pytest
 
 
 def test_full_query_pipeline(
@@ -57,47 +56,48 @@ def test_full_query_pipeline(
     assert len(messages) >= 1
 
     # 6. Verify it appears in query history
-    history_resp = user_client.get(
-        f"/api/v1/query-history?connection_id={connection_id}&limit=5"
-    )
+    history_resp = user_client.get(f"/api/v1/query-history?connection_id={connection_id}&limit=5")
     assert history_resp.status_code == 200
     history_ids = [h["id"] for h in history_resp.json()]
     assert str(result["id"]) in history_ids
 
 
-def test_multi_turn_pipeline(
-    user_client: httpx.Client, connection_id: str
-) -> None:
+def test_multi_turn_pipeline(user_client: httpx.Client, connection_id: str) -> None:
     """
     Scenario: User asks a question, then refines it in the next turn.
     Both turns should produce valid SQL and the second should differ from the first.
+    Backend loads history from session — no client-side context needed.
     """
+    # Create a session for this multi-turn test
+    session_resp = user_client.post("/api/v1/sessions", json={"title": "multi-turn test"})
+    assert session_resp.status_code == 200
+    session_id = session_resp.json()["id"]
+
     # Turn 1
     t1_resp = user_client.post(
         "/api/v1/query",
-        json={"connection_id": connection_id, "question": "Show me all active clients"},
+        json={
+            "connection_id": connection_id,
+            "question": "Show me all active clients",
+            "session_id": session_id,
+        },
     )
     assert t1_resp.status_code == 200
     t1 = t1_resp.json()
-    t1_ctx = t1.get("turn_context")
 
-    # Turn 2 — refine
+    # Turn 2 — refine using same session_id; backend loads history automatically
     t2_resp = user_client.post(
         "/api/v1/query",
         json={
             "connection_id": connection_id,
             "question": "Now only show the ones in Bangalore",
-            "conversation_history": [
-                {"role": "user", "content": "Show me all active clients"},
-                {"role": "assistant", "content": t1["explanation"]},
-            ],
-            "last_turn_context": t1_ctx,
+            "session_id": session_id,
         },
     )
     assert t2_resp.status_code == 200
     t2 = t2_resp.json()
 
     # SQL must have changed (refinement applied)
-    assert t2["generated_sql"] != t1["generated_sql"], (
+    assert t2.get("generated_sql") != t1.get("generated_sql"), (
         "Refinement produced identical SQL — context was not applied"
     )

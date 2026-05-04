@@ -4,6 +4,22 @@
 
 QueryWise — a text-to-SQL application with a semantic metadata layer. Users ask natural language questions, an LLM generates SQL using business context, executes against their database, and returns human-readable answers.
 
+## What is QueryWise?
+
+QueryWise is designed to:
+1. Accept natural language queries from users
+2. Use business context (glossary, metrics, sample queries) to understand intent
+3. Generate accurate SQL using the semantic layer
+4. Execute against target databases (PostgreSQL, SQL Server)
+5. Return human-readable answers
+
+### Key Capabilities
+- Natural language → SQL conversion
+- Semantic metadata layer (glossary, metrics, dictionaries, knowledge base)
+- Multi-turn conversation context
+- Multi-database support (PostgreSQL, SQL Server)
+- Provider-agnostic LLM (Anthropic, OpenAI, Ollama, OpenRouter, Groq)
+
 ## Tech Stack
 
 - **Backend:** Python 3.12+, FastAPI, SQLAlchemy (async), asyncpg, pgvector, Alembic, LangGraph
@@ -31,11 +47,11 @@ Run from `backend/`:
 ```bash
 pip install -e ".[llm,dev,sqlserver]"  # Install all deps
 alembic upgrade head                  # Run migrations
-uvicorn app.main:app --reload         # Dev server on :8000
-pytest                                # Run tests
-ruff check .                          # Lint
-ruff format .                         # Format
-mypy .                                # Type check
+uvicorn app.main:app --reload       # Dev server on :8000
+pytest                             # Run tests
+ruff check .                       # Lint
+ruff format .                      # Format
+mypy .                             # Type check
 ```
 
 ## Frontend Commands
@@ -44,9 +60,9 @@ Run from `frontend/`:
 
 ```bash
 npm install                           # Install deps
-npm run dev                           # Dev server on :5173
-npm run build                         # Production build (tsc + vite)
-npm run lint                          # ESLint
+npm run dev                          # Dev server on :5173
+npm run build                        # Production build (tsc + vite)
+npm run lint                         # ESLint
 ```
 
 Run from `chatbot-frontend/`:
@@ -54,8 +70,8 @@ Run from `chatbot-frontend/`:
 ```bash
 npm install                           # Install deps
 npm run dev                           # Dev server on :5174
-npm run build                         # Production build (tsc + vite)
-npm run lint                          # ESLint
+npm run build                        # Production build
+npm run lint                         # ESLint
 ```
 
 ## Code Style
@@ -99,17 +115,21 @@ chatbot-frontend/src/    # React + Tailwind + shadcn/ui (port 5174)
 | `DATABASE_URL` | `postgresql+asyncpg://querywise:querywise_dev@localhost:5432/querywise` | App metadata DB |
 | `ENCRYPTION_KEY` | `dev-encryption-key-change-in-production` | Fernet key for connection strings |
 | `DEFAULT_LLM_PROVIDER` | `anthropic` | LLM provider (`anthropic`, `openai`, `ollama`, `openrouter`, `groq`) |
-| `DEFAULT_LLM_MODEL` | `claude-sonnet-4-20250514` | Default model for SQL generation |
-| `EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model |
+| `DEFAULT_LLM_MODEL` | `claude-sonnet-4-20250514` | Default model for SQL generation. **Ignored when `DEFAULT_LLM_PROVIDER=openrouter`** — use `OPENROUTER_MODEL`, `RESOLVER_MODEL`, `INTERPRETER_MODEL` instead. |
+| `EMBEDDING_MODEL` | `openai/text-embedding-3-small` | Embedding model (used with OpenAI, OpenRouter, or when `EMBEDDING_PROVIDER=openai`) |
 | `CORS_ORIGINS` | `["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:4200", "http://localhost:4000"]` | Allowed CORS origins |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama server URL |
 | `OLLAMA_MODEL` | `llama3.1:8b` | Ollama model for completions |
-| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model for embeddings |
+| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model for embeddings (only when using Ollama for embeddings) |
 | `OPENROUTER_API_KEY` | — | Required if using OpenRouter |
+| `OPENROUTER_MODEL` | `deepseek/deepseek-v3.2` | OpenRouter model for Composer (SQL generation + error correction) |
+| `RESOLVER_MODEL` | `openai/gpt-4.1-nano` | OpenRouter model for Resolver (intent classification + question rewrite) |
+| `INTERPRETER_MODEL` | `meta-llama/llama-3.1-8b-instruct` | OpenRouter model for Interpreter (result → natural language summary) |
 | `GROQ_API_KEY` | — | Required if using Groq |
-| `EMBEDDING_DIMENSION` | `1536` | Vector dimension (1536 for OpenAI, 768 for Ollama nomic-embed-text) |
+| `EMBEDDING_DIMENSION` | `1536` | Vector dimension (1536 for OpenAI/OpenRouter, 768 for Ollama nomic-embed-text) |
+| `EMBEDDING_PROVIDER` | — | Explicit embedding provider override (e.g., `openrouter` to route embeddings through OpenRouter) |
 | `ANTHROPIC_API_KEY` | — | Required if using Anthropic |
-| `OPENAI_API_KEY` | — | Required if using OpenAI (completions + embeddings) |
+| `OPENAI_API_KEY` | — | Required if using OpenAI directly. **Not needed** when `EMBEDDING_PROVIDER=openrouter` (embeddings routed through OpenRouter). |
 
 ### Feature Flags
 
@@ -125,7 +145,7 @@ chatbot-frontend/src/    # React + Tailwind + shadcn/ui (port 5174)
 |----------|---------|-------------|
 | `OLLAMA_LLM_BASE_URL` | — | Cloud Ollama URL for LLM completions |
 | `OLLAMA_API_KEY` | — | API key for cloud Ollama |
-| `EMBEDDING_PROVIDER` | — | Explicit embedding provider override |
+| `EMBEDDING_PROVIDER` | — | Explicit embedding provider override (e.g., `openrouter` to route embeddings through OpenRouter) |
 
 ### Authentication
 

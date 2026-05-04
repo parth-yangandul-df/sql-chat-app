@@ -174,9 +174,7 @@ class OllamaProvider(BaseLLMProvider):
 
     async def _embed_new_api(self, text: str, model: str) -> list[float]:
         """Ollama 0.4+ /api/embed endpoint."""
-        resp = await self._embed_client.post(
-            "/embed", json={"model": model, "input": text}
-        )
+        resp = await self._embed_client.post("/embed", json={"model": model, "input": text})
         resp.raise_for_status()
         data = resp.json()
         embeddings = data.get("embeddings", [])

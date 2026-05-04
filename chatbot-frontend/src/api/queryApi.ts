@@ -1,14 +1,9 @@
 import { api, getApiBaseUrl } from './client'
-import type { QueryResult, QueryHistory, TurnContext } from '../types/api'
-
-export interface ConversationTurn {
-  role: 'user' | 'assistant'
-  content: string
-}
+import type { QueryResult, QueryHistory } from '../types/api'
 
 export interface QueryStageEvent {
   type: 'stage'
-  stage: 'extracting' | 'composing' | 'validating' | 'interpreting'
+  stage: 'understanding' | 'generating_sql' | 'running_query' | 'interpreting'
   label: string
   progress: number
 }
@@ -23,9 +18,12 @@ export interface QueryErrorEvent {
   message: string
   status_code?: number
 }
+export interface QueryTokenEvent {
+  type: 'token'
+  content: string
+}
 
-export type QueryStreamEvent = QueryStageEvent | QueryResultEvent | QueryErrorEvent
-
+export type QueryStreamEvent = QueryStageEvent | QueryResultEvent | QueryErrorEvent | QueryTokenEvent
 async function buildStreamRequestError(response: Response): Promise<Error> {
   let message = `Request failed with status ${response.status}`
 
@@ -54,8 +52,6 @@ export const queryApi = {
     connection_id: string
     question: string
     session_id?: string
-    conversation_history?: ConversationTurn[]
-    last_turn_context?: TurnContext
     clear_context?: boolean
   }) => api.post<QueryResult>('/query', data).then((r) => r.data),
 
@@ -64,8 +60,6 @@ export const queryApi = {
       connection_id: string
       question: string
       session_id?: string
-      conversation_history?: ConversationTurn[]
-      last_turn_context?: TurnContext
       clear_context?: boolean
     },
     onEvent: (event: QueryStreamEvent) => void,

@@ -1,12 +1,9 @@
 """E2E tests for the streaming query endpoint (SSE)."""
 
 import httpx
-import pytest
 
 
-def test_stream_query_returns_sse_events(
-    user_client: httpx.Client, connection_id: str
-) -> None:
+def test_stream_query_returns_sse_events(user_client: httpx.Client, connection_id: str) -> None:
     """The stream endpoint must return SSE-formatted data with progress stages."""
     lines = []
     with user_client.stream(
@@ -17,7 +14,9 @@ def test_stream_query_returns_sse_events(
     ) as resp:
         assert resp.status_code == 200
         content_type = resp.headers.get("content-type", "")
-        assert "text/event-stream" in content_type, f"Expected SSE content-type, got: {content_type}"
+        assert "text/event-stream" in content_type, (
+            f"Expected SSE content-type, got: {content_type}"
+        )
         for line in resp.iter_lines():
             lines.append(line)
 
@@ -26,15 +25,15 @@ def test_stream_query_returns_sse_events(
 
     # Last data event should be the final result
     import json
-    last_event = json.loads(data_lines[-1][len("data: "):])
+
+    last_event = json.loads(data_lines[-1][len("data: ") :])
     assert "generated_sql" in last_event or "stage" in last_event
 
 
-def test_stream_query_has_progress_stages(
-    user_client: httpx.Client, connection_id: str
-) -> None:
+def test_stream_query_has_progress_stages(user_client: httpx.Client, connection_id: str) -> None:
     """Stream events should include at least one progress stage before the result."""
     import json
+
     events = []
     with user_client.stream(
         "POST",
@@ -46,7 +45,7 @@ def test_stream_query_has_progress_stages(
         for line in resp.iter_lines():
             if line.startswith("data: "):
                 try:
-                    events.append(json.loads(line[len("data: "):]))
+                    events.append(json.loads(line[len("data: ") :]))
                 except json.JSONDecodeError:
                     pass
 

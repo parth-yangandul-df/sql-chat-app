@@ -225,9 +225,11 @@ EMBEDDING_DIMENSION=768
 ```bash
 DEFAULT_LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=<your-openrouter-key>
-OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
-OPENAI_API_KEY=<your-openai-key>  # Required for embeddings
-EMBEDDING_MODEL=text-embedding-3-small
+OPENROUTER_MODEL=deepseek/deepseek-v3.2          # Composer (SQL generation + error correction)
+RESOLVER_MODEL=openai/gpt-4.1-nano               # Resolver (intent classification + question rewrite)
+INTERPRETER_MODEL=meta-llama/llama-3.1-8b-instruct # Interpreter (result → natural language summary)
+EMBEDDING_PROVIDER=openrouter                     # Route embeddings through OpenRouter
+EMBEDDING_MODEL=openai/text-embedding-3-small
 EMBEDDING_DIMENSION=1536
 ```
 

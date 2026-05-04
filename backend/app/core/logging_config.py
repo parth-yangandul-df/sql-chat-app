@@ -125,9 +125,9 @@ class InterceptHandler(logging.Handler):
         }
         _serialized = _format_record(_record_dict)
 
-        logger.opt(depth=depth, exception=record.exc_info).bind(
-            _serialized=_serialized
-        ).log(level, record.getMessage())
+        logger.opt(depth=depth, exception=record.exc_info).bind(_serialized=_serialized).log(
+            level, record.getMessage()
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +143,7 @@ def _make_retention_fn(log_dir: Path, compress_after_days: int = 10):
     Compresses .jsonl log files older than ``compress_after_days`` days to .gz.
     Never deletes any log file.
     """
+
     def _retain(files: list) -> None:
         cutoff = _dt.datetime.now(_dt.UTC) - _dt.timedelta(days=compress_after_days)
         for filepath in files:
@@ -158,6 +159,7 @@ def _make_retention_fn(log_dir: Path, compress_after_days: int = 10):
                     except Exception:
                         pass  # leave original intact on any error
             # .gz files: never touch
+
     return _retain
 
 

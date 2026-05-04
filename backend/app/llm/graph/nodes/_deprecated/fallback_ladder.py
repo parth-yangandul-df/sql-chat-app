@@ -17,15 +17,13 @@ from typing import Any
 
 from app.llm.graph.nodes.context_recovery import recover_from_context
 from app.llm.graph.nodes.llm_extraction import create_extraction_prompt_stronger
-from app.llm.base_provider import LLMMessage
-from app.llm.router import get_provider
-from app.llm.base_provider import LLMConfig
 
 logger = logging.getLogger(__name__)
 
 
 class FallbackLevel:
     """Enum for fallback levels."""
+
     RETRY_LLM = 1
     HEURISTIC = 2
     CONTEXT_RECOVERY = 3
@@ -37,6 +35,7 @@ class FallbackLevel:
 @dataclass
 class FallbackResult:
     """Result of fallback ladder execution."""
+
     level: int  # Which level succeeded (1-6)
     filters: list[dict[str, Any]]  # Extracted filters
     success: bool
@@ -66,7 +65,7 @@ async def execute_fallback_ladder(
     logger.info(
         "Starting fallback ladder: failure_reason=%s, current_filters=%d",
         failure_reason,
-        len(current_filters)
+        len(current_filters),
     )
 
     # Determine starting level based on failure reason
@@ -76,7 +75,7 @@ async def execute_fallback_ladder(
     for level in range(start_level, 7):
         try:
             logger.debug("Trying fallback level %d", level)
-            
+
             if level == FallbackLevel.RETRY_LLM:
                 result = await _try_retry_llm(question, domain, state)
             elif level == FallbackLevel.HEURISTIC:
@@ -140,11 +139,11 @@ async def _try_retry_llm(
     from app.llm.graph.nodes.llm_extraction import extract_structured
 
     messages = create_extraction_prompt_stronger(question, domain, state)
-    
+
     try:
         # Use existing extraction but with stronger prompt
         result = await extract_structured(question, domain, state)
-        
+
         if result.get("filters"):
             return FallbackResult(
                 level=1,
@@ -153,7 +152,7 @@ async def _try_retry_llm(
             )
     except Exception as e:
         logger.warning("Level 1 (retry) failed: %s", e)
-    
+
     return FallbackResult(level=1, filters=[], success=False)
 
 
@@ -166,17 +165,19 @@ def _try_heuristic(
 
     try:
         params = extract_params(state)
-        
+
         # Convert params to filters
         filters = []
         for key, value in params.items():
             if value:
-                filters.append({
-                    "field": key,
-                    "operator": "contains",
-                    "value": value,
-                })
-        
+                filters.append(
+                    {
+                        "field": key,
+                        "operator": "contains",
+                        "value": value,
+                    }
+                )
+
         if filters:
             logger.info("Level 2 (heuristic) extracted %d filters", len(filters))
             return FallbackResult(
@@ -196,10 +197,10 @@ def _try_context_recovery(
 ) -> FallbackResult:
     """Level 3: Context recovery from question tokens."""
     last_filters = state.get("filters", [])
-    
+
     try:
         filters = recover_from_context(question, last_filters)
-        
+
         if filters:
             logger.info("Level 3 (context recovery) extracted %d filters", len(filters))
             return FallbackResult(
@@ -235,7 +236,7 @@ def _try_clarification(question: str) -> FallbackResult:
     """Level 5: Request user clarification."""
     # Generate clarification prompt based on question
     clarification = _generate_clarification_prompt(question)
-    
+
     logger.info("Level 5 (clarification) requesting user input")
     return FallbackResult(
         level=5,
@@ -259,9 +260,9 @@ async def _try_full_llm_fallback(
     """Level 6: Full LLM fallback - generate SQL directly."""
     # This delegates to the existing llm_fallback chain
     # which will generate SQL without structured filter extraction
-    
+
     logger.warning("Level 6 (full LLM fallback) - delegating to llm_fallback chain")
-    
+
     # Return failure - the pipeline should detect this and route to llm_fallback
     # The actual LLM SQL generation happens in the existing graph path
     return FallbackResult(

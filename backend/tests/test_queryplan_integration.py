@@ -18,10 +18,10 @@ import pytest
 
 from app.connectors.base_connector import QueryResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_result(row_count: int = 2) -> QueryResult:
     """Build a minimal QueryResult for testing."""
@@ -86,6 +86,7 @@ def _make_mock_connector(result: QueryResult | None = None) -> MagicMock:
 # Test 1: Feature flag OFF → _try_refinement() path is used (existing path)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_flag_off_uses_existing_refinement_path(monkeypatch):
     """When USE_QUERY_PLAN_COMPILER=false, existing _is_refine_mode path runs."""
@@ -93,8 +94,10 @@ async def test_flag_off_uses_existing_refinement_path(monkeypatch):
 
     # Re-import config so the env var takes effect
     import app.config
+
     importlib.reload(app.config)
     import app.llm.graph.domains.base_domain as bd_module
+
     importlib.reload(bd_module)
 
     from app.llm.graph.domains.resource import ResourceAgent
@@ -121,14 +124,17 @@ async def test_flag_off_uses_existing_refinement_path(monkeypatch):
 # Test 2: Feature flag ON, query_plan present → compile_query() path runs
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_flag_on_with_query_plan_uses_compiler(monkeypatch):
     """When flag=ON and query_plan is in state, compile_query() path executes."""
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
     import app.llm.graph.domains.base_domain as bd_module
+
     importlib.reload(bd_module)
 
     from app.llm.graph.domains.resource import ResourceAgent
@@ -156,7 +162,10 @@ async def test_flag_on_with_query_plan_uses_compiler(monkeypatch):
     assert result["llm_provider"] == "domain_tool"
     # Should have used compile_query — SQL should come from BASE_QUERIES
     from app.llm.graph.nodes.sql_compiler import BASE_QUERIES
-    expected_base = BASE_QUERIES["active_resources"].replace("{select_extras}", "").replace("{join_extras}", "")
+
+    expected_base = (
+        BASE_QUERIES["active_resources"].replace("{select_extras}", "").replace("{join_extras}", "")
+    )
     assert result["sql"] == expected_base
 
 
@@ -164,14 +173,17 @@ async def test_flag_on_with_query_plan_uses_compiler(monkeypatch):
 # Test 3: Feature flag ON, query_plan None → falls back to _run_intent() (no crash)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_flag_on_no_query_plan_falls_back_to_run_intent(monkeypatch):
     """Flag=ON but query_plan=None (LLM fallback turn) → _run_intent() runs."""
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
     import app.llm.graph.domains.base_domain as bd_module
+
     importlib.reload(bd_module)
 
     from app.llm.graph.domains.resource import ResourceAgent
@@ -197,19 +209,20 @@ async def test_flag_on_no_query_plan_falls_back_to_run_intent(monkeypatch):
 # Test 4: compile_query() result executed against connector with correct params
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_flag_on_passes_compiled_sql_and_params_to_connector(monkeypatch):
     """compile_query() result (sql, params) is passed correctly to connector."""
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
     import app.llm.graph.domains.base_domain as bd_module
+
     importlib.reload(bd_module)
 
     from app.llm.graph.domains.resource import ResourceAgent
-    from app.llm.graph.nodes.sql_compiler import compile_query
-    from app.llm.graph.query_plan import QueryPlan, FilterClause
 
     agent = ResourceAgent()
     mock_connector = _make_mock_connector()
@@ -237,7 +250,9 @@ async def test_flag_on_passes_compiled_sql_and_params_to_connector(monkeypatch):
     # SQL should have WHERE Name LIKE ?
     actual_sql = call_kwargs[0][0] if call_kwargs[0] else call_kwargs[1].get("sql", "")
     # params should contain the %Alice% value
-    actual_params = call_kwargs[1].get("params") or (call_kwargs[0][1] if len(call_kwargs[0]) > 1 else ())
+    actual_params = call_kwargs[1].get("params") or (
+        call_kwargs[0][1] if len(call_kwargs[0]) > 1 else ()
+    )
 
     assert result["sql"] is not None
     assert "Alice" in str(actual_params) or "%Alice%" in str(actual_params)
@@ -246,6 +261,7 @@ async def test_flag_on_passes_compiled_sql_and_params_to_connector(monkeypatch):
 # ---------------------------------------------------------------------------
 # Test 5a: Resource chain regression flow
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_resource_chain_produces_clean_sql(monkeypatch):
@@ -256,13 +272,14 @@ async def test_resource_chain_produces_clean_sql(monkeypatch):
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
     import app.llm.graph.domains.base_domain as bd_module
+
     importlib.reload(bd_module)
 
-    from app.llm.graph.domains.resource import ResourceAgent
-    from app.llm.graph.nodes.sql_compiler import compile_query, BASE_QUERIES
-    from app.llm.graph.query_plan import QueryPlan, FilterClause
+    from app.llm.graph.nodes.sql_compiler import compile_query
+    from app.llm.graph.query_plan import FilterClause, QueryPlan
 
     # Simulate accumulated plan after 3 turns
     plan = QueryPlan(
@@ -288,6 +305,7 @@ async def test_resource_chain_produces_clean_sql(monkeypatch):
 # Test 5b: Project filter chain regression
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_project_filter_chain(monkeypatch):
     """test_project_filter_chain: active projects + client Acme + budget > 100000.
@@ -297,10 +315,11 @@ async def test_project_filter_chain(monkeypatch):
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
 
     from app.llm.graph.nodes.sql_compiler import compile_query
-    from app.llm.graph.query_plan import QueryPlan, FilterClause
+    from app.llm.graph.query_plan import FilterClause, QueryPlan
 
     plan = QueryPlan(
         domain="project",
@@ -322,6 +341,7 @@ async def test_project_filter_chain(monkeypatch):
 # Test 5c: Timesheet date chain regression
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_timesheet_date_chain(monkeypatch):
     """test_timesheet_date_chain: approved timesheets + date range + hours >= 8.
@@ -331,10 +351,11 @@ async def test_timesheet_date_chain(monkeypatch):
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
 
     from app.llm.graph.nodes.sql_compiler import compile_query
-    from app.llm.graph.query_plan import QueryPlan, FilterClause
+    from app.llm.graph.query_plan import FilterClause, QueryPlan
 
     plan = QueryPlan(
         domain="timesheet",
@@ -359,6 +380,7 @@ async def test_timesheet_date_chain(monkeypatch):
 # Test 5d: Topic switch recovery — fresh QueryPlan on domain switch
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_topic_switch_recovery(monkeypatch):
     """test_topic_switch_recovery: domain switch discards old query_plan.
@@ -369,8 +391,10 @@ async def test_topic_switch_recovery(monkeypatch):
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
     import app.llm.graph.domains.base_domain as bd_module
+
     importlib.reload(bd_module)
 
     from app.llm.graph.domains.project import ProjectAgent
@@ -401,13 +425,16 @@ async def test_topic_switch_recovery(monkeypatch):
 
     assert result["error"] is None
     # Should use active_projects template
-    expected_base = BASE_QUERIES["active_projects"].replace("{select_extras}", "").replace("{join_extras}", "")
+    expected_base = (
+        BASE_QUERIES["active_projects"].replace("{select_extras}", "").replace("{join_extras}", "")
+    )
     assert result["sql"] == expected_base
 
 
 # ---------------------------------------------------------------------------
 # Test 5e: LLM fallback → domain tool
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_llm_fallback_to_domain(monkeypatch):
@@ -419,8 +446,10 @@ async def test_llm_fallback_to_domain(monkeypatch):
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
     import app.llm.graph.domains.base_domain as bd_module
+
     importlib.reload(bd_module)
 
     from app.llm.graph.domains.resource import ResourceAgent
@@ -463,10 +492,10 @@ async def test_llm_fallback_to_domain(monkeypatch):
     assert mock_connector.execute_query.called
 
 
-
 # ---------------------------------------------------------------------------
 # Test 7: Value_map normalization pipeline
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_value_map_normalization_pipeline(monkeypatch):
@@ -478,6 +507,7 @@ async def test_value_map_normalization_pipeline(monkeypatch):
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
 
     from app.llm.graph.nodes.plan_updater import update_query_plan
@@ -521,6 +551,7 @@ async def test_value_map_normalization_pipeline(monkeypatch):
 # Test 8: Metric injection pipeline
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_metric_injection_pipeline(monkeypatch):
     """Full pipeline with metric injection: MetricFragment → SUM(Hours) with GROUP BY.
@@ -531,9 +562,10 @@ async def test_metric_injection_pipeline(monkeypatch):
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
 
-    from app.llm.graph.nodes.sql_compiler import compile_query, MetricFragment
+    from app.llm.graph.nodes.sql_compiler import MetricFragment, compile_query
     from app.llm.graph.query_plan import QueryPlan
 
     plan = QueryPlan(
@@ -562,6 +594,7 @@ async def test_metric_injection_pipeline(monkeypatch):
 # Test 9: Full semantic pipeline — value_map + metrics + filter simulation
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_full_semantic_pipeline(monkeypatch):
     """Full pipeline combining value_map normalization and metric injection.
@@ -574,10 +607,11 @@ async def test_full_semantic_pipeline(monkeypatch):
     monkeypatch.setenv("USE_QUERY_PLAN_COMPILER", "true")
 
     import app.config
+
     importlib.reload(app.config)
 
     from app.llm.graph.nodes.plan_updater import update_query_plan
-    from app.llm.graph.nodes.sql_compiler import compile_query, MetricFragment
+    from app.llm.graph.nodes.sql_compiler import MetricFragment, compile_query
     from app.llm.graph.query_plan import FilterClause, QueryPlan
 
     # Create filters directly (simulating what filter_extractor would have produced)

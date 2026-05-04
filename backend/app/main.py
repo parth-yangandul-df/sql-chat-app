@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from uuid import uuid4
 
 import jwt as pyjwt
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -49,7 +48,7 @@ class RequestTimeoutMiddleware(BaseHTTPMiddleware):
         try:
             async with asyncio.timeout(timeout_seconds):
                 return await call_next(request)
-        except (TimeoutError, asyncio.TimeoutError):
+        except TimeoutError:
             return Response(
                 content='{"detail":"Request timeout"}',
                 status_code=504,
@@ -169,7 +168,10 @@ async def lifespan(app: FastAPI):
 
     # Validate FieldRegistry completeness before traffic starts
     # Uses StartupIntegrityError (not assert) so it survives Python -O optimization
-    from app.llm.graph.nodes.field_registry import validate_registry_completeness, StartupIntegrityError
+    from app.llm.graph.nodes.field_registry import (
+        StartupIntegrityError,
+        validate_registry_completeness,
+    )
 
     logger.info("QueryWise startup: validating field registry completeness")
     try:

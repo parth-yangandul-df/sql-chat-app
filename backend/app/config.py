@@ -59,11 +59,16 @@ class Settings(BaseSettings):
 
     # OpenRouter settings (used when default_llm_provider = "openrouter")
     openrouter_api_key: str = ""
-    openrouter_model: str = "openai/gpt-3.5-turbo"
+    openrouter_model: str = "deepseek/deepseek-v3.2"
 
     # Groq settings (used when default_llm_provider = "groq")
     groq_api_key: str = ""
-    groq_model: str = "meta-llama/llama-3.1-70b-versatile"  # Upgraded from kimi-k2 for better tool calling
+    groq_model: str = (
+        "meta-llama/llama-3.1-70b-versatile"  # Upgraded from kimi-k2 for better tool calling
+    )
+
+    # Interpreter model (used for result-to-natural-language conversion across all providers)
+    interpreter_model: str = "meta-llama/llama-3.1-8b-instruct"
 
     # Embedding provider override (leave empty to auto-derive from default_llm_provider)
     # Set to "ollama" to use Ollama for embeddings while using a different provider for LLM.
@@ -80,15 +85,6 @@ class Settings(BaseSettings):
     max_context_tables: int = 8
     max_sample_queries: int = 3
     embedding_dimension: int = 1536
-
-    # QueryPlan compiler feature flag (Phase 7)
-    use_query_plan_compiler: bool = False  # MIGRATION FLAG: remove after phase validation
-
-    # DEPRECATED — Groq path is now the only path
-    use_groq_extractor: bool = True  # DEPRECATED — Groq path is now the only path
-
-    # DEPRECATED — removed in favour of Groq-native path
-    use_hybrid_mode: bool = False  # DEPRECATED — removed in favour of Groq-native path
 
     # Logging
     log_level: str = "INFO"

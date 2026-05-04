@@ -13,7 +13,6 @@ from typing import Any
 from app.llm.base_provider import LLMConfig, LLMMessage
 from app.llm.graph.nodes.field_registry import FIELD_REGISTRY_BY_DOMAIN, lookup_field
 from app.llm.utils import repair_json
-from app.llm.router import get_provider
 
 logger = logging.getLogger(__name__)
 
@@ -47,20 +46,21 @@ Rules:
 
 #: Available fields by domain - populated at module load
 AVAILABLE_FIELDS_BY_DOMAIN: dict[str, list[str]] = {
-    domain: list(fields.keys()) 
-    for domain, fields in FIELD_REGISTRY_BY_DOMAIN.items()
+    domain: list(fields.keys()) for domain, fields in FIELD_REGISTRY_BY_DOMAIN.items()
 }
 
 
 def _get_user_prompt_template(domain: str) -> str:
     """Generate user prompt with domain context and available fields."""
     available_fields = AVAILABLE_FIELDS_BY_DOMAIN.get(domain, [])
-    fields_str = ", ".join(available_fields) if available_fields else "skill, resource_name, designation"
-    
-    return f"""Question: {{question}}
+    fields_str = (
+        ", ".join(available_fields) if available_fields else "skill, resource_name, designation"
+    )
 
-Domain: {{domain}}
-Available fields for this domain: {{fields}}
+    return """Question: {question}
+
+Domain: {domain}
+Available fields for this domain: {fields}
 
 Extract query parameters as JSON."""
 
@@ -82,9 +82,9 @@ async def extract_structured(
     """
     # Get provider and config from router
     from app.llm.router import route
-    
+
     provider, config = route(question)
-    
+
     # Override config for extraction - use more tokens for JSON
     extraction_config = LLMConfig(
         model=config.model,
@@ -92,7 +92,7 @@ async def extract_structured(
         max_tokens=1024,
         top_p=1.0,
     )
-    
+
     # Build context string if provided
     context_str = ""
     if context:
@@ -100,13 +100,13 @@ async def extract_structured(
             context_str += f"\nPrevious filters: {json.dumps(context['last_filters'])}"
         if context.get("last_intent"):
             context_str += f"\nPrevious intent: {context['last_intent']}"
-    
+
     # Format user prompt
     available_fields = AVAILABLE_FIELDS_BY_DOMAIN.get(domain, ["skill", "resource_name"])
     user_prompt = f"""Question: {question}
 
 Domain: {domain}
-Available fields for this domain: {', '.join(available_fields)}
+Available fields for this domain: {", ".join(available_fields)}
 {context_str}
 
 IMPORTANT MAPPING RULES:
@@ -125,25 +125,25 @@ Extract query parameters as JSON."""
     try:
         response = await provider.complete(messages, extraction_config)
         content = response.content.strip()
-        
+
         # Handle repair_json for Ollama/local models
-        if hasattr(provider, 'provider_type') and str(provider.provider_type) == 'ollama':
+        if hasattr(provider, "provider_type") and str(provider.provider_type) == "ollama":
             content = repair_json(content)
-        
+
         # Parse JSON
         extracted = json.loads(content)
-        
+
         # Validate and normalize fields
         extracted = _validate_and_normalize_fields(extracted, domain)
-        
+
         logger.info(
             "LLM extraction succeeded for domain=%s, filters=%d",
             domain,
-            len(extracted.get("filters", []))
+            len(extracted.get("filters", [])),
         )
-        
+
         return extracted
-        
+
     except json.JSONDecodeError as e:
         logger.warning("LLM extraction JSON parse failed: %s, content: %s", e, content[:200])
         return _fallback_extraction(question, domain, context)
@@ -157,16 +157,16 @@ def _validate_and_normalize_fields(
     domain: str,
 ) -> dict[str, Any]:
     """Validate extracted fields against FieldRegistry and normalize.
-    
+
     Args:
         extracted: Raw extracted dict from LLM
         domain: The domain to validate against
-        
+
     Returns:
         Cleaned dict with invalid fields removed
     """
     valid_filters = []
-    
+
     for f in extracted.get("filters", []):
         field_name = f.get("field", "")
 
@@ -175,45 +175,49 @@ def _validate_and_normalize_fields(
 
         # Check if field exists in registry for this domain
         field_config = lookup_field(field_name, domain)
-        
+
         if field_config is None:
             logger.warning("Dropping unknown field '%s' for domain '%s'", field_name, domain)
             continue
-        
+
         # Normalize operator
         op = f.get("operator", "eq")
         if op not in ("eq", "contains", "in"):
             op = "eq"
-        
+
         # Normalize value
         value = f.get("value", "")
-        
-        valid_filters.append({
-            "field": field_name,
-            "operator": op,
-            "value": value,
-        })
-    
+
+        valid_filters.append(
+            {
+                "field": field_name,
+                "operator": op,
+                "value": value,
+            }
+        )
+
     # Normalize sort
     valid_sort = []
     for s in extracted.get("sort", []):
         if "field" in s:
-            valid_sort.append({
-                "field": s["field"],
-                "order": s.get("order", "asc") if s.get("order") in ("asc", "desc") else "asc",
-            })
-    
+            valid_sort.append(
+                {
+                    "field": s["field"],
+                    "order": s.get("order", "asc") if s.get("order") in ("asc", "desc") else "asc",
+                }
+            )
+
     # Normalize limit
     limit = extracted.get("limit", 50)
     if not isinstance(limit, int) or limit < 1:
         limit = 50
     limit = min(limit, 1000)  # Cap at 1000
-    
+
     # Normalize follow_up_type
     follow_up_type = extracted.get("follow_up_type", "new")
     if follow_up_type not in ("refine", "replace", "new"):
         follow_up_type = "new"
-    
+
     return {
         "filters": valid_filters,
         "sort": valid_sort,
@@ -228,17 +232,17 @@ def _fallback_extraction(
     context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Fallback extraction using heuristic patterns when LLM fails.
-    
+
     This implements Level 2 of the fallback ladder.
     """
     from app.llm.graph.nodes.param_extractor import extract_params
-    
+
     # Use existing param_extractor as fallback
     try:
         # Create minimal state for param_extractor
         state = {"question": question, "domain": domain}
         params = extract_params(state)
-        
+
         # Convert params to filters
         filters = []
         for key, value in params.items():
@@ -246,14 +250,16 @@ def _fallback_extraction(
                 # Map param key to field name
                 field_config = lookup_field(key, domain)
                 if field_config:
-                    filters.append({
-                        "field": key,
-                        "operator": "contains" if field_config.sql_type == "text" else "eq",
-                        "value": value,
-                    })
-        
+                    filters.append(
+                        {
+                            "field": key,
+                            "operator": "contains" if field_config.sql_type == "text" else "eq",
+                            "value": value,
+                        }
+                    )
+
         logger.info("Fallback extraction succeeded, filters=%d", len(filters))
-        
+
         return {
             "filters": filters,
             "sort": [],
@@ -262,7 +268,7 @@ def _fallback_extraction(
         }
     except Exception as e:
         logger.warning("Fallback extraction also failed: %s", e)
-        
+
         # Complete failure - return empty
         return {
             "filters": [],
@@ -278,11 +284,11 @@ def create_extraction_prompt_stronger(
     context: dict[str, Any] | None = None,
 ) -> list[LLMMessage]:
     """Create a stronger prompt for retry attempts (Level 1 fallback).
-    
+
     This adds more explicit instructions and examples.
     """
     available_fields = AVAILABLE_FIELDS_BY_DOMAIN.get(domain, [])
-    
+
     stronger_system = """You are a precise query parameter extractor. 
 
 CRITICAL: You must output ONLY valid JSON. No explanations, no markdown, no text before or after.
@@ -295,7 +301,7 @@ If you cannot extract any filters, output:
 
     stronger_user = f"""Extract filters from this question about {domain} domain.
 
-Available fields: {', '.join(available_fields)}
+Available fields: {", ".join(available_fields)}
 
 Question: {question}
 
@@ -311,20 +317,21 @@ Output ONLY JSON."""
 # LangGraph Node Wrapper
 # =============================================================================
 
+
 async def llm_extraction_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraph node for LLM structured extraction.
-    
+
     Called after followup_detection to extract filters using LLM.
-    
+
     Args:
         state: Current GraphState
-        
+
     Returns:
         Dict with extracted filters, sort, limit, follow_up_type
     """
     question = state.get("question", "")
     domain = state.get("domain", "resource")
-    
+
     # Build context from last_turn_context
     context = None
     last_turn = state.get("last_turn_context")
@@ -333,14 +340,14 @@ async def llm_extraction_node(state: dict[str, Any]) -> dict[str, Any]:
             "last_filters": last_turn.get("filters", []),
             "last_intent": last_turn.get("intent"),
         }
-    
+
     # Extract structured parameters
     extracted = await extract_structured(question, domain, context)
-    
+
     # Transform filters to match FilterClause schema
     filters = extracted.get("filters", [])
     transformed_filters = []
-    
+
     for f in filters:
         # Convert from LLM format to FilterClause format
         # LLM: {"field": "skill", "operator": "contains", "value": "python"}
@@ -349,29 +356,35 @@ async def llm_extraction_node(state: dict[str, Any]) -> dict[str, Any]:
         # Map "contains" to "eq" for now since FilterClause doesn't support contains
         if op == "contains":
             op = "eq"
-        
-        transformed_filters.append({
-            "field": f.get("field"),
-            "op": op,  # Use "op" not "operator"
-            "values": [f.get("value")] if f.get("value") else [],  # Wrap in list
-        })
-    
+
+        transformed_filters.append(
+            {
+                "field": f.get("field"),
+                "op": op,  # Use "op" not "operator"
+                "values": [f.get("value")] if f.get("value") else [],  # Wrap in list
+            }
+        )
+
     # ── Log LLM extracted filters ────────────────────────────────────────
-    filter_summary = ", ".join(
-        f"{f.get('field')}:{f.get('op')}:{f.get('values')}" for f in transformed_filters
-    ) if transformed_filters else "none"
+    filter_summary = (
+        ", ".join(f"{f.get('field')}:{f.get('op')}:{f.get('values')}" for f in transformed_filters)
+        if transformed_filters
+        else "none"
+    )
     logger.info(
         "llm_extraction: domain=%s intent=%s filters=[%s]",
-        domain, state.get("intent", "unknown"), filter_summary,
+        domain,
+        state.get("intent", "unknown"),
+        filter_summary,
     )
-    
+
     logger.info(
         "LLM extraction node completed: domain=%s, filters=%d, follow_up=%s",
         domain,
         len(transformed_filters),
-        extracted.get("follow_up_type", "new")
+        extracted.get("follow_up_type", "new"),
     )
-    
+
     return {
         "filters": transformed_filters,
         "sort": extracted.get("sort", []),

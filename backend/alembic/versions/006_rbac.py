@@ -14,8 +14,8 @@ Passwords (bcrypt-hashed, cost=12):
   user@querywise.dev    → user123
 """
 
-from collections.abc import Sequence
 import os
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID

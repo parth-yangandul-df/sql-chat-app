@@ -44,6 +44,7 @@ from app.services.embedding_service import embed_text
 @dataclass
 class BuiltContext:
     """The assembled context ready for the LLM."""
+
     prompt_context: str  # Formatted text to include in the LLM prompt
     tables: list[LinkedTable]
     glossary: list[ResolvedGlossary]
@@ -88,14 +89,10 @@ async def build_context(
         )
 
     # Step 2: Find relevant tables
-    tables = await find_relevant_tables(
-        db, connection_id, question_embedding, question
-    )
+    tables = await find_relevant_tables(db, connection_id, question_embedding, question)
 
     # Step 3: Resolve glossary terms
-    glossary = await resolve_glossary(
-        db, connection_id, question, question_embedding
-    )
+    glossary = await resolve_glossary(db, connection_id, question, question_embedding)
 
     # Step 4: Inject tables referenced by matched glossary terms but not yet in context.
     # Previously this was a no-op ("Could fetch and add the table, but for now just note it").
@@ -120,19 +117,13 @@ async def build_context(
             table_names_in_context.add(lt.table.table_name)
 
     # Step 5: Resolve metrics
-    metrics = await resolve_metrics(
-        db, connection_id, question, question_embedding
-    )
+    metrics = await resolve_metrics(db, connection_id, question, question_embedding)
 
     # Step 6: Resolve knowledge chunks
-    knowledge = await resolve_knowledge(
-        db, connection_id, question, question_embedding
-    )
+    knowledge = await resolve_knowledge(db, connection_id, question, question_embedding)
 
     # Step 7: Find similar sample queries
-    sample_queries = await find_similar_queries(
-        db, connection_id, question_embedding
-    )
+    sample_queries = await find_similar_queries(db, connection_id, question_embedding)
 
     # Step 8: Apply inferred relationship rules.
     # Get rules applicable to the currently selected tables, then force-include any
@@ -227,12 +218,14 @@ async def _fetch_tables_by_names(
             .order_by(CachedColumn.ordinal_position)
         )
         columns = list(col_result.scalars().all())
-        extra.append(LinkedTable(
-            table=tbl,
-            columns=columns,
-            score=0.05,
-            match_reason="injected",
-        ))
+        extra.append(
+            LinkedTable(
+                table=tbl,
+                columns=columns,
+                score=0.05,
+                match_reason="injected",
+            )
+        )
     return extra
 
 
@@ -257,12 +250,14 @@ async def _get_relationships_between(
         source = await db.get(type(rel).source_table.property.entity.class_, rel.source_table_id)
         target = await db.get(type(rel).target_table.property.entity.class_, rel.target_table_id)
         if source and target:
-            relationships.append({
-                "source_table": source.table_name,
-                "source_column": rel.source_column,
-                "target_table": target.table_name,
-                "target_column": rel.target_column,
-            })
+            relationships.append(
+                {
+                    "source_table": source.table_name,
+                    "source_column": rel.source_column,
+                    "target_table": target.table_name,
+                    "target_column": rel.target_column,
+                }
+            )
 
     return relationships
 
@@ -336,15 +331,15 @@ async def _expand_fk_neighbours(
         )
         columns = list(col_result.scalars().all())
 
-        extra.append(LinkedTable(
-            table=cached_table,
-            columns=columns,
-            score=0.1,
-            match_reason="fk_neighbour",
-        ))
-        logger.debug(
-            "FK-neighbour expansion: added table %s", cached_table.table_name
+        extra.append(
+            LinkedTable(
+                table=cached_table,
+                columns=columns,
+                score=0.1,
+                match_reason="fk_neighbour",
+            )
         )
+        logger.debug("FK-neighbour expansion: added table %s", cached_table.table_name)
 
     if extra:
         logger.info(

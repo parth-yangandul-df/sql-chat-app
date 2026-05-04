@@ -98,8 +98,7 @@ class AnthropicProvider(BaseLLMProvider):
 
     async def generate_embedding(self, text: str) -> list[float]:
         raise NotImplementedError(
-            "Anthropic does not provide an embedding API. "
-            "Use OpenAI or a local embedding model."
+            "Anthropic does not provide an embedding API. Use OpenAI or a local embedding model."
         )
 
     def list_models(self) -> list[str]:

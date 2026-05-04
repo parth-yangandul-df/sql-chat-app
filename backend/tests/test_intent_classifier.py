@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from app.llm.graph.intent_catalog import INTENT_CATALOG
 
 
@@ -38,16 +40,22 @@ def _base_state(**overrides):
 async def test_classify_intent_high_confidence():
     """When question embedding matches first catalog entry exactly, confidence=1.0."""
     from app.llm.graph.nodes.intent_classifier import classify_intent
+
     first_entry = INTENT_CATALOG[0]
     identical_embedding = [1.0, 0.0, 0.0]
     first_entry.embedding = identical_embedding
 
-    with patch("app.llm.graph.nodes.intent_classifier.embed_text",
-               AsyncMock(return_value=identical_embedding)), \
-         patch("app.llm.graph.nodes.intent_classifier.ensure_catalog_embedded",
-               AsyncMock()), \
-         patch("app.llm.graph.nodes.intent_classifier.get_catalog_embeddings",
-               return_value=[[1.0, 0.0, 0.0]] + [[0.0, 1.0, 0.0]] * 23):
+    with (
+        patch(
+            "app.llm.graph.nodes.intent_classifier.embed_text",
+            AsyncMock(return_value=identical_embedding),
+        ),
+        patch("app.llm.graph.nodes.intent_classifier.ensure_catalog_embedded", AsyncMock()),
+        patch(
+            "app.llm.graph.nodes.intent_classifier.get_catalog_embeddings",
+            return_value=[[1.0, 0.0, 0.0]] + [[0.0, 1.0, 0.0]] * 23,
+        ),
+    ):
         state = _base_state()
         updates = await classify_intent(state)
 
@@ -60,12 +68,18 @@ async def test_classify_intent_high_confidence():
 async def test_classify_intent_low_confidence_orthogonal():
     """Orthogonal embedding → confidence~0 (below threshold)."""
     from app.llm.graph.nodes.intent_classifier import classify_intent
-    with patch("app.llm.graph.nodes.intent_classifier.embed_text",
-               AsyncMock(return_value=[0.0, 0.0, 1.0])), \
-         patch("app.llm.graph.nodes.intent_classifier.ensure_catalog_embedded",
-               AsyncMock()), \
-         patch("app.llm.graph.nodes.intent_classifier.get_catalog_embeddings",
-               return_value=[[1.0, 0.0, 0.0]] * 24):
+
+    with (
+        patch(
+            "app.llm.graph.nodes.intent_classifier.embed_text",
+            AsyncMock(return_value=[0.0, 0.0, 1.0]),
+        ),
+        patch("app.llm.graph.nodes.intent_classifier.ensure_catalog_embedded", AsyncMock()),
+        patch(
+            "app.llm.graph.nodes.intent_classifier.get_catalog_embeddings",
+            return_value=[[1.0, 0.0, 0.0]] * 24,
+        ),
+    ):
         state = _base_state()
         updates = await classify_intent(state)
 
@@ -74,19 +88,22 @@ async def test_classify_intent_low_confidence_orthogonal():
 
 def test_route_after_classify_high_confidence():
     from app.llm.graph.nodes.intent_classifier import route_after_classify
+
     state = _base_state(confidence=0.95, domain="resource", intent="active_resources")
     assert route_after_classify(state) == "extract_params"
 
 
 def test_route_after_classify_low_confidence():
     from app.llm.graph.nodes.intent_classifier import route_after_classify
+
     state = _base_state(confidence=0.50, domain="resource", intent="active_resources")
     assert route_after_classify(state) == "llm_fallback"
 
 
 def test_route_after_classify_at_threshold():
     """Confidence exactly at threshold routes to extract_params."""
-    from app.llm.graph.nodes.intent_classifier import route_after_classify, _THRESHOLD
+    from app.llm.graph.nodes.intent_classifier import _THRESHOLD, route_after_classify
+
     state = _base_state(confidence=_THRESHOLD, domain="resource", intent="active_resources")
     assert route_after_classify(state) == "extract_params"
 

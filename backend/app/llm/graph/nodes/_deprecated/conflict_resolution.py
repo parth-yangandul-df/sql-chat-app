@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MergeResult:
     """Result of merging filters."""
+
     filters: list[dict[str, Any]]  # Merged filters
     conflicts_resolved: int  # Number of conflicts resolved
     additions: int  # Number of new filters added
@@ -84,7 +85,7 @@ def resolve_conflicts(
             logger.debug(
                 "Conflict resolved: REPLACE field '%s' with new value '%s'",
                 new_field,
-                new_filter.get("value")
+                new_filter.get("value"),
             )
         else:
             # NO CONFLICT: New field → ADD
@@ -109,7 +110,7 @@ def resolve_conflicts(
         conflicts_resolved,
         additions,
         replacements,
-        len(validated)
+        len(validated),
     )
 
     return MergeResult(

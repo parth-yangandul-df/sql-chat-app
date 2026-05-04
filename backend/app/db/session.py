@@ -9,8 +9,8 @@ engine = create_async_engine(
     echo=settings.debug,
     pool_size=5,
     max_overflow=10,
-    pool_recycle=1800,   # recycle connections after 30 minutes
-    pool_timeout=30,     # wait up to 30s for a connection from the pool
+    pool_recycle=1800,  # recycle connections after 30 minutes
+    pool_timeout=30,  # wait up to 30s for a connection from the pool
     pool_pre_ping=True,  # verify connections are alive before use
 )
 

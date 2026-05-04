@@ -7,22 +7,19 @@ Retry is applied to: rate limits, connection errors, and server errors.
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable
-from typing import Any, Callable
+from typing import Any
 
+from loguru import logger
 from tenacity import (
+    before_sleep_log,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential_jitter,
-    before_sleep_log,
 )
-
-from loguru import logger
 
 from app.config import settings
 from app.core.exceptions import RateLimitError as AppRateLimitError
-
 
 # Exception types that warrant a retry
 RETRYABLE_EXCEPTIONS = (

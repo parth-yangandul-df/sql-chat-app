@@ -14,7 +14,6 @@ Set these in a .env.e2e file or as environment variables before running:
 """
 
 import os
-import uuid
 from pathlib import Path
 
 import httpx

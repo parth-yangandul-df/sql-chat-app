@@ -68,13 +68,23 @@ _BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # UNION-based attacks
     (re.compile(r"\bUNION\b", re.IGNORECASE), "UNION statements are not allowed"),
     # INTO clause — prevents SELECT INTO OUTFILE / INTO DUMPFILE
-    (re.compile(r"\bINTO\s+(OUTFILE|DUMPFILE)\b", re.IGNORECASE), "INTO OUTFILE/DUMPFILE is not allowed"),
+    (
+        re.compile(r"\bINTO\s+(OUTFILE|DUMPFILE)\b", re.IGNORECASE),
+        "INTO OUTFILE/DUMPFILE is not allowed",
+    ),
     # System catalog access — PostgreSQL
-    (re.compile(r"\b(information_schema|pg_catalog|pg_shadow|pg_roles|pg_database|pg_stat_activity)\b", re.IGNORECASE),
-     "System catalog access is not allowed"),
+    (
+        re.compile(
+            r"\b(information_schema|pg_catalog|pg_shadow|pg_roles|pg_database|pg_stat_activity)\b",
+            re.IGNORECASE,
+        ),
+        "System catalog access is not allowed",
+    ),
     # System catalog access — SQL Server
-    (re.compile(r"\b(sys\.tables|sys\.columns|sys\.objects|sys\.databases)\b", re.IGNORECASE),
-     "System catalog access is not allowed"),
+    (
+        re.compile(r"\b(sys\.tables|sys\.columns|sys\.objects|sys\.databases)\b", re.IGNORECASE),
+        "System catalog access is not allowed",
+    ),
     # Admin / dangerous
     (re.compile(r"\bGRANT\b", re.IGNORECASE), "GRANT statements are not allowed"),
     (re.compile(r"\bREVOKE\b", re.IGNORECASE), "REVOKE statements are not allowed"),

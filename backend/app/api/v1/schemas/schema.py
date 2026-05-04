@@ -76,5 +76,6 @@ class AvailableTableEntry(BaseModel):
     Represents a dbo table that has passed auto-exclusion rules and is
     eligible to be added to the connection's whitelist.
     """
+
     schema_name: str
     table_name: str

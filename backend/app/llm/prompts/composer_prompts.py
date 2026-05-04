@@ -34,17 +34,6 @@ the ID with the name column. If the name table is not already in the query, JOIN
 Only keep an ID column in the SELECT list if there is no corresponding name table available in the schema,
 or if the question explicitly asks for the ID.
 
-CRITICAL — DISTINCT rule (violations cause duplicate rows in results):
-Questions that ask "which X ..." or "list all X ..." where X is an entity (resource, client, project, etc.)
-MUST use SELECT DISTINCT on the entity column whenever the query joins to a table that has multiple rows
-per entity (e.g. timesheets, project allocations, skills).
-- WRONG: SELECT r.ResourceName FROM Resource r JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId WHERE ...
-- RIGHT: SELECT DISTINCT r.ResourceName FROM Resource r JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId WHERE ...
-- WRONG: SELECT r.ResourceName FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId WHERE ...
-- RIGHT: SELECT DISTINCT r.ResourceName FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId WHERE ...
-Rule of thumb: if the SELECT list returns columns from ONE table but JOINs to another table that can have
-MANY rows per joined entity, you MUST use DISTINCT. Only omit DISTINCT when doing aggregations (GROUP BY + COUNT/SUM/AVG).
-
 CRITICAL — Exact column naming (violations produce broken queries that fail at runtime):
 - ALWAYS use the EXACT column name as it appears in the DATABASE SCHEMA section. Copy it character-for-character.
 - NEVER abbreviate, shorten, or paraphrase column names. Concrete examples:
@@ -58,10 +47,8 @@ CRITICAL — Exact column naming (violations produce broken queries that fail at
 - The DATABASE SCHEMA section is the single source of truth for all column names. Trust nothing else.
 
 Dialect-specific rules (apply based on the SQL dialect in CONSTRAINTS):
-- postgresql: Use LIMIT N to restrict rows. Quote identifiers with double-quotes if needed.
 - sqlserver:  Use SELECT TOP N instead of LIMIT. Quote identifiers with [square brackets]. Do NOT use LIMIT. Do NOT use RETURNING. Use GETDATE() instead of NOW(). Use LEN() instead of LENGTH(). Use ISNULL() instead of COALESCE where appropriate.
-- mysql:      Use LIMIT N. Use backtick quoting. Use IFNULL() instead of COALESCE where needed.
-- snowflake:  Use LIMIT N. Use double-quote quoting. Use ILIKE for case-insensitive matching.
+
 
 Output format:
 Respond with a JSON object containing:

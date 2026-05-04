@@ -66,9 +66,7 @@ GLOSSARY_TERMS: list[dict] = [
         "sql_expression": "Resource.ResourceId",
         "related_tables": ["Resource"],
         "related_columns": ["Resource.ResourceId"],
-        "examples": [
-            "SELECT * FROM Resource WHERE IsActive = 1"
-        ],
+        "examples": ["SELECT * FROM Resource WHERE IsActive = 1"],
     },
     {
         "term": "Active Resource",
@@ -132,9 +130,7 @@ GLOSSARY_TERMS: list[dict] = [
         "sql_expression": "Client.ClientId",
         "related_tables": ["Client"],
         "related_columns": ["Client.ClientId"],
-        "examples": [
-            "SELECT * FROM Client WHERE IsActive = 1"
-        ],
+        "examples": ["SELECT * FROM Client WHERE IsActive = 1"],
     },
     {
         "term": "Active Client",
@@ -274,9 +270,7 @@ GLOSSARY_TERMS: list[dict] = [
         "sql_expression": "Project.ProjectId",
         "related_tables": ["Project"],
         "related_columns": ["Project.ProjectId"],
-        "examples": [
-            "SELECT * FROM Project WHERE IsActive = 1"
-        ],
+        "examples": ["SELECT * FROM Project WHERE IsActive = 1"],
     },
     {
         "term": "Active Project",
@@ -368,9 +362,7 @@ GLOSSARY_TERMS: list[dict] = [
         "sql_expression": "Status.StatusName",
         "related_tables": ["Status"],
         "related_columns": ["Status.StatusName", "Status.ReferenceId"],
-        "examples": [
-            "SELECT * FROM Status WHERE ReferenceId = 1"
-        ],
+        "examples": ["SELECT * FROM Status WHERE ReferenceId = 1"],
     },
     {
         "term": "Project Status",
@@ -378,9 +370,7 @@ GLOSSARY_TERMS: list[dict] = [
         "sql_expression": "Status.StatusName",
         "related_tables": ["Status"],
         "related_columns": ["Status.StatusName", "Status.ReferenceId"],
-        "examples": [
-            "SELECT * FROM Status WHERE ReferenceId = 2"
-        ],
+        "examples": ["SELECT * FROM Status WHERE ReferenceId = 2"],
     },
     {
         "term": "Resource Status",
@@ -460,33 +450,32 @@ GLOSSARY_TERMS: list[dict] = [
         "related_columns": ["TechFunction.OrganizationIds"],
     },
     {
-    "term": "Client Name",
-    "definition": "The name of the client, stored in Client.ClientName. This should always be used when referring to a client.",
-    "sql_expression": "Client.ClientName",
-    "related_tables": ["Client"],
-    "related_columns": ["Client.ClientName"]
-},
-{
-    "term": "Business Unit Name",
-    "definition": "The name of the business unit, stored in BusinessUnit.BusinessUnitName.",
-    "sql_expression": "BusinessUnit.BusinessUnitName",
-    "related_tables": ["BusinessUnit"],
-    "related_columns": ["BusinessUnit.BusinessUnitName"]
-},
-{
-    "term": "Resource Name",
-    "definition": "The name of the employee or resource, stored in Resource.ResourceName.",
-    "sql_expression": "Resource.ResourceName",
-    "related_tables": ["Resource"],
-    "related_columns": ["Resource.ResourceName"]
-},
-{
-    "term": "Employee",
-    "definition": "An employee refers to a resource in the system.",
-    "sql_expression": "Resource.ResourceId",
-    "related_tables": ["Resource"]
-},
-
+        "term": "Client Name",
+        "definition": "The name of the client, stored in Client.ClientName. This should always be used when referring to a client.",
+        "sql_expression": "Client.ClientName",
+        "related_tables": ["Client"],
+        "related_columns": ["Client.ClientName"],
+    },
+    {
+        "term": "Business Unit Name",
+        "definition": "The name of the business unit, stored in BusinessUnit.BusinessUnitName.",
+        "sql_expression": "BusinessUnit.BusinessUnitName",
+        "related_tables": ["BusinessUnit"],
+        "related_columns": ["BusinessUnit.BusinessUnitName"],
+    },
+    {
+        "term": "Resource Name",
+        "definition": "The name of the employee or resource, stored in Resource.ResourceName.",
+        "sql_expression": "Resource.ResourceName",
+        "related_tables": ["Resource"],
+        "related_columns": ["Resource.ResourceName"],
+    },
+    {
+        "term": "Employee",
+        "definition": "An employee refers to a resource in the system.",
+        "sql_expression": "Resource.ResourceId",
+        "related_tables": ["Resource"],
+    },
     # -------------------------------------------------------------------------
     # TODO: Replace these examples with terms from your domain.
     #
@@ -647,7 +636,7 @@ METRICS: list[dict] = [
         "aggregation_type": "count",
         "related_tables": ["DesignatedRole"],
     },
-     {
+    {
         "metric_name": "total_designations",
         "display_name": "Total Designations",
         "description": "Total number of job designations",
@@ -811,84 +800,345 @@ METRICS: list[dict] = [
 # =============================================================================
 DICTIONARY_ENTRIES: dict[tuple[str, str], list[dict]] = {
     ("Resource", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Resource is not active", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Resource is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Resource is not active",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Resource is active",
+            "sort_order": 2,
+        },
     ],
     ("Resource", "IsReportingPerson"): [
-        {"raw_value": "0", "display_value": "Individual Contributor", "description": "Does not manage other resources", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Manager", "description": "Manages other resources", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Individual Contributor",
+            "description": "Does not manage other resources",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Manager",
+            "description": "Manages other resources",
+            "sort_order": 2,
+        },
     ],
     ("Client", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Client is not active", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Client is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Client is not active",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Client is active",
+            "sort_order": 2,
+        },
     ],
     ("Client", "LeaveClauseConfirmed"): [
-        {"raw_value": "0", "display_value": "Not Confirmed", "description": "Leave clause not confirmed", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Confirmed", "description": "Leave clause confirmed", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Not Confirmed",
+            "description": "Leave clause not confirmed",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Confirmed",
+            "description": "Leave clause confirmed",
+            "sort_order": 2,
+        },
     ],
     ("BusinessUnit", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Business unit is inactive", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Business unit is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Business unit is inactive",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Business unit is active",
+            "sort_order": 2,
+        },
     ],
     ("ClientStakeholder", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Stakeholder is inactive", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Stakeholder is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Stakeholder is inactive",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Stakeholder is active",
+            "sort_order": 2,
+        },
     ],
     ("CompanyType", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Company type is inactive", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Company type is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Company type is inactive",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Company type is active",
+            "sort_order": 2,
+        },
     ],
     ("DesignatedRole", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Role is inactive", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Role is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Role is inactive",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Role is active",
+            "sort_order": 2,
+        },
     ],
     ("Designation", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Designation is inactive", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Designation is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Designation is inactive",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Designation is active",
+            "sort_order": 2,
+        },
     ],
     ("Designation", "IsTimesheetApplies"): [
-        {"raw_value": "0", "display_value": "Not Required", "description": "Timesheet not required", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Required", "description": "Timesheet required", "sort_order": 2},
-    ],("Project", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Project is inactive", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Project is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Not Required",
+            "description": "Timesheet not required",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Required",
+            "description": "Timesheet required",
+            "sort_order": 2,
+        },
+    ],
+    ("Project", "IsActive"): [
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Project is inactive",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Project is active",
+            "sort_order": 2,
+        },
     ],
     ("ProjectResource", "Billable"): [
-        {"raw_value": "0", "display_value": "Non-Billable", "description": "Work is not billed to client", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Billable", "description": "Work is billed to client", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Non-Billable",
+            "description": "Work is not billed to client",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Billable",
+            "description": "Work is billed to client",
+            "sort_order": 2,
+        },
     ],
     ("ProjectResource", "Shadow"): [
-        {"raw_value": "0", "display_value": "Primary Resource", "description": "Main assigned resource", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Shadow Resource", "description": "Support or backup resource", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Primary Resource",
+            "description": "Main assigned resource",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Shadow Resource",
+            "description": "Support or backup resource",
+            "sort_order": 2,
+        },
     ],
     ("ProjectResource", "Bench"): [
-        {"raw_value": "0", "display_value": "Allocated", "description": "Assigned to project", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Bench", "description": "Not assigned to billable work", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Allocated",
+            "description": "Assigned to project",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Bench",
+            "description": "Not assigned to billable work",
+            "sort_order": 2,
+        },
     ],
     ("ProjectResource", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Allocation inactive", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Allocation active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Allocation inactive",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Allocation active",
+            "sort_order": 2,
+        },
     ],
-    
+    ("Status", "StatusId"): [
+        {
+            "raw_value": "1",
+            "display_value": "Client - Inactive",
+            "description": "StatusId for Inactive status in the Client domain (ReferenceId=1)",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "2",
+            "display_value": "Client - Active",
+            "description": "StatusId for Active status in the Client domain (ReferenceId=1)",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "3",
+            "display_value": "Project - Inactive",
+            "description": "StatusId for Inactive status in the Project domain (ReferenceId=2)",
+            "sort_order": 3,
+        },
+        {
+            "raw_value": "4",
+            "display_value": "Project - Active",
+            "description": "StatusId for Active status in the Project domain (ReferenceId=2)",
+            "sort_order": 4,
+        },
+        {
+            "raw_value": "5",
+            "display_value": "Project - On hold",
+            "description": "StatusId for On hold status in the Project domain (ReferenceId=2)",
+            "sort_order": 5,
+        },
+        {
+            "raw_value": "6",
+            "display_value": "Project - Others",
+            "description": "StatusId for Others status in the Project domain (ReferenceId=2)",
+            "sort_order": 6,
+        },
+        {
+            "raw_value": "7",
+            "display_value": "Resource - Inactive",
+            "description": "StatusId for Inactive status in the Resource domain (ReferenceId=3)",
+            "sort_order": 7,
+        },
+        {
+            "raw_value": "8",
+            "display_value": "Resource - Active",
+            "description": "StatusId for Active status in the Resource domain (ReferenceId=3)",
+            "sort_order": 8,
+        },
+        {
+            "raw_value": "12",
+            "display_value": "Client - Closed",
+            "description": "StatusId for Closed status in the Client domain (ReferenceId=1)",
+            "sort_order": 9,
+        },
+        {
+            "raw_value": "13",
+            "display_value": "Project - Closed",
+            "description": "StatusId for Closed status in the Project domain (ReferenceId=2)",
+            "sort_order": 10,
+        },
+    ],
     ("Status", "ReferenceId"): [
-        {"raw_value": "1", "display_value": "Client Status", "description": "Status applicable to clients", "sort_order": 1},
-        {"raw_value": "2", "display_value": "Project Status", "description": "Status applicable to projects", "sort_order": 2},
-        {"raw_value": "3", "display_value": "Resource Status", "description": "Status applicable to resources", "sort_order": 3},
-        {"raw_value": "4", "display_value": "Email Queue Status", "description": "Status for email processing system", "sort_order": 4},
+        {
+            "raw_value": "1",
+            "display_value": "Client Status",
+            "description": "Status applicable to clients",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "2",
+            "display_value": "Project Status",
+            "description": "Status applicable to projects",
+            "sort_order": 2,
+        },
+        {
+            "raw_value": "3",
+            "display_value": "Resource Status",
+            "description": "Status applicable to resources",
+            "sort_order": 3,
+        },
+        {
+            "raw_value": "4",
+            "display_value": "Email Queue Status",
+            "description": "Status for email processing system",
+            "sort_order": 4,
+        },
     ],
     ("Status", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Status is not in use", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Status is currently usable", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Status is not in use",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Status is currently usable",
+            "sort_order": 2,
+        },
     ],
     ("TechCatagory", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Technology category is inactive", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Technology category is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Technology category is inactive",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Technology category is active",
+            "sort_order": 2,
+        },
     ],
     ("TechFunction", "IsActive"): [
-        {"raw_value": "0", "display_value": "Inactive", "description": "Function is inactive", "sort_order": 1},
-        {"raw_value": "1", "display_value": "Active", "description": "Function is active", "sort_order": 2},
+        {
+            "raw_value": "0",
+            "display_value": "Inactive",
+            "description": "Function is inactive",
+            "sort_order": 1,
+        },
+        {
+            "raw_value": "1",
+            "display_value": "Active",
+            "description": "Function is active",
+            "sort_order": 2,
+        },
     ],
-
     # -------------------------------------------------------------------------
     # TODO: Replace with coded columns from your schema.
     #
@@ -1135,9 +1385,8 @@ OR
 - Return that data is not available
 
 Never invent schema elements.
-        """.strip()
+        """.strip(),
     },
-
     {
         "title": "PRMS Join Rules and Status Lookup Guide",
         "content": """
@@ -1216,9 +1465,8 @@ RESOURCE NAME COLUMN
 
 Always use Resource.ResourceName for the employee or resource name.
 For manager names in a self-join, use Manager.ResourceName (with alias).
-        """.strip()
+        """.strip(),
     },
-
     # -------------------------------------------------------------------------
     # TODO: Add your own documents. Examples below.
     #
@@ -1265,1347 +1513,1347 @@ For manager names in a self-join, use Manager.ResourceName (with alias).
 
 SAMPLE_QUERIES: list[dict] = [
     {
-        "natural_language": 'How many active resources are in the organization?',
-        "sql_query": 'SELECT COUNT(*) FROM Resource WHERE IsActive = 1',
-        "description": 'Total active workforce',
-        "tags": ['resource'],
+        "natural_language": "How many active resources are in the organization?",
+        "sql_query": "SELECT COUNT(*) FROM Resource WHERE IsActive = 1",
+        "description": "Total active workforce",
+        "tags": ["resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'How many clients exist in the system?',
-        "sql_query": 'SELECT COUNT(*) FROM Client',
-        "description": 'Total clients',
-        "tags": ['client'],
+        "natural_language": "How many clients exist in the system?",
+        "sql_query": "SELECT COUNT(*) FROM Client",
+        "description": "Total clients",
+        "tags": ["client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'How many projects are currently active?',
-        "sql_query": 'SELECT COUNT(*) FROM Project WHERE IsActive = 1',
-        "description": 'Active projects count',
-        "tags": ['project'],
+        "natural_language": "How many projects are currently active?",
+        "sql_query": "SELECT COUNT(*) FROM Project WHERE IsActive = 1",
+        "description": "Active projects count",
+        "tags": ["project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total number of timesheet entries?',
-        "sql_query": 'SELECT COUNT(*) FROM TS_EODDetails WHERE IsDeleted = 0',
-        "description": 'Total timesheet logs',
-        "tags": ['timesheet'],
+        "natural_language": "What is the total number of timesheet entries?",
+        "sql_query": "SELECT COUNT(*) FROM TS_EODDetails WHERE IsDeleted = 0",
+        "description": "Total timesheet logs",
+        "tags": ["timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total number of hours logged in the system?',
-        "sql_query": 'SELECT SUM(Hrs) FROM TS_EODDetails WHERE IsDeleted = 0',
-        "description": 'Total effort logged',
-        "tags": ['timesheet'],
+        "natural_language": "What is the total number of hours logged in the system?",
+        "sql_query": "SELECT SUM(Hrs) FROM TS_EODDetails WHERE IsDeleted = 0",
+        "description": "Total effort logged",
+        "tags": ["timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'How many resources belong to each business unit?',
-        "sql_query": 'SELECT bu.BusinessUnitName, COUNT(r.ResourceId) as Count FROM Resource r JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName',
-        "description": 'Resource distribution',
-        "tags": ['resource', 'business_unit'],
+        "natural_language": "How many resources belong to each business unit?",
+        "sql_query": "SELECT bu.BusinessUnitName, COUNT(r.ResourceId) as Count FROM Resource r JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName",
+        "description": "Resource distribution",
+        "tags": ["resource", "business_unit"],
         "is_validated": True,
     },
     {
-        "natural_language": 'How many projects are mapped to each client?',
-        "sql_query": 'SELECT c.ClientName, COUNT(p.ProjectId) as Count FROM Client c JOIN Project p ON c.ClientId = p.ClientId GROUP BY c.ClientName',
-        "description": 'Projects per client',
-        "tags": ['client', 'project'],
+        "natural_language": "How many projects are mapped to each client?",
+        "sql_query": "SELECT c.ClientName, COUNT(p.ProjectId) as Count FROM Client c JOIN Project p ON c.ClientId = p.ClientId GROUP BY c.ClientName",
+        "description": "Projects per client",
+        "tags": ["client", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total hours logged per resource?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName',
-        "description": 'Effort per resource',
-        "tags": ['resource', 'timesheet'],
+        "natural_language": "What is the total hours logged per resource?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName",
+        "description": "Effort per resource",
+        "tags": ["resource", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total billable hours per resource?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY r.ResourceName',
-        "description": 'Billable contribution',
-        "tags": ['resource', 'billing'],
+        "natural_language": "What is the total billable hours per resource?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY r.ResourceName",
+        "description": "Billable contribution",
+        "tags": ["resource", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total non-billable hours per resource?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 0 GROUP BY r.ResourceName',
-        "description": 'Non-billable effort',
-        "tags": ['resource', 'billing'],
+        "natural_language": "What is the total non-billable hours per resource?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 0 GROUP BY r.ResourceName",
+        "description": "Non-billable effort",
+        "tags": ["resource", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'How many resources are allocated to each project?',
-        "sql_query": 'SELECT p.ProjectName, COUNT(pr.ResourceId) FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY p.ProjectName',
-        "description": 'Team size per project',
-        "tags": ['project', 'resource'],
+        "natural_language": "How many resources are allocated to each project?",
+        "sql_query": "SELECT p.ProjectName, COUNT(pr.ResourceId) FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY p.ProjectName",
+        "description": "Team size per project",
+        "tags": ["project", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are assigned to multiple projects?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT pr.ProjectId) as Count FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT pr.ProjectId) > 1',
-        "description": 'Multi-project resources',
-        "tags": ['resource', 'project'],
+        "natural_language": "Which resources are assigned to multiple projects?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT pr.ProjectId) as Count FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT pr.ProjectId) > 1",
+        "description": "Multi-project resources",
+        "tags": ["resource", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'How many resources are on bench?',
-        "sql_query": 'SELECT COUNT(*) FROM ProjectResource WHERE Bench = 1 AND IsActive = 1',
-        "description": 'Unallocated resources',
-        "tags": ['resource', 'bench'],
+        "natural_language": "How many resources are on bench?",
+        "sql_query": "SELECT COUNT(*) FROM ProjectResource WHERE Bench = 1 AND IsActive = 1",
+        "description": "Unallocated resources",
+        "tags": ["resource", "bench"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average allocation percentage per project?',
-        "sql_query": 'SELECT p.ProjectName, AVG(pr.PercentageAllocation) FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY p.ProjectName',
-        "description": 'Allocation efficiency',
-        "tags": ['project', 'allocation'],
+        "natural_language": "What is the average allocation percentage per project?",
+        "sql_query": "SELECT p.ProjectName, AVG(pr.PercentageAllocation) FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY p.ProjectName",
+        "description": "Allocation efficiency",
+        "tags": ["project", "allocation"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total effort logged per project?',
-        "sql_query": 'SELECT e.Project, SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project',
-        "description": 'Project workload',
-        "tags": ['project', 'timesheet'],
+        "natural_language": "What is the total effort logged per project?",
+        "sql_query": "SELECT e.Project, SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project",
+        "description": "Project workload",
+        "tags": ["project", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have no timesheet entries?',
-        "sql_query": 'SELECT p.ProjectName FROM Project p LEFT JOIN TS_EODDetails e ON p.ProjectName = e.Project WHERE e.ID IS NULL',
-        "description": 'Inactive projects',
-        "tags": ['project'],
+        "natural_language": "Which projects have no timesheet entries?",
+        "sql_query": "SELECT p.ProjectName FROM Project p LEFT JOIN TS_EODDetails e ON p.ProjectName = e.Project WHERE e.ID IS NULL",
+        "description": "Inactive projects",
+        "tags": ["project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have not logged any hours?',
-        "sql_query": 'SELECT r.ResourceName FROM Resource r LEFT JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId WHERE e.ID IS NULL',
-        "description": 'Inactive resources',
-        "tags": ['resource'],
+        "natural_language": "Which resources have not logged any hours?",
+        "sql_query": "SELECT r.ResourceName FROM Resource r LEFT JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId WHERE e.ID IS NULL",
+        "description": "Inactive resources",
+        "tags": ["resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total billable hours per client?',
-        "sql_query": 'SELECT e.ClientName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY e.ClientName',
-        "description": 'Client billing',
-        "tags": ['client', 'billing'],
+        "natural_language": "What is the total billable hours per client?",
+        "sql_query": "SELECT e.ClientName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY e.ClientName",
+        "description": "Client billing",
+        "tags": ["client", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the billable utilization percentage per resource?',
-        "sql_query": 'SELECT r.ResourceName, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY r.ResourceName',
-        "description": 'Resource utilization',
-        "tags": ['resource', 'utilization'],
+        "natural_language": "What is the billable utilization percentage per resource?",
+        "sql_query": "SELECT r.ResourceName, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY r.ResourceName",
+        "description": "Resource utilization",
+        "tags": ["resource", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients generate the highest revenue based on billable hours?',
-        "sql_query": 'SELECT e.ClientName, SUM(e.Hrs * c.HourlyBillingRate) as [Total Revenue] FROM TS_EODDetails e JOIN Client c ON e.ClientName = c.ClientName JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY e.ClientName ORDER BY 2 DESC',
-        "description": 'Revenue per client',
-        "tags": ['client', 'revenue'],
+        "natural_language": "Which clients generate the highest revenue based on billable hours?",
+        "sql_query": "SELECT e.ClientName, SUM(e.Hrs * c.HourlyBillingRate) as [Total Revenue] FROM TS_EODDetails e JOIN Client c ON e.ClientName = c.ClientName JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY e.ClientName ORDER BY 2 DESC",
+        "description": "Revenue per client",
+        "tags": ["client", "revenue"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have more non-billable hours than billable hours?',
-        "sql_query": 'SELECT e.Project FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project HAVING SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) > SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END)',
-        "description": 'Loss-making projects',
-        "tags": ['project', 'billing'],
+        "natural_language": "Which projects have more non-billable hours than billable hours?",
+        "sql_query": "SELECT e.Project FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project HAVING SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) > SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END)",
+        "description": "Loss-making projects",
+        "tags": ["project", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are over-utilized beyond 160 hours per month?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE MONTH(e.ReportDate) = MONTH(GETDATE()) GROUP BY r.ResourceName HAVING SUM(e.Hrs) > 176',
-        "description": 'Over-utilized resources',
-        "tags": ['resource', 'utilization'],
+        "natural_language": "Which resources are over-utilized beyond 160 hours per month?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE MONTH(e.ReportDate) = MONTH(GETDATE()) GROUP BY r.ResourceName HAVING SUM(e.Hrs) > 176",
+        "description": "Over-utilized resources",
+        "tags": ["resource", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are under-utilized below 80 hours per month?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE MONTH(e.ReportDate) = MONTH(GETDATE()) GROUP BY r.ResourceName HAVING SUM(e.Hrs) < 80',
-        "description": 'Under-utilized resources',
-        "tags": ['resource', 'utilization'],
+        "natural_language": "Which resources are under-utilized below 80 hours per month?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE MONTH(e.ReportDate) = MONTH(GETDATE()) GROUP BY r.ResourceName HAVING SUM(e.Hrs) < 80",
+        "description": "Under-utilized resources",
+        "tags": ["resource", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the highest non-billable percentage?',
-        "sql_query": 'SELECT e.ClientName, SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.ClientName ORDER BY 2 DESC',
-        "description": 'Client inefficiency',
-        "tags": ['client', 'billing'],
+        "natural_language": "Which clients have the highest non-billable percentage?",
+        "sql_query": "SELECT e.ClientName, SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.ClientName ORDER BY 2 DESC",
+        "description": "Client inefficiency",
+        "tags": ["client", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are contributing to the most number of clients?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT e.ClientName) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY 2 DESC',
-        "description": 'Client spread',
-        "tags": ['resource', 'client'],
+        "natural_language": "Which resources are contributing to the most number of clients?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT e.ClientName) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY 2 DESC",
+        "description": "Client spread",
+        "tags": ["resource", "client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have high effort but very few resources?',
-        "sql_query": 'SELECT e.Project, SUM(e.Hrs), COUNT(DISTINCT e.ResourceId) FROM TS_EODDetails e GROUP BY e.Project HAVING SUM(e.Hrs) > 100 AND COUNT(DISTINCT e.ResourceId) < 2',
-        "description": 'Dependency risk',
-        "tags": ['project', 'risk'],
+        "natural_language": "Which projects have high effort but very few resources?",
+        "sql_query": "SELECT e.Project, SUM(e.Hrs), COUNT(DISTINCT e.ResourceId) FROM TS_EODDetails e GROUP BY e.Project HAVING SUM(e.Hrs) > 100 AND COUNT(DISTINCT e.ResourceId) < 2",
+        "description": "Dependency risk",
+        "tags": ["project", "risk"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources generate the highest revenue contribution?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs * c.HourlyBillingRate) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Client c ON e.ClientName = c.ClientName JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY r.ResourceName ORDER BY 2 DESC',
-        "description": 'Top revenue contributors',
-        "tags": ['resource', 'revenue'],
+        "natural_language": "Which resources generate the highest revenue contribution?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs * c.HourlyBillingRate) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Client c ON e.ClientName = c.ClientName JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY r.ResourceName ORDER BY 2 DESC",
+        "description": "Top revenue contributors",
+        "tags": ["resource", "revenue"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total effort logged per client per month?',
-        "sql_query": 'SELECT      e.ClientName,      DATENAME(month, e.ReportDate) as MonthName,      YEAR(e.ReportDate) as Year,      SUM(e.Hrs) as [Total Hours]  FROM TS_EODDetails e   GROUP BY      e.ClientName,      YEAR(e.ReportDate),      DATENAME(month, e.ReportDate), -- Added the exact expression here     MONTH(e.ReportDate)            -- Kept for correct chronological sorting ORDER BY      YEAR(e.ReportDate),      MONTH(e.ReportDate);',
-        "description": 'Monthly client effort trend',
-        "tags": ['client', 'timesheet'],
+        "natural_language": "What is the total effort logged per client per month?",
+        "sql_query": "SELECT      e.ClientName,      DATENAME(month, e.ReportDate) as MonthName,      YEAR(e.ReportDate) as Year,      SUM(e.Hrs) as [Total Hours]  FROM TS_EODDetails e   GROUP BY      e.ClientName,      YEAR(e.ReportDate),      DATENAME(month, e.ReportDate), -- Added the exact expression here     MONTH(e.ReportDate)            -- Kept for correct chronological sorting ORDER BY      YEAR(e.ReportDate),      MONTH(e.ReportDate);",
+        "description": "Monthly client effort trend",
+        "tags": ["client", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have logged effort on weekends?',
+        "natural_language": "Which resources have logged effort on weekends?",
         "sql_query": "SELECT DISTINCT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE DATENAME(WEEKDAY, e.ReportDate) IN ('Saturday','Sunday')",
-        "description": 'Weekend work tracking',
-        "tags": ['resource', 'timesheet'],
+        "description": "Weekend work tracking",
+        "tags": ["resource", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average number of projects per resource?',
-        "sql_query": 'SELECT AVG(ProjectCount) FROM (SELECT ResourceId, COUNT(DISTINCT ProjectId) AS ProjectCount FROM ProjectResource GROUP BY ResourceId) t',
-        "description": 'Resource project load',
-        "tags": ['resource', 'project'],
+        "natural_language": "What is the average number of projects per resource?",
+        "sql_query": "SELECT AVG(ProjectCount) FROM (SELECT ResourceId, COUNT(DISTINCT ProjectId) AS ProjectCount FROM ProjectResource GROUP BY ResourceId) t",
+        "description": "Resource project load",
+        "tags": ["resource", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the highest number of active projects?',
-        "sql_query": 'SELECT c.ClientName, COUNT(p.ProjectId) FROM Client c JOIN Project p ON c.ClientId = p.ClientId WHERE p.IsActive = 1 GROUP BY c.ClientName ORDER BY 2 DESC',
-        "description": 'Client engagement breadth',
-        "tags": ['client', 'project'],
+        "natural_language": "Which clients have the highest number of active projects?",
+        "sql_query": "SELECT c.ClientName, COUNT(p.ProjectId) FROM Client c JOIN Project p ON c.ClientId = p.ClientId WHERE p.IsActive = 1 GROUP BY c.ClientName ORDER BY 2 DESC",
+        "description": "Client engagement breadth",
+        "tags": ["client", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have logged effort across multiple business units?',
-        "sql_query": 'SELECT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT r.BusinessUnitId) > 1',
-        "description": 'Cross-BU work',
-        "tags": ['resource', 'business_unit'],
+        "natural_language": "Which resources have logged effort across multiple business units?",
+        "sql_query": "SELECT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT r.BusinessUnitId) > 1",
+        "description": "Cross-BU work",
+        "tags": ["resource", "business_unit"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total effort per designation?',
-        "sql_query": 'SELECT d.DesignationName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Designation d ON r.DesignationId = d.DesignationId GROUP BY d.DesignationName',
-        "description": 'Effort by role',
-        "tags": ['resource', 'designation'],
+        "natural_language": "What is the total effort per designation?",
+        "sql_query": "SELECT d.DesignationName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Designation d ON r.DesignationId = d.DesignationId GROUP BY d.DesignationName",
+        "description": "Effort by role",
+        "tags": ["resource", "designation"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have not logged any hours in the current month?',
-        "sql_query": 'SELECT r.ResourceName FROM Resource r LEFT JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId AND MONTH(e.ReportDate) = MONTH(GETDATE()) WHERE e.ID IS NULL',
-        "description": 'Inactive this month',
-        "tags": ['resource'],
+        "natural_language": "Which resources have not logged any hours in the current month?",
+        "sql_query": "SELECT r.ResourceName FROM Resource r LEFT JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId AND MONTH(e.ReportDate) = MONTH(GETDATE()) WHERE e.ID IS NULL",
+        "description": "Inactive this month",
+        "tags": ["resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have the highest billable to non-billable ratio?',
-        "sql_query": 'SELECT e.Project, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 1.0 / NULLIF(SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END),0) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project ORDER BY 2 DESC',
-        "description": 'Project efficiency',
-        "tags": ['project', 'billing'],
+        "natural_language": "Which projects have the highest billable to non-billable ratio?",
+        "sql_query": "SELECT e.Project, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 1.0 / NULLIF(SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END),0) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project ORDER BY 2 DESC",
+        "description": "Project efficiency",
+        "tags": ["project", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have logged hours continuously for more than 10 days?',
-        "sql_query": 'SELECT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT e.ReportDate) > 10',
-        "description": 'Continuous work streak',
-        "tags": ['resource'],
+        "natural_language": "Which resources have logged hours continuously for more than 10 days?",
+        "sql_query": "SELECT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT e.ReportDate) > 10",
+        "description": "Continuous work streak",
+        "tags": ["resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total number of distinct activities logged?',
-        "sql_query": 'SELECT COUNT(DISTINCT Activity_Id) FROM TS_EODDetails',
-        "description": 'Activity diversity',
-        "tags": ['activity'],
+        "natural_language": "What is the total number of distinct activities logged?",
+        "sql_query": "SELECT COUNT(DISTINCT Activity_Id) FROM TS_EODDetails",
+        "description": "Activity diversity",
+        "tags": ["activity"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the highest average billable hours per project?',
-        "sql_query": 'SELECT e.ClientName, AVG(ProjectHours) FROM (SELECT ClientName, Project, SUM(Hrs) AS ProjectHours FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY ClientName, Project) t GROUP BY ClientName',
-        "description": 'Client project productivity',
-        "tags": ['client', 'billing'],
+        "natural_language": "Which clients have the highest average billable hours per project?",
+        "sql_query": "SELECT e.ClientName, AVG(ProjectHours) FROM (SELECT ClientName, Project, SUM(Hrs) AS ProjectHours FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY ClientName, Project) t GROUP BY ClientName",
+        "description": "Client project productivity",
+        "tags": ["client", "billing"],
         "is_validated": True,
     },
     {
         "natural_language": "Which resources have worked with the highest number of stakeholders' clients?",
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT cs.ClientId) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Client c ON e.ClientName = c.ClientName JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId GROUP BY r.ResourceName ORDER BY 2 DESC',
-        "description": 'Stakeholder exposure',
-        "tags": ['resource', 'client'],
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT cs.ClientId) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Client c ON e.ClientName = c.ClientName JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId GROUP BY r.ResourceName ORDER BY 2 DESC",
+        "description": "Stakeholder exposure",
+        "tags": ["resource", "client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have declining effort compared to previous month?',
-        "sql_query": 'SELECT Project FROM (SELECT Project, MONTH(ReportDate) m, SUM(Hrs) hrs FROM TS_EODDetails GROUP BY Project, MONTH(ReportDate)) t GROUP BY Project HAVING MAX(CASE WHEN m = MONTH(GETDATE()) THEN hrs END) < MAX(CASE WHEN m = MONTH(GETDATE())-1 THEN hrs END)',
-        "description": 'Declining engagement',
-        "tags": ['project', 'trend'],
+        "natural_language": "Which projects have declining effort compared to previous month?",
+        "sql_query": "SELECT Project FROM (SELECT Project, MONTH(ReportDate) m, SUM(Hrs) hrs FROM TS_EODDetails GROUP BY Project, MONTH(ReportDate)) t GROUP BY Project HAVING MAX(CASE WHEN m = MONTH(GETDATE()) THEN hrs END) < MAX(CASE WHEN m = MONTH(GETDATE())-1 THEN hrs END)",
+        "description": "Declining engagement",
+        "tags": ["project", "trend"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have highest variance in daily effort?',
-        "sql_query": 'SELECT r.ResourceName, VAR(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY 2 DESC',
-        "description": 'Effort inconsistency',
-        "tags": ['resource', 'pattern'],
+        "natural_language": "Which resources have highest variance in daily effort?",
+        "sql_query": "SELECT r.ResourceName, VAR(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY 2 DESC",
+        "description": "Effort inconsistency",
+        "tags": ["resource", "pattern"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which business units contribute most to revenue?',
-        "sql_query": 'SELECT bu.BusinessUnitName, SUM(e.Hrs * c.HourlyBillingRate) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId JOIN Client c ON e.ClientName = c.ClientName JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY bu.BusinessUnitName ORDER BY 2 DESC',
-        "description": 'Revenue by BU',
-        "tags": ['business_unit', 'revenue'],
+        "natural_language": "Which business units contribute most to revenue?",
+        "sql_query": "SELECT bu.BusinessUnitName, SUM(e.Hrs * c.HourlyBillingRate) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId JOIN Client c ON e.ClientName = c.ClientName JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY bu.BusinessUnitName ORDER BY 2 DESC",
+        "description": "Revenue by BU",
+        "tags": ["business_unit", "revenue"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are assigned to projects but have zero allocation percentage?',
-        "sql_query": 'SELECT DISTINCT r.ResourceName FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId WHERE pr.PercentageAllocation = 0',
-        "description": 'Invalid allocation',
-        "tags": ['resource', 'allocation'],
+        "natural_language": "Which resources are assigned to projects but have zero allocation percentage?",
+        "sql_query": "SELECT DISTINCT r.ResourceName FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId WHERE pr.PercentageAllocation = 0",
+        "description": "Invalid allocation",
+        "tags": ["resource", "allocation"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the highest effort per stakeholder?',
-        "sql_query": 'SELECT c.ClientName, SUM(e.Hrs) * 1.0 / COUNT(cs.StakeholderId) FROM Client c JOIN TS_EODDetails e ON c.ClientName = e.ClientName JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId GROUP BY c.ClientName',
-        "description": 'Stakeholder load',
-        "tags": ['client'],
+        "natural_language": "Which clients have the highest effort per stakeholder?",
+        "sql_query": "SELECT c.ClientName, SUM(e.Hrs) * 1.0 / COUNT(cs.StakeholderId) FROM Client c JOIN TS_EODDetails e ON c.ClientName = e.ClientName JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId GROUP BY c.ClientName",
+        "description": "Stakeholder load",
+        "tags": ["client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have highest number of distinct activity types?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT e.Activity_Id) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY 2 DESC',
-        "description": 'Skill diversity proxy',
-        "tags": ['resource'],
+        "natural_language": "Which resources have highest number of distinct activity types?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT e.Activity_Id) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY 2 DESC",
+        "description": "Skill diversity proxy",
+        "tags": ["resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have effort logged but zero completion percentage?',
-        "sql_query": 'SELECT e.Project FROM TS_EODDetails e GROUP BY e.Project HAVING SUM(e.Hrs) > 0 AND AVG(CAST(e.CompletionPercent AS FLOAT)) = 0',
-        "description": 'Execution gap',
-        "tags": ['project'],
+        "natural_language": "Which projects have effort logged but zero completion percentage?",
+        "sql_query": "SELECT e.Project FROM TS_EODDetails e GROUP BY e.Project HAVING SUM(e.Hrs) > 0 AND AVG(CAST(e.CompletionPercent AS FLOAT)) = 0",
+        "description": "Execution gap",
+        "tags": ["project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'How many active resources are currently in the organization?',
-        "sql_query": 'SELECT COUNT(*) FROM Resource WHERE IsActive = 1;',
-        "description": 'Gives total active employees/resources.',
-        "tags": ['resource', 'headcount', 'active'],
+        "natural_language": "How many active resources are currently in the organization?",
+        "sql_query": "SELECT COUNT(*) FROM Resource WHERE IsActive = 1;",
+        "description": "Gives total active employees/resources.",
+        "tags": ["resource", "headcount", "active"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the distribution of resources across business units?',
-        "sql_query": 'SELECT bu.BusinessUnitName, COUNT(r.ResourceId) FROM Resource r LEFT JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;',
-        "description": 'Shows workforce allocation across business units.',
-        "tags": ['resource', 'business_unit'],
+        "natural_language": "What is the distribution of resources across business units?",
+        "sql_query": "SELECT bu.BusinessUnitName, COUNT(r.ResourceId) FROM Resource r LEFT JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;",
+        "description": "Shows workforce allocation across business units.",
+        "tags": ["resource", "business_unit"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all resources with more than 5 years of experience.',
-        "sql_query": 'SELECT ResourceName, TotalYears FROM Resource WHERE TotalYears > 5;',
-        "description": 'Helps identify senior resources.',
-        "tags": ['resource', 'experience'],
+        "natural_language": "List all resources with more than 5 years of experience.",
+        "sql_query": "SELECT ResourceName, TotalYears FROM Resource WHERE TotalYears > 5;",
+        "description": "Helps identify senior resources.",
+        "tags": ["resource", "experience"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are currently on bench?',
-        "sql_query": 'SELECT r.ResourceName FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId WHERE pr.Bench = 1;',
-        "description": 'Identifies unallocated or idle resources.',
-        "tags": ['resource', 'bench'],
+        "natural_language": "Which resources are currently on bench?",
+        "sql_query": "SELECT r.ResourceName FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId WHERE pr.Bench = 1;",
+        "description": "Identifies unallocated or idle resources.",
+        "tags": ["resource", "bench"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average tenure of employees?',
-        "sql_query": 'SELECT AVG(TenureInYears) FROM Resource;',
-        "description": 'Measures employee retention.',
-        "tags": ['resource', 'tenure'],
+        "natural_language": "What is the average tenure of employees?",
+        "sql_query": "SELECT AVG(TenureInYears) FROM Resource;",
+        "description": "Measures employee retention.",
+        "tags": ["resource", "tenure"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all active clients.',
-        "sql_query": 'SELECT ClientName FROM Client WHERE IsActive = 1;',
-        "description": 'Fetches all currently active clients.',
-        "tags": ['client'],
+        "natural_language": "List all active clients.",
+        "sql_query": "SELECT ClientName FROM Client WHERE IsActive = 1;",
+        "description": "Fetches all currently active clients.",
+        "tags": ["client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total agreement value of all clients?',
-        "sql_query": 'SELECT SUM(AgreementValue) FROM Client;',
-        "description": 'Total revenue from agreements.',
-        "tags": ['client', 'revenue'],
+        "natural_language": "What is the total agreement value of all clients?",
+        "sql_query": "SELECT SUM(AgreementValue) FROM Client;",
+        "description": "Total revenue from agreements.",
+        "tags": ["client", "revenue"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the highest monthly billing rate?',
-        "sql_query": 'SELECT TOP 5 ClientName, MonthlyBillingRate FROM Client ORDER BY MonthlyBillingRate DESC;',
-        "description": 'Top revenue-generating clients.',
-        "tags": ['client', 'billing'],
+        "natural_language": "Which clients have the highest monthly billing rate?",
+        "sql_query": "SELECT TOP 5 ClientName, MonthlyBillingRate FROM Client ORDER BY MonthlyBillingRate DESC;",
+        "description": "Top revenue-generating clients.",
+        "tags": ["client", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all projects along with their client names.',
-        "sql_query": 'SELECT p.ProjectName, c.ClientName FROM Project p JOIN Client c ON p.ClientId = c.ClientId;',
-        "description": 'Maps projects to clients.',
-        "tags": ['project', 'client'],
+        "natural_language": "List all projects along with their client names.",
+        "sql_query": "SELECT p.ProjectName, c.ClientName FROM Project p JOIN Client c ON p.ClientId = c.ClientId;",
+        "description": "Maps projects to clients.",
+        "tags": ["project", "client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have exceeded their planned end date?',
-        "sql_query": 'SELECT ProjectName FROM Project WHERE ActualEndDate > EndDate;',
-        "description": 'Identifies delayed projects.',
-        "tags": ['project', 'delay'],
+        "natural_language": "Which projects have exceeded their planned end date?",
+        "sql_query": "SELECT ProjectName FROM Project WHERE ActualEndDate > EndDate;",
+        "description": "Identifies delayed projects.",
+        "tags": ["project", "delay"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average project duration?',
-        "sql_query": 'SELECT AVG(DATEDIFF(DAY, StartDate, EndDate)) FROM Project;',
-        "description": 'Measures project lifecycle.',
-        "tags": ['project', 'duration'],
+        "natural_language": "What is the average project duration?",
+        "sql_query": "SELECT AVG(DATEDIFF(DAY, StartDate, EndDate)) FROM Project;",
+        "description": "Measures project lifecycle.",
+        "tags": ["project", "duration"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which project has the highest number of resources allocated?',
-        "sql_query": 'SELECT TOP 1 ProjectName, NumberOfResorces FROM Project ORDER BY NumberOfResorces DESC;',
-        "description": 'Identifies largest project by team size.',
-        "tags": ['project', 'resource'],
+        "natural_language": "Which project has the highest number of resources allocated?",
+        "sql_query": "SELECT TOP 1 ProjectName, NumberOfResorces FROM Project ORDER BY NumberOfResorces DESC;",
+        "description": "Identifies largest project by team size.",
+        "tags": ["project", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all resources working on a specific project.',
-        "sql_query": 'SELECT r.ResourceName FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId WHERE pr.ProjectId = @ProjectId;',
-        "description": 'Project team composition.',
-        "tags": ['project', 'resource'],
+        "natural_language": "List all resources working on a specific project.",
+        "sql_query": "SELECT r.ResourceName FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId WHERE pr.ProjectId = @ProjectId;",
+        "description": "Project team composition.",
+        "tags": ["project", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total billing generated from all project resources?',
-        "sql_query": 'SELECT SUM(Rate) FROM ProjectResource;',
-        "description": 'Revenue from resource billing.',
-        "tags": ['billing', 'finance'],
+        "natural_language": "What is the total billing generated from all project resources?",
+        "sql_query": "SELECT SUM(Rate) FROM ProjectResource;",
+        "description": "Revenue from resource billing.",
+        "tags": ["billing", "finance"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have the highest allocation percentage?',
-        "sql_query": 'SELECT TOP 5 r.ResourceName, pr.PercentageAllocation FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId ORDER BY pr.PercentageAllocation DESC;',
-        "description": 'Identifies overloaded resources.',
-        "tags": ['resource', 'allocation'],
+        "natural_language": "Which resources have the highest allocation percentage?",
+        "sql_query": "SELECT TOP 5 r.ResourceName, pr.PercentageAllocation FROM ProjectResource pr JOIN Resource r ON pr.ResourceId = r.ResourceId ORDER BY pr.PercentageAllocation DESC;",
+        "description": "Identifies overloaded resources.",
+        "tags": ["resource", "allocation"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all skills available in the system.',
-        "sql_query": 'SELECT Name FROM PA_Skills;',
-        "description": 'Skill inventory.',
-        "tags": ['skills'],
+        "natural_language": "List all skills available in the system.",
+        "sql_query": "SELECT Name FROM PA_Skills;",
+        "description": "Skill inventory.",
+        "tags": ["skills"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have a specific skill?',
-        "sql_query": 'SELECT r.ResourceName FROM PA_ResourceSkills rs JOIN Resource r ON rs.ResourceId = r.ResourceId WHERE rs.SkillId = @SkillId;',
-        "description": 'Skill-based resource lookup.',
-        "tags": ['skills', 'resource'],
+        "natural_language": "Which resources have a specific skill?",
+        "sql_query": "SELECT r.ResourceName FROM PA_ResourceSkills rs JOIN Resource r ON rs.ResourceId = r.ResourceId WHERE rs.SkillId = @SkillId;",
+        "description": "Skill-based resource lookup.",
+        "tags": ["skills", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What are the most common skills among resources?',
-        "sql_query": 'SELECT SkillId, COUNT(*) as Count FROM PA_ResourceSkills GROUP BY SkillId ORDER BY Count DESC;',
-        "description": 'Popular skills in workforce.',
-        "tags": ['skills', 'analytics'],
+        "natural_language": "What are the most common skills among resources?",
+        "sql_query": "SELECT SkillId, COUNT(*) as Count FROM PA_ResourceSkills GROUP BY SkillId ORDER BY Count DESC;",
+        "description": "Popular skills in workforce.",
+        "tags": ["skills", "analytics"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all stakeholders for a given client.',
-        "sql_query": 'SELECT StakeholderName FROM ClientStakeholder WHERE ClientId = @ClientId;',
-        "description": 'Client communication mapping.',
-        "tags": ['client', 'stakeholder'],
+        "natural_language": "List all stakeholders for a given client.",
+        "sql_query": "SELECT StakeholderName FROM ClientStakeholder WHERE ClientId = @ClientId;",
+        "description": "Client communication mapping.",
+        "tags": ["client", "stakeholder"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which business units generate the most revenue?',
-        "sql_query": 'SELECT BusinessUnitId, SUM(AgreementValue) FROM Client GROUP BY BusinessUnitId ORDER BY SUM(AgreementValue) DESC;',
-        "description": 'Revenue by business unit.',
-        "tags": ['business_unit', 'revenue'],
+        "natural_language": "Which business units generate the most revenue?",
+        "sql_query": "SELECT BusinessUnitId, SUM(AgreementValue) FROM Client GROUP BY BusinessUnitId ORDER BY SUM(AgreementValue) DESC;",
+        "description": "Revenue by business unit.",
+        "tags": ["business_unit", "revenue"],
         "is_validated": True,
     },
     {
-        "natural_language": 'How many resources joined in the last year?',
-        "sql_query": 'SELECT COUNT(*) FROM Resource WHERE DateOfJoin >= DATEADD(YEAR, -1, GETDATE());',
-        "description": 'Recent hiring trends.',
-        "tags": ['resource', 'hiring'],
+        "natural_language": "How many resources joined in the last year?",
+        "sql_query": "SELECT COUNT(*) FROM Resource WHERE DateOfJoin >= DATEADD(YEAR, -1, GETDATE());",
+        "description": "Recent hiring trends.",
+        "tags": ["resource", "hiring"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects are currently ongoing?',
-        "sql_query": 'SELECT ProjectName FROM Project WHERE GETDATE() BETWEEN StartDate AND EndDate;',
-        "description": 'Active timeline-based projects.',
-        "tags": ['project'],
+        "natural_language": "Which projects are currently ongoing?",
+        "sql_query": "SELECT ProjectName FROM Project WHERE GETDATE() BETWEEN StartDate AND EndDate;",
+        "description": "Active timeline-based projects.",
+        "tags": ["project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the distribution of resources by designation?',
-        "sql_query": 'SELECT d.DesignationName, COUNT(r.ResourceId) FROM Resource r JOIN Designation d ON r.DesignationId = d.DesignationId GROUP BY d.DesignationName;',
-        "description": 'Hierarchy distribution.',
-        "tags": ['resource', 'designation'],
+        "natural_language": "What is the distribution of resources by designation?",
+        "sql_query": "SELECT d.DesignationName, COUNT(r.ResourceId) FROM Resource r JOIN Designation d ON r.DesignationId = d.DesignationId GROUP BY d.DesignationName;",
+        "description": "Hierarchy distribution.",
+        "tags": ["resource", "designation"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients belong to which domain?',
-        "sql_query": 'SELECT c.ClientName, d.DomainName FROM Client c JOIN Domain d ON c.DomainId = d.DomainId;',
-        "description": 'Client domain mapping.',
-        "tags": ['client', 'domain'],
+        "natural_language": "Which clients belong to which domain?",
+        "sql_query": "SELECT c.ClientName, d.DomainName FROM Client c JOIN Domain d ON c.DomainId = d.DomainId;",
+        "description": "Client domain mapping.",
+        "tags": ["client", "domain"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the count of projects per client?',
-        "sql_query": 'SELECT c.ClientName, COUNT(p.ProjectId) FROM Project p JOIN Client c ON p.ClientId = c.ClientId GROUP BY c.ClientName;',
-        "description": 'Client engagement level.',
-        "tags": ['client', 'project'],
+        "natural_language": "What is the count of projects per client?",
+        "sql_query": "SELECT c.ClientName, COUNT(p.ProjectId) FROM Project p JOIN Client c ON p.ClientId = c.ClientId GROUP BY c.ClientName;",
+        "description": "Client engagement level.",
+        "tags": ["client", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources report to a specific manager?',
-        "sql_query": 'SELECT ResourceName FROM Resource WHERE ReportingTo = @ManagerId;',
-        "description": 'Reporting hierarchy.',
-        "tags": ['resource', 'hierarchy'],
+        "natural_language": "Which resources report to a specific manager?",
+        "sql_query": "SELECT ResourceName FROM Resource WHERE ReportingTo = @ManagerId;",
+        "description": "Reporting hierarchy.",
+        "tags": ["resource", "hierarchy"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average billing rate per project?',
-        "sql_query": 'SELECT ProjectId, AVG(Rate) FROM ProjectResource GROUP BY ProjectId;',
-        "description": 'Project profitability metric.',
-        "tags": ['billing', 'project'],
+        "natural_language": "What is the average billing rate per project?",
+        "sql_query": "SELECT ProjectId, AVG(Rate) FROM ProjectResource GROUP BY ProjectId;",
+        "description": "Project profitability metric.",
+        "tags": ["billing", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have multiple skills?',
-        "sql_query": 'SELECT ResourceId, COUNT(SkillId) as SkillCount FROM PA_ResourceSkills GROUP BY ResourceId HAVING COUNT(SkillId) > 1;',
-        "description": 'Multi-skilled employees.',
-        "tags": ['skills', 'resource'],
+        "natural_language": "Which resources have multiple skills?",
+        "sql_query": "SELECT ResourceId, COUNT(SkillId) as SkillCount FROM PA_ResourceSkills GROUP BY ResourceId HAVING COUNT(SkillId) > 1;",
+        "description": "Multi-skilled employees.",
+        "tags": ["skills", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'How many inactive resources are there?',
-        "sql_query": 'SELECT COUNT(*) FROM Resource WHERE IsActive = 0;',
-        "description": 'Inactive workforce count.',
-        "tags": ['resource'],
+        "natural_language": "How many inactive resources are there?",
+        "sql_query": "SELECT COUNT(*) FROM Resource WHERE IsActive = 0;",
+        "description": "Inactive workforce count.",
+        "tags": ["resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total revenue generated per client along with number of projects and allocated resources?',
-        "sql_query": 'SELECT c.ClientName, SUM(pr.Rate) AS TotalRevenue, COUNT(DISTINCT p.ProjectId) AS ProjectCount, COUNT(DISTINCT pr.ResourceId) AS ResourceCount FROM Client c JOIN Project p ON c.ClientId = p.ClientId JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY c.ClientName;',
-        "description": 'Holistic client-level revenue and engagement view.',
-        "tags": ['client', 'revenue', 'project', 'resource'],
+        "natural_language": "What is the total revenue generated per client along with number of projects and allocated resources?",
+        "sql_query": "SELECT c.ClientName, SUM(pr.Rate) AS TotalRevenue, COUNT(DISTINCT p.ProjectId) AS ProjectCount, COUNT(DISTINCT pr.ResourceId) AS ResourceCount FROM Client c JOIN Project p ON c.ClientId = p.ClientId JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY c.ClientName;",
+        "description": "Holistic client-level revenue and engagement view.",
+        "tags": ["client", "revenue", "project", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which business units have the highest billable utilization?',
-        "sql_query": 'SELECT bu.BusinessUnitName, SUM(CASE WHEN pr.Billable = 1 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) AS Utilization FROM ProjectResource pr JOIN BusinessUnit bu ON pr.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;',
-        "description": 'Measures billable efficiency by business unit.',
-        "tags": ['business_unit', 'utilization'],
+        "natural_language": "Which business units have the highest billable utilization?",
+        "sql_query": "SELECT bu.BusinessUnitName, SUM(CASE WHEN pr.Billable = 1 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) AS Utilization FROM ProjectResource pr JOIN BusinessUnit bu ON pr.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;",
+        "description": "Measures billable efficiency by business unit.",
+        "tags": ["business_unit", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all projects with their project manager, lead, and client details.',
-        "sql_query": 'SELECT p.ProjectName, pm.ResourceName AS ProjectManager, pl.ResourceName AS ProjectLead, c.ClientName FROM Project p LEFT JOIN Resource pm ON p.ProjectManagerId = pm.ResourceId LEFT JOIN Resource pl ON p.ProjectLeadId = pl.ResourceId LEFT JOIN Client c ON p.ClientId = c.ClientId;',
-        "description": 'Project ownership mapping.',
-        "tags": ['project', 'resource', 'client'],
+        "natural_language": "List all projects with their project manager, lead, and client details.",
+        "sql_query": "SELECT p.ProjectName, pm.ResourceName AS ProjectManager, pl.ResourceName AS ProjectLead, c.ClientName FROM Project p LEFT JOIN Resource pm ON p.ProjectManagerId = pm.ResourceId LEFT JOIN Resource pl ON p.ProjectLeadId = pl.ResourceId LEFT JOIN Client c ON p.ClientId = c.ClientId;",
+        "description": "Project ownership mapping.",
+        "tags": ["project", "resource", "client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average experience of resources working on each project?',
-        "sql_query": 'SELECT p.ProjectName, AVG(r.TotalYears) AS AvgExperience FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId JOIN Resource r ON pr.ResourceId = r.ResourceId GROUP BY p.ProjectName;',
-        "description": 'Project team maturity analysis.',
-        "tags": ['project', 'resource', 'experience'],
+        "natural_language": "What is the average experience of resources working on each project?",
+        "sql_query": "SELECT p.ProjectName, AVG(r.TotalYears) AS AvgExperience FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId JOIN Resource r ON pr.ResourceId = r.ResourceId GROUP BY p.ProjectName;",
+        "description": "Project team maturity analysis.",
+        "tags": ["project", "resource", "experience"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have projects across multiple business units?',
-        "sql_query": 'SELECT c.ClientName, COUNT(DISTINCT p.BusinessUnitId) AS BUCount FROM Client c JOIN Project p ON c.ClientId = p.ClientId GROUP BY c.ClientName HAVING COUNT(DISTINCT p.BusinessUnitId) > 1;',
-        "description": 'Cross-BU client spread.',
-        "tags": ['client', 'business_unit'],
+        "natural_language": "Which clients have projects across multiple business units?",
+        "sql_query": "SELECT c.ClientName, COUNT(DISTINCT p.BusinessUnitId) AS BUCount FROM Client c JOIN Project p ON c.ClientId = p.ClientId GROUP BY c.ClientName HAVING COUNT(DISTINCT p.BusinessUnitId) > 1;",
+        "description": "Cross-BU client spread.",
+        "tags": ["client", "business_unit"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List resources along with their skills and associated projects.',
-        "sql_query": 'SELECT r.ResourceName, s.Name AS SkillName, p.ProjectName FROM Resource r JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId JOIN PA_Skills s ON rs.SkillId = s.SkillId LEFT JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId LEFT JOIN Project p ON pr.ProjectId = p.ProjectId;',
-        "description": 'Skill-to-project mapping.',
-        "tags": ['resource', 'skills', 'project'],
+        "natural_language": "List resources along with their skills and associated projects.",
+        "sql_query": "SELECT r.ResourceName, s.Name AS SkillName, p.ProjectName FROM Resource r JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId JOIN PA_Skills s ON rs.SkillId = s.SkillId LEFT JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId LEFT JOIN Project p ON pr.ProjectId = p.ProjectId;",
+        "description": "Skill-to-project mapping.",
+        "tags": ["resource", "skills", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have the highest average billing rate per resource?',
-        "sql_query": 'SELECT p.ProjectName, AVG(pr.Rate) AS AvgRate FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY p.ProjectName ORDER BY AvgRate DESC;',
-        "description": 'High-value projects.',
-        "tags": ['project', 'billing'],
+        "natural_language": "Which projects have the highest average billing rate per resource?",
+        "sql_query": "SELECT p.ProjectName, AVG(pr.Rate) AS AvgRate FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY p.ProjectName ORDER BY AvgRate DESC;",
+        "description": "High-value projects.",
+        "tags": ["project", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the skill distribution across business units?',
-        "sql_query": 'SELECT bu.BusinessUnitName, s.Name, COUNT(*) FROM Resource r JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId JOIN PA_Skills s ON rs.SkillId = s.SkillId GROUP BY bu.BusinessUnitName, s.Name;',
-        "description": 'Skill concentration by BU.',
-        "tags": ['skills', 'business_unit'],
+        "natural_language": "What is the skill distribution across business units?",
+        "sql_query": "SELECT bu.BusinessUnitName, s.Name, COUNT(*) FROM Resource r JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId JOIN PA_Skills s ON rs.SkillId = s.SkillId GROUP BY bu.BusinessUnitName, s.Name;",
+        "description": "Skill concentration by BU.",
+        "tags": ["skills", "business_unit"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are working on multiple projects simultaneously?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT pr.ProjectId) AS ProjectCount FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT pr.ProjectId) > 1;',
-        "description": 'Multi-project allocation.',
-        "tags": ['resource', 'project'],
+        "natural_language": "Which resources are working on multiple projects simultaneously?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT pr.ProjectId) AS ProjectCount FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT pr.ProjectId) > 1;",
+        "description": "Multi-project allocation.",
+        "tags": ["resource", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total billing grouped by project and client?',
-        "sql_query": 'SELECT c.ClientName, p.ProjectName, SUM(pr.Rate) FROM Project p JOIN Client c ON p.ClientId = c.ClientId JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY c.ClientName, p.ProjectName;',
-        "description": 'Granular billing view.',
-        "tags": ['billing', 'client', 'project'],
+        "natural_language": "What is the total billing grouped by project and client?",
+        "sql_query": "SELECT c.ClientName, p.ProjectName, SUM(pr.Rate) FROM Project p JOIN Client c ON p.ClientId = c.ClientId JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY c.ClientName, p.ProjectName;",
+        "description": "Granular billing view.",
+        "tags": ["billing", "client", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which domains generate the highest agreement value?',
-        "sql_query": 'SELECT d.DomainName, SUM(c.AgreementValue) FROM Client c JOIN Domain d ON c.DomainId = d.DomainId GROUP BY d.DomainName ORDER BY SUM(c.AgreementValue) DESC;',
-        "description": 'Domain-wise revenue.',
-        "tags": ['domain', 'revenue'],
+        "natural_language": "Which domains generate the highest agreement value?",
+        "sql_query": "SELECT d.DomainName, SUM(c.AgreementValue) FROM Client c JOIN Domain d ON c.DomainId = d.DomainId GROUP BY d.DomainName ORDER BY SUM(c.AgreementValue) DESC;",
+        "description": "Domain-wise revenue.",
+        "tags": ["domain", "revenue"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all stakeholders mapped to projects through clients.',
-        "sql_query": 'SELECT p.ProjectName, cs.StakeholderName FROM Project p JOIN ClientStakeholder cs ON p.ClientId = cs.ClientId;',
-        "description": 'Stakeholder visibility per project.',
-        "tags": ['project', 'stakeholder'],
+        "natural_language": "List all stakeholders mapped to projects through clients.",
+        "sql_query": "SELECT p.ProjectName, cs.StakeholderName FROM Project p JOIN ClientStakeholder cs ON p.ClientId = cs.ClientId;",
+        "description": "Stakeholder visibility per project.",
+        "tags": ["project", "stakeholder"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have the lowest average resource experience?',
-        "sql_query": 'SELECT p.ProjectName, AVG(r.TotalYears) AS AvgExp FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId JOIN Resource r ON pr.ResourceId = r.ResourceId GROUP BY p.ProjectName ORDER BY AvgExp ASC;',
-        "description": 'Risky (low-experience) projects.',
-        "tags": ['project', 'risk'],
+        "natural_language": "Which projects have the lowest average resource experience?",
+        "sql_query": "SELECT p.ProjectName, AVG(r.TotalYears) AS AvgExp FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId JOIN Resource r ON pr.ResourceId = r.ResourceId GROUP BY p.ProjectName ORDER BY AvgExp ASC;",
+        "description": "Risky (low-experience) projects.",
+        "tags": ["project", "risk"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the billing contribution by each resource within a project?',
-        "sql_query": 'SELECT p.ProjectName, r.ResourceName, pr.Rate FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId JOIN Resource r ON pr.ResourceId = r.ResourceId;',
-        "description": 'Resource-level billing contribution.',
-        "tags": ['billing', 'resource'],
+        "natural_language": "What is the billing contribution by each resource within a project?",
+        "sql_query": "SELECT p.ProjectName, r.ResourceName, pr.Rate FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId JOIN Resource r ON pr.ResourceId = r.ResourceId;",
+        "description": "Resource-level billing contribution.",
+        "tags": ["billing", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which business units have the most active projects?',
-        "sql_query": 'SELECT bu.BusinessUnitName, COUNT(p.ProjectId) FROM Project p JOIN BusinessUnit bu ON p.BusinessUnitId = bu.BusinessUnitId WHERE p.IsActive = 1 GROUP BY bu.BusinessUnitName;',
-        "description": 'BU activity comparison.',
-        "tags": ['business_unit', 'project'],
+        "natural_language": "Which business units have the most active projects?",
+        "sql_query": "SELECT bu.BusinessUnitName, COUNT(p.ProjectId) FROM Project p JOIN BusinessUnit bu ON p.BusinessUnitId = bu.BusinessUnitId WHERE p.IsActive = 1 GROUP BY bu.BusinessUnitName;",
+        "description": "BU activity comparison.",
+        "tags": ["business_unit", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are assigned to clients across multiple domains?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT c.DomainId) FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId JOIN Project p ON pr.ProjectId = p.ProjectId JOIN Client c ON p.ClientId = c.ClientId GROUP BY r.ResourceName HAVING COUNT(DISTINCT c.DomainId) > 1;',
-        "description": 'Cross-domain exposure.',
-        "tags": ['resource', 'domain'],
+        "natural_language": "Which resources are assigned to clients across multiple domains?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT c.DomainId) FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId JOIN Project p ON pr.ProjectId = p.ProjectId JOIN Client c ON p.ClientId = c.ClientId GROUP BY r.ResourceName HAVING COUNT(DISTINCT c.DomainId) > 1;",
+        "description": "Cross-domain exposure.",
+        "tags": ["resource", "domain"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all combinations of business units and domains (even if no mapping exists).',
-        "sql_query": 'SELECT bu.BusinessUnitName, d.DomainName FROM BusinessUnit bu CROSS JOIN Domain d;',
-        "description": 'Full matrix for strategic planning.',
-        "tags": ['cross_join', 'business_unit', 'domain'],
+        "natural_language": "List all combinations of business units and domains (even if no mapping exists).",
+        "sql_query": "SELECT bu.BusinessUnitName, d.DomainName FROM BusinessUnit bu CROSS JOIN Domain d;",
+        "description": "Full matrix for strategic planning.",
+        "tags": ["cross_join", "business_unit", "domain"],
         "is_validated": True,
     },
     {
-        "natural_language": 'List all combinations of skills and business units.',
-        "sql_query": 'SELECT s.Name, bu.BusinessUnitName FROM PA_Skills s CROSS JOIN BusinessUnit bu;',
-        "description": 'Skill coverage planning grid.',
-        "tags": ['cross_join', 'skills'],
+        "natural_language": "List all combinations of skills and business units.",
+        "sql_query": "SELECT s.Name, bu.BusinessUnitName FROM PA_Skills s CROSS JOIN BusinessUnit bu;",
+        "description": "Skill coverage planning grid.",
+        "tags": ["cross_join", "skills"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which combinations of project types and business units have no projects?',
-        "sql_query": 'SELECT pt.ProjectTypeName, bu.BusinessUnitName FROM ProjectType pt CROSS JOIN BusinessUnit bu LEFT JOIN Project p ON p.ProjectTypeId = pt.ProjectTypeId AND p.BusinessUnitId = bu.BusinessUnitId WHERE p.ProjectId IS NULL;',
-        "description": 'Gap analysis.',
-        "tags": ['cross_join', 'gap_analysis'],
+        "natural_language": "Which combinations of project types and business units have no projects?",
+        "sql_query": "SELECT pt.ProjectTypeName, bu.BusinessUnitName FROM ProjectType pt CROSS JOIN BusinessUnit bu LEFT JOIN Project p ON p.ProjectTypeId = pt.ProjectTypeId AND p.BusinessUnitId = bu.BusinessUnitId WHERE p.ProjectId IS NULL;",
+        "description": "Gap analysis.",
+        "tags": ["cross_join", "gap_analysis"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have no associated projects?',
-        "sql_query": 'SELECT c.ClientName FROM Client c LEFT JOIN Project p ON c.ClientId = p.ClientId WHERE p.ProjectId IS NULL;',
-        "description": 'Inactive clients.',
-        "tags": ['client'],
+        "natural_language": "Which clients have no associated projects?",
+        "sql_query": "SELECT c.ClientName FROM Client c LEFT JOIN Project p ON c.ClientId = p.ClientId WHERE p.ProjectId IS NULL;",
+        "description": "Inactive clients.",
+        "tags": ["client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have skills but are not assigned to any project?',
-        "sql_query": 'SELECT r.ResourceName FROM Resource r JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId LEFT JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId WHERE pr.ProjectId IS NULL;',
-        "description": 'Underutilized skilled resources.',
-        "tags": ['resource', 'skills', 'utilization'],
+        "natural_language": "Which resources have skills but are not assigned to any project?",
+        "sql_query": "SELECT r.ResourceName FROM Resource r JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId LEFT JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId WHERE pr.ProjectId IS NULL;",
+        "description": "Underutilized skilled resources.",
+        "tags": ["resource", "skills", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average billing rate by domain?',
-        "sql_query": 'SELECT d.DomainName, AVG(pr.Rate) FROM ProjectResource pr JOIN Project p ON pr.ProjectId = p.ProjectId JOIN Client c ON p.ClientId = c.ClientId JOIN Domain d ON c.DomainId = d.DomainId GROUP BY d.DomainName;',
-        "description": 'Domain profitability.',
-        "tags": ['billing', 'domain'],
+        "natural_language": "What is the average billing rate by domain?",
+        "sql_query": "SELECT d.DomainName, AVG(pr.Rate) FROM ProjectResource pr JOIN Project p ON pr.ProjectId = p.ProjectId JOIN Client c ON p.ClientId = c.ClientId JOIN Domain d ON c.DomainId = d.DomainId GROUP BY d.DomainName;",
+        "description": "Domain profitability.",
+        "tags": ["billing", "domain"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are working under each project manager?',
-        "sql_query": 'SELECT pm.ResourceName AS Manager, r.ResourceName AS Resource FROM Project p JOIN Resource pm ON p.ProjectManagerId = pm.ResourceId JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId JOIN Resource r ON pr.ResourceId = r.ResourceId;',
-        "description": 'Manager-team mapping.',
-        "tags": ['resource', 'hierarchy'],
+        "natural_language": "Which resources are working under each project manager?",
+        "sql_query": "SELECT pm.ResourceName AS Manager, r.ResourceName AS Resource FROM Project p JOIN Resource pm ON p.ProjectManagerId = pm.ResourceId JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId JOIN Resource r ON pr.ResourceId = r.ResourceId;",
+        "description": "Manager-team mapping.",
+        "tags": ["resource", "hierarchy"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the distribution of resources across clients?',
-        "sql_query": 'SELECT c.ClientName, COUNT(DISTINCT pr.ResourceId) FROM Client c JOIN Project p ON c.ClientId = p.ClientId JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY c.ClientName;',
-        "description": 'Client staffing levels.',
-        "tags": ['client', 'resource'],
+        "natural_language": "What is the distribution of resources across clients?",
+        "sql_query": "SELECT c.ClientName, COUNT(DISTINCT pr.ResourceId) FROM Client c JOIN Project p ON c.ClientId = p.ClientId JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY c.ClientName;",
+        "description": "Client staffing levels.",
+        "tags": ["client", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have both billable and non-billable resources?',
-        "sql_query": 'SELECT p.ProjectName FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY p.ProjectName HAVING SUM(CASE WHEN pr.Billable = 1 THEN 1 ELSE 0 END) > 0 AND SUM(CASE WHEN pr.Billable = 0 THEN 1 ELSE 0 END) > 0;',
-        "description": 'Mixed billing projects.',
-        "tags": ['project', 'billing'],
+        "natural_language": "Which projects have both billable and non-billable resources?",
+        "sql_query": "SELECT p.ProjectName FROM Project p JOIN ProjectResource pr ON p.ProjectId = pr.ProjectId GROUP BY p.ProjectName HAVING SUM(CASE WHEN pr.Billable = 1 THEN 1 ELSE 0 END) > 0 AND SUM(CASE WHEN pr.Billable = 0 THEN 1 ELSE 0 END) > 0;",
+        "description": "Mixed billing projects.",
+        "tags": ["project", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average experience per skill?',
-        "sql_query": 'SELECT s.Name, AVG(rs.Experience) FROM PA_ResourceSkills rs JOIN PA_Skills s ON rs.SkillId = s.SkillId GROUP BY s.Name;',
-        "description": 'Skill maturity analysis.',
-        "tags": ['skills', 'experience'],
+        "natural_language": "What is the average experience per skill?",
+        "sql_query": "SELECT s.Name, AVG(rs.Experience) FROM PA_ResourceSkills rs JOIN PA_Skills s ON rs.SkillId = s.SkillId GROUP BY s.Name;",
+        "description": "Skill maturity analysis.",
+        "tags": ["skills", "experience"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which business units have the most diverse skill sets?',
-        "sql_query": 'SELECT bu.BusinessUnitName, COUNT(DISTINCT rs.SkillId) FROM Resource r JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId GROUP BY bu.BusinessUnitName ORDER BY COUNT(DISTINCT rs.SkillId) DESC;',
-        "description": 'Skill diversity by BU.',
-        "tags": ['business_unit', 'skills'],
+        "natural_language": "Which business units have the most diverse skill sets?",
+        "sql_query": "SELECT bu.BusinessUnitName, COUNT(DISTINCT rs.SkillId) FROM Resource r JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId GROUP BY bu.BusinessUnitName ORDER BY COUNT(DISTINCT rs.SkillId) DESC;",
+        "description": "Skill diversity by BU.",
+        "tags": ["business_unit", "skills"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have stakeholders but no active projects?',
-        "sql_query": 'SELECT DISTINCT c.ClientName FROM Client c JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId LEFT JOIN Project p ON c.ClientId = p.ClientId AND p.IsActive = 1 WHERE p.ProjectId IS NULL;',
-        "description": 'Dormant but engaged clients.',
-        "tags": ['client', 'stakeholder'],
+        "natural_language": "Which clients have stakeholders but no active projects?",
+        "sql_query": "SELECT DISTINCT c.ClientName FROM Client c JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId LEFT JOIN Project p ON c.ClientId = p.ClientId AND p.IsActive = 1 WHERE p.ProjectId IS NULL;",
+        "description": "Dormant but engaged clients.",
+        "tags": ["client", "stakeholder"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the allocation load per resource across all projects?',
-        "sql_query": 'SELECT r.ResourceName, SUM(pr.PercentageAllocation) FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId GROUP BY r.ResourceName;',
-        "description": 'Resource workload analysis.',
-        "tags": ['resource', 'allocation'],
+        "natural_language": "What is the allocation load per resource across all projects?",
+        "sql_query": "SELECT r.ResourceName, SUM(pr.PercentageAllocation) FROM Resource r JOIN ProjectResource pr ON r.ResourceId = pr.ResourceId GROUP BY r.ResourceName;",
+        "description": "Resource workload analysis.",
+        "tags": ["resource", "allocation"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total effort (hours) logged per client in the last month?',
-        "sql_query": 'SELECT e.ClientName, SUM(e.Hrs) AS TotalHours FROM TS_EODDetails e WHERE e.IsDeleted = 0 AND e.ReportDate >= DATEADD(MONTH, -1, GETDATE()) GROUP BY e.ClientName;',
-        "description": 'Client-level effort tracking from timesheets.',
-        "tags": ['timesheet', 'client', 'effort'],
+        "natural_language": "What is the total effort (hours) logged per client in the last month?",
+        "sql_query": "SELECT e.ClientName, SUM(e.Hrs) AS TotalHours FROM TS_EODDetails e WHERE e.IsDeleted = 0 AND e.ReportDate >= DATEADD(MONTH, -1, GETDATE()) GROUP BY e.ClientName;",
+        "description": "Client-level effort tracking from timesheets.",
+        "tags": ["timesheet", "client", "effort"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have logged the highest hours in the last month?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs) AS TotalHours FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE e.IsDeleted = 0 GROUP BY r.ResourceName ORDER BY TotalHours DESC;',
-        "description": 'Identifies highly utilized resources.',
-        "tags": ['resource', 'utilization'],
+        "natural_language": "Which resources have logged the highest hours in the last month?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs) AS TotalHours FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE e.IsDeleted = 0 GROUP BY r.ResourceName ORDER BY TotalHours DESC;",
+        "description": "Identifies highly utilized resources.",
+        "tags": ["resource", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total billing potential based on hourly rates and logged hours per client?',
-        "sql_query": 'SELECT c.ClientName, SUM(e.Hrs * c.HourlyBillingRate) AS EstimatedRevenue FROM TS_EODDetails e JOIN Client c ON e.ClientName = c.ClientName GROUP BY c.ClientName;',
-        "description": 'Revenue estimation using timesheets.',
-        "tags": ['billing', 'revenue'],
+        "natural_language": "What is the total billing potential based on hourly rates and logged hours per client?",
+        "sql_query": "SELECT c.ClientName, SUM(e.Hrs * c.HourlyBillingRate) AS EstimatedRevenue FROM TS_EODDetails e JOIN Client c ON e.ClientName = c.ClientName GROUP BY c.ClientName;",
+        "description": "Revenue estimation using timesheets.",
+        "tags": ["billing", "revenue"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which business units have the highest average resource tenure?',
-        "sql_query": 'SELECT bu.BusinessUnitName, AVG(r.TenureInYears) FROM Resource r JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;',
-        "description": 'Experience maturity by BU.',
-        "tags": ['resource', 'business_unit'],
+        "natural_language": "Which business units have the highest average resource tenure?",
+        "sql_query": "SELECT bu.BusinessUnitName, AVG(r.TenureInYears) FROM Resource r JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;",
+        "description": "Experience maturity by BU.",
+        "tags": ["resource", "business_unit"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients belong to which domains and company types?',
-        "sql_query": 'SELECT c.ClientName, d.DomainName, ct.CompanyTypeName FROM Client c LEFT JOIN Domain d ON c.DomainId = d.DomainId LEFT JOIN CompanyType ct ON c.CompanyTypeId = ct.CompanyTypeId;',
-        "description": 'Client segmentation view.',
-        "tags": ['client', 'domain'],
+        "natural_language": "Which clients belong to which domains and company types?",
+        "sql_query": "SELECT c.ClientName, d.DomainName, ct.CompanyTypeName FROM Client c LEFT JOIN Domain d ON c.DomainId = d.DomainId LEFT JOIN CompanyType ct ON c.CompanyTypeId = ct.CompanyTypeId;",
+        "description": "Client segmentation view.",
+        "tags": ["client", "domain"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the distribution of clients across countries and cities?',
-        "sql_query": 'SELECT co.countryName, ci.cityName, COUNT(c.ClientId) FROM Client c LEFT JOIN countries co ON c.CountryId = co.countryID LEFT JOIN cities ci ON c.CityId = ci.cityID GROUP BY co.countryName, ci.cityName;',
-        "description": 'Geographic distribution of clients.',
-        "tags": ['client', 'geo'],
+        "natural_language": "What is the distribution of clients across countries and cities?",
+        "sql_query": "SELECT co.countryName, ci.cityName, COUNT(c.ClientId) FROM Client c LEFT JOIN countries co ON c.CountryId = co.countryID LEFT JOIN cities ci ON c.CityId = ci.cityID GROUP BY co.countryName, ci.cityName;",
+        "description": "Geographic distribution of clients.",
+        "tags": ["client", "geo"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are mapped to which clients via timesheet entries?',
-        "sql_query": 'SELECT DISTINCT r.ResourceName, e.ClientName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE e.IsDeleted = 0;',
-        "description": 'Resource-client interaction mapping.',
-        "tags": ['resource', 'client'],
+        "natural_language": "Which resources are mapped to which clients via timesheet entries?",
+        "sql_query": "SELECT DISTINCT r.ResourceName, e.ClientName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE e.IsDeleted = 0;",
+        "description": "Resource-client interaction mapping.",
+        "tags": ["resource", "client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average completion percentage of tasks per project?',
-        "sql_query": 'SELECT e.Project, AVG(CAST(e.CompletionPercent AS FLOAT)) FROM TS_EODDetails e WHERE e.IsDeleted = 0 GROUP BY e.Project;',
-        "description": 'Project progress tracking.',
-        "tags": ['project', 'progress'],
+        "natural_language": "What is the average completion percentage of tasks per project?",
+        "sql_query": "SELECT e.Project, AVG(CAST(e.CompletionPercent AS FLOAT)) FROM TS_EODDetails e WHERE e.IsDeleted = 0 GROUP BY e.Project;",
+        "description": "Project progress tracking.",
+        "tags": ["project", "progress"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which activities consume the most effort hours?',
-        "sql_query": 'SELECT a.ActivityName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY a.ActivityName ORDER BY SUM(e.Hrs) DESC;',
-        "description": 'Activity-level effort breakdown.',
-        "tags": ['activity', 'timesheet'],
+        "natural_language": "Which activities consume the most effort hours?",
+        "sql_query": "SELECT a.ActivityName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY a.ActivityName ORDER BY SUM(e.Hrs) DESC;",
+        "description": "Activity-level effort breakdown.",
+        "tags": ["activity", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the approval rate of timesheets per manager?',
-        "sql_query": 'SELECT e.ManagerEmail, SUM(CASE WHEN e.IsApproved = 1 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) AS ApprovalRate FROM TS_EODDetails e GROUP BY e.ManagerEmail;',
-        "description": 'Manager efficiency in approvals.',
-        "tags": ['timesheet', 'approval'],
+        "natural_language": "What is the approval rate of timesheets per manager?",
+        "sql_query": "SELECT e.ManagerEmail, SUM(CASE WHEN e.IsApproved = 1 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) AS ApprovalRate FROM TS_EODDetails e GROUP BY e.ManagerEmail;",
+        "description": "Manager efficiency in approvals.",
+        "tags": ["timesheet", "approval"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the highest agreement value per domain?',
-        "sql_query": 'SELECT d.DomainName, c.ClientName, c.AgreementValue FROM Client c JOIN Domain d ON c.DomainId = d.DomainId ORDER BY c.AgreementValue DESC;',
-        "description": 'High-value clients per domain.',
-        "tags": ['client', 'revenue'],
+        "natural_language": "Which clients have the highest agreement value per domain?",
+        "sql_query": "SELECT d.DomainName, c.ClientName, c.AgreementValue FROM Client c JOIN Domain d ON c.DomainId = d.DomainId ORDER BY c.AgreementValue DESC;",
+        "description": "High-value clients per domain.",
+        "tags": ["client", "revenue"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average client satisfaction score per project?',
-        "sql_query": 'SELECT cr.ProjectId, AVG(cs.ClientSatisfactionScore) FROM ClientReview cr JOIN ClientSatisfaction cs ON cs.ClientSatisfactionId = cr.ClientId GROUP BY cr.ProjectId;',
-        "description": 'Project satisfaction trends.',
-        "tags": ['client', 'review'],
+        "natural_language": "What is the average client satisfaction score per project?",
+        "sql_query": "SELECT cr.ProjectId, AVG(cs.ClientSatisfactionScore) FROM ClientReview cr JOIN ClientSatisfaction cs ON cs.ClientSatisfactionId = cr.ClientId GROUP BY cr.ProjectId;",
+        "description": "Project satisfaction trends.",
+        "tags": ["client", "review"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have unapproved timesheet entries?',
-        "sql_query": 'SELECT DISTINCT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE e.IsApproved = 0;',
-        "description": 'Pending approvals.',
-        "tags": ['resource', 'timesheet'],
+        "natural_language": "Which resources have unapproved timesheet entries?",
+        "sql_query": "SELECT DISTINCT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE e.IsApproved = 0;",
+        "description": "Pending approvals.",
+        "tags": ["resource", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the workload distribution by business unit using timesheet hours?',
-        "sql_query": 'SELECT bu.BusinessUnitName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;',
-        "description": 'Effort distribution across BUs.',
-        "tags": ['business_unit', 'effort'],
+        "natural_language": "What is the workload distribution by business unit using timesheet hours?",
+        "sql_query": "SELECT bu.BusinessUnitName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;",
+        "description": "Effort distribution across BUs.",
+        "tags": ["business_unit", "effort"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which skills are most common among high-tenure resources?',
-        "sql_query": 'SELECT s.Name, COUNT(*) FROM Resource r JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId JOIN PA_Skills s ON rs.SkillId = s.SkillId WHERE r.TotalYears > 5 GROUP BY s.Name ORDER BY COUNT(*) DESC;',
-        "description": 'Senior skill trends.',
-        "tags": ['skills', 'resource'],
+        "natural_language": "Which skills are most common among high-tenure resources?",
+        "sql_query": "SELECT s.Name, COUNT(*) FROM Resource r JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId JOIN PA_Skills s ON rs.SkillId = s.SkillId WHERE r.TotalYears > 5 GROUP BY s.Name ORDER BY COUNT(*) DESC;",
+        "description": "Senior skill trends.",
+        "tags": ["skills", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which subskills are linked to each primary skill?',
-        "sql_query": 'SELECT s.Name, ss.Name FROM PA_Skills s JOIN PA_SubSkills ss ON s.SkillId = ss.SkillId;',
-        "description": 'Skill hierarchy mapping.',
-        "tags": ['skills'],
+        "natural_language": "Which subskills are linked to each primary skill?",
+        "sql_query": "SELECT s.Name, ss.Name FROM PA_Skills s JOIN PA_SubSkills ss ON s.SkillId = ss.SkillId;",
+        "description": "Skill hierarchy mapping.",
+        "tags": ["skills"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have skills that are not approved?',
-        "sql_query": 'SELECT r.ResourceName, s.Name FROM PA_ResourceSkills rs JOIN Resource r ON rs.ResourceId = r.ResourceId JOIN PA_Skills s ON rs.SkillId = s.SkillId WHERE rs.IsApproved = 0;',
-        "description": 'Skill validation gaps.',
-        "tags": ['skills', 'resource'],
+        "natural_language": "Which resources have skills that are not approved?",
+        "sql_query": "SELECT r.ResourceName, s.Name FROM PA_ResourceSkills rs JOIN Resource r ON rs.ResourceId = r.ResourceId JOIN PA_Skills s ON rs.SkillId = s.SkillId WHERE rs.IsApproved = 0;",
+        "description": "Skill validation gaps.",
+        "tags": ["skills", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average experience per subskill?',
-        "sql_query": 'SELECT ss.Name, AVG(rs.SubSkillExperience) FROM PA_ResourceSkills rs JOIN PA_SubSkills ss ON rs.SubSkillId = ss.SubSkillId GROUP BY ss.Name;',
-        "description": 'Subskill depth analysis.',
-        "tags": ['skills'],
+        "natural_language": "What is the average experience per subskill?",
+        "sql_query": "SELECT ss.Name, AVG(rs.SubSkillExperience) FROM PA_ResourceSkills rs JOIN PA_SubSkills ss ON rs.SubSkillId = ss.SubSkillId GROUP BY ss.Name;",
+        "description": "Subskill depth analysis.",
+        "tags": ["skills"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients use which payment methods and cycles?',
-        "sql_query": 'SELECT c.ClientName, pm.PaymentMethodName, pc.PaymentCycleName FROM Client c LEFT JOIN PaymentMethod pm ON c.PaymentMethodId = pm.PaymentMethodId LEFT JOIN PaymentCycle pc ON c.PaymentCycleId = pc.PaymentCycleId;',
-        "description": 'Payment configuration view.',
-        "tags": ['client', 'finance'],
+        "natural_language": "Which clients use which payment methods and cycles?",
+        "sql_query": "SELECT c.ClientName, pm.PaymentMethodName, pc.PaymentCycleName FROM Client c LEFT JOIN PaymentMethod pm ON c.PaymentMethodId = pm.PaymentMethodId LEFT JOIN PaymentCycle pc ON c.PaymentCycleId = pc.PaymentCycleId;",
+        "description": "Payment configuration view.",
+        "tags": ["client", "finance"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources joined recently and are already contributing to timesheets?',
-        "sql_query": 'SELECT DISTINCT r.ResourceName FROM Resource r JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId WHERE r.DateOfJoin >= DATEADD(MONTH, -3, GETDATE());',
-        "description": 'New hire productivity.',
-        "tags": ['resource', 'timesheet'],
+        "natural_language": "Which resources joined recently and are already contributing to timesheets?",
+        "sql_query": "SELECT DISTINCT r.ResourceName FROM Resource r JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId WHERE r.DateOfJoin >= DATEADD(MONTH, -3, GETDATE());",
+        "description": "New hire productivity.",
+        "tags": ["resource", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average effort logged per activity category?',
-        "sql_query": 'SELECT o.Dropdown_Description, AVG(e.Hrs) FROM TS_EODDetails e JOIN TS_SG_OEM_Master o ON e.OEM_Id = o.Dropdown_Identifier GROUP BY o.Dropdown_Description;',
-        "description": 'Category-level effort trends.',
-        "tags": ['timesheet'],
+        "natural_language": "What is the average effort logged per activity category?",
+        "sql_query": "SELECT o.Dropdown_Description, AVG(e.Hrs) FROM TS_EODDetails e JOIN TS_SG_OEM_Master o ON e.OEM_Id = o.Dropdown_Identifier GROUP BY o.Dropdown_Description;",
+        "description": "Category-level effort trends.",
+        "tags": ["timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the longest business relationship duration?',
-        "sql_query": 'SELECT ClientName, DATEDIFF(YEAR, ActualStartDate, GETDATE()) AS Years FROM Client ORDER BY Years DESC;',
-        "description": 'Client longevity.',
-        "tags": ['client'],
+        "natural_language": "Which clients have the longest business relationship duration?",
+        "sql_query": "SELECT ClientName, DATEDIFF(YEAR, ActualStartDate, GETDATE()) AS Years FROM Client ORDER BY Years DESC;",
+        "description": "Client longevity.",
+        "tags": ["client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average workload per resource by designation?',
-        "sql_query": 'SELECT d.DesignationName, AVG(e.Hrs) FROM Resource r JOIN Designation d ON r.DesignationId = d.DesignationId JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId GROUP BY d.DesignationName;',
-        "description": 'Workload by role.',
-        "tags": ['resource'],
+        "natural_language": "What is the average workload per resource by designation?",
+        "sql_query": "SELECT d.DesignationName, AVG(e.Hrs) FROM Resource r JOIN Designation d ON r.DesignationId = d.DesignationId JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId GROUP BY d.DesignationName;",
+        "description": "Workload by role.",
+        "tags": ["resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have stakeholders but no recent timesheet activity?',
-        "sql_query": 'SELECT DISTINCT c.ClientName FROM Client c JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId LEFT JOIN TS_EODDetails e ON c.ClientName = e.ClientName AND e.ReportDate >= DATEADD(MONTH, -1, GETDATE()) WHERE e.ID IS NULL;',
-        "description": 'Inactive but engaged clients.',
-        "tags": ['client'],
+        "natural_language": "Which clients have stakeholders but no recent timesheet activity?",
+        "sql_query": "SELECT DISTINCT c.ClientName FROM Client c JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId LEFT JOIN TS_EODDetails e ON c.ClientName = e.ClientName AND e.ReportDate >= DATEADD(MONTH, -1, GETDATE()) WHERE e.ID IS NULL;",
+        "description": "Inactive but engaged clients.",
+        "tags": ["client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the effort split between billable and non-billable activities?',
-        "sql_query": 'SELECT a.Billablestatus, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY a.Billablestatus;',
-        "description": 'Billing efficiency.',
-        "tags": ['billing'],
+        "natural_language": "What is the effort split between billable and non-billable activities?",
+        "sql_query": "SELECT a.Billablestatus, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY a.Billablestatus;",
+        "description": "Billing efficiency.",
+        "tags": ["billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources report to managers and also act as reporting persons?',
-        "sql_query": 'SELECT r1.ResourceName, r2.ResourceName AS Manager FROM Resource r1 JOIN Resource r2 ON r1.ReportingTo = r2.ResourceId WHERE r1.IsReportingPerson = 1;',
-        "description": 'Dual-role resources.',
-        "tags": ['hierarchy'],
+        "natural_language": "Which resources report to managers and also act as reporting persons?",
+        "sql_query": "SELECT r1.ResourceName, r2.ResourceName AS Manager FROM Resource r1 JOIN Resource r2 ON r1.ReportingTo = r2.ResourceId WHERE r1.IsReportingPerson = 1;",
+        "description": "Dual-role resources.",
+        "tags": ["hierarchy"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which organizations have the most active resources?',
-        "sql_query": 'SELECT o.OrganizationName, COUNT(r.ResourceId) FROM Resource r JOIN Organization o ON r.OrganizationId = o.OrganizationId WHERE r.IsActive = 1 GROUP BY o.OrganizationName;',
-        "description": 'Org-level workforce.',
-        "tags": ['organization'],
+        "natural_language": "Which organizations have the most active resources?",
+        "sql_query": "SELECT o.OrganizationName, COUNT(r.ResourceId) FROM Resource r JOIN Organization o ON r.OrganizationId = o.OrganizationId WHERE r.IsActive = 1 GROUP BY o.OrganizationName;",
+        "description": "Org-level workforce.",
+        "tags": ["organization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which holidays fall within major project timelines?',
-        "sql_query": 'SELECT h.HolidayName, h.HolidayDate, e.Project FROM DesignatedHolidays h JOIN TS_EODDetails e ON h.HolidayDate = e.ReportDate;',
-        "description": 'Holiday impact analysis.',
-        "tags": ['holiday'],
+        "natural_language": "Which holidays fall within major project timelines?",
+        "sql_query": "SELECT h.HolidayName, h.HolidayDate, e.Project FROM DesignatedHolidays h JOIN TS_EODDetails e ON h.HolidayDate = e.ReportDate;",
+        "description": "Holiday impact analysis.",
+        "tags": ["holiday"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which Jira tickets consume the most effort hours?',
-        "sql_query": 'SELECT j.SFID, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Jira_Master j ON e.Jira_Identifier = j.Jira_Identifier GROUP BY j.SFID ORDER BY SUM(e.Hrs) DESC;',
-        "description": 'Jira effort tracking.',
-        "tags": ['jira', 'timesheet'],
+        "natural_language": "Which Jira tickets consume the most effort hours?",
+        "sql_query": "SELECT j.SFID, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Jira_Master j ON e.Jira_Identifier = j.Jira_Identifier GROUP BY j.SFID ORDER BY SUM(e.Hrs) DESC;",
+        "description": "Jira effort tracking.",
+        "tags": ["jira", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average effort per project per month?',
-        "sql_query": 'SELECT e.Project, MONTH(e.ReportDate), AVG(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project, MONTH(e.ReportDate);',
-        "description": 'Monthly effort trends.',
-        "tags": ['project', 'timesheet'],
+        "natural_language": "What is the average effort per project per month?",
+        "sql_query": "SELECT e.Project, MONTH(e.ReportDate), AVG(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project, MONTH(e.ReportDate);",
+        "description": "Monthly effort trends.",
+        "tags": ["project", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total billable vs non-billable effort logged per resource?',
-        "sql_query": 'SELECT r.ResourceName, a.Billablestatus, SUM(e.Hrs) AS TotalHours FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY r.ResourceName, a.Billablestatus;',
-        "description": 'Resource-level billability breakdown.',
-        "tags": ['timesheet', 'billing', 'resource'],
+        "natural_language": "What is the total billable vs non-billable effort logged per resource?",
+        "sql_query": "SELECT r.ResourceName, a.Billablestatus, SUM(e.Hrs) AS TotalHours FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY r.ResourceName, a.Billablestatus;",
+        "description": "Resource-level billability breakdown.",
+        "tags": ["timesheet", "billing", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have less than 50% billable utilization?',
-        "sql_query": 'SELECT r.ResourceName, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 1.0 / SUM(e.Hrs) AS BillableRatio FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY r.ResourceName HAVING SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 1.0 / SUM(e.Hrs) < 0.5;',
-        "description": 'Identifies underperforming utilization.',
-        "tags": ['utilization', 'billing'],
+        "natural_language": "Which resources have less than 50% billable utilization?",
+        "sql_query": "SELECT r.ResourceName, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 1.0 / SUM(e.Hrs) AS BillableRatio FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY r.ResourceName HAVING SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 1.0 / SUM(e.Hrs) < 0.5;",
+        "description": "Identifies underperforming utilization.",
+        "tags": ["utilization", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the billable utilization percentage per project?',
-        "sql_query": 'SELECT e.Project, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) AS BillableUtilization FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project;',
-        "description": 'Project-level billability.',
-        "tags": ['project', 'utilization'],
+        "natural_language": "What is the billable utilization percentage per project?",
+        "sql_query": "SELECT e.Project, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) AS BillableUtilization FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project;",
+        "description": "Project-level billability.",
+        "tags": ["project", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have the highest non-billable effort?',
-        "sql_query": 'SELECT e.Project, SUM(e.Hrs) AS NonBillableHours FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 0 GROUP BY e.Project ORDER BY NonBillableHours DESC;',
-        "description": 'Non-billable leakage.',
-        "tags": ['project', 'billing'],
+        "natural_language": "Which projects have the highest non-billable effort?",
+        "sql_query": "SELECT e.Project, SUM(e.Hrs) AS NonBillableHours FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 0 GROUP BY e.Project ORDER BY NonBillableHours DESC;",
+        "description": "Non-billable leakage.",
+        "tags": ["project", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average daily hours logged per resource?',
-        "sql_query": 'SELECT r.ResourceName, AVG(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName;',
-        "description": 'Daily effort consistency.',
-        "tags": ['timesheet', 'resource'],
+        "natural_language": "What is the average daily hours logged per resource?",
+        "sql_query": "SELECT r.ResourceName, AVG(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName;",
+        "description": "Daily effort consistency.",
+        "tags": ["timesheet", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are over-utilized (more than 9 hours per day on average)?',
-        "sql_query": 'SELECT r.ResourceName, AVG(e.Hrs) AS AvgHours FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING AVG(e.Hrs) > 9;',
-        "description": 'Overloaded resources.',
-        "tags": ['utilization', 'resource'],
+        "natural_language": "Which resources are over-utilized (more than 9 hours per day on average)?",
+        "sql_query": "SELECT r.ResourceName, AVG(e.Hrs) AS AvgHours FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING AVG(e.Hrs) > 9;",
+        "description": "Overloaded resources.",
+        "tags": ["utilization", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the utilization percentage per business unit based on timesheet hours?',
-        "sql_query": 'SELECT bu.BusinessUnitName, SUM(e.Hrs) / (COUNT(DISTINCT r.ResourceId) * 8.0 * 22) * 100 AS UtilizationPercent FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;',
-        "description": 'BU-level capacity utilization.',
-        "tags": ['business_unit', 'utilization'],
+        "natural_language": "What is the utilization percentage per business unit based on timesheet hours?",
+        "sql_query": "SELECT bu.BusinessUnitName, SUM(e.Hrs) / (COUNT(DISTINCT r.ResourceId) * 8.0 * 22) * 100 AS UtilizationPercent FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId GROUP BY bu.BusinessUnitName;",
+        "description": "BU-level capacity utilization.",
+        "tags": ["business_unit", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have not logged any hours in the last 7 days?',
-        "sql_query": 'SELECT r.ResourceName FROM Resource r LEFT JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId AND e.ReportDate >= DATEADD(DAY, -7, GETDATE()) WHERE e.ID IS NULL;',
-        "description": 'Inactive resources.',
-        "tags": ['timesheet', 'resource'],
+        "natural_language": "Which resources have not logged any hours in the last 7 days?",
+        "sql_query": "SELECT r.ResourceName FROM Resource r LEFT JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId AND e.ReportDate >= DATEADD(DAY, -7, GETDATE()) WHERE e.ID IS NULL;",
+        "description": "Inactive resources.",
+        "tags": ["timesheet", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the project-wise effort split by activity type?',
-        "sql_query": 'SELECT e.Project, a.ActivityName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project, a.ActivityName;',
-        "description": 'Effort categorization per project.',
-        "tags": ['project', 'activity'],
+        "natural_language": "What is the project-wise effort split by activity type?",
+        "sql_query": "SELECT e.Project, a.ActivityName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project, a.ActivityName;",
+        "description": "Effort categorization per project.",
+        "tags": ["project", "activity"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are working across multiple projects in the same week?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT e.Project) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE e.ReportDate >= DATEADD(DAY, -7, GETDATE()) GROUP BY r.ResourceName HAVING COUNT(DISTINCT e.Project) > 1;',
-        "description": 'Multi-project allocation.',
-        "tags": ['resource', 'project'],
+        "natural_language": "Which resources are working across multiple projects in the same week?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT e.Project) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE e.ReportDate >= DATEADD(DAY, -7, GETDATE()) GROUP BY r.ResourceName HAVING COUNT(DISTINCT e.Project) > 1;",
+        "description": "Multi-project allocation.",
+        "tags": ["resource", "project"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the total billable effort per client?',
-        "sql_query": 'SELECT e.ClientName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY e.ClientName;',
-        "description": 'Client billing contribution.',
-        "tags": ['client', 'billing'],
+        "natural_language": "What is the total billable effort per client?",
+        "sql_query": "SELECT e.ClientName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY e.ClientName;",
+        "description": "Client billing contribution.",
+        "tags": ["client", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have the highest billable hours?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY r.ResourceName ORDER BY SUM(e.Hrs) DESC;',
-        "description": 'Top billable contributors.',
-        "tags": ['resource', 'billing'],
+        "natural_language": "Which resources have the highest billable hours?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY r.ResourceName ORDER BY SUM(e.Hrs) DESC;",
+        "description": "Top billable contributors.",
+        "tags": ["resource", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the ratio of billable to non-billable hours per client?',
-        "sql_query": 'SELECT e.ClientName, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 1.0 / SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) AS Ratio FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.ClientName;',
-        "description": 'Client efficiency ratio.',
-        "tags": ['client', 'billing'],
+        "natural_language": "What is the ratio of billable to non-billable hours per client?",
+        "sql_query": "SELECT e.ClientName, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 1.0 / SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) AS Ratio FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.ClientName;",
+        "description": "Client efficiency ratio.",
+        "tags": ["client", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have resources exceeding 100% allocation (more than 8 hours per day)?',
-        "sql_query": 'SELECT e.Project, r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY e.Project, r.ResourceName HAVING SUM(e.Hrs) > 8;',
-        "description": 'Over-allocation detection.',
-        "tags": ['project', 'resource'],
+        "natural_language": "Which projects have resources exceeding 100% allocation (more than 8 hours per day)?",
+        "sql_query": "SELECT e.Project, r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY e.Project, r.ResourceName HAVING SUM(e.Hrs) > 8;",
+        "description": "Over-allocation detection.",
+        "tags": ["project", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the weekly utilization trend per project?',
-        "sql_query": 'SELECT e.Project, DATEPART(WEEK, e.ReportDate), SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project, DATEPART(WEEK, e.ReportDate);',
-        "description": 'Weekly effort trend.',
-        "tags": ['project', 'timesheet'],
+        "natural_language": "What is the weekly utilization trend per project?",
+        "sql_query": "SELECT e.Project, DATEPART(WEEK, e.ReportDate), SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project, DATEPART(WEEK, e.ReportDate);",
+        "description": "Weekly effort trend.",
+        "tags": ["project", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources contribute the most non-billable hours?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 0 GROUP BY r.ResourceName ORDER BY SUM(e.Hrs) DESC;',
-        "description": 'Non-billable heavy contributors.',
-        "tags": ['resource', 'billing'],
+        "natural_language": "Which resources contribute the most non-billable hours?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 0 GROUP BY r.ResourceName ORDER BY SUM(e.Hrs) DESC;",
+        "description": "Non-billable heavy contributors.",
+        "tags": ["resource", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average billable utilization per designation?',
-        "sql_query": 'SELECT d.DesignationName, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Designation d ON r.DesignationId = d.DesignationId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY d.DesignationName;',
-        "description": 'Role-based billability.',
-        "tags": ['designation', 'utilization'],
+        "natural_language": "What is the average billable utilization per designation?",
+        "sql_query": "SELECT d.DesignationName, SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Designation d ON r.DesignationId = d.DesignationId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY d.DesignationName;",
+        "description": "Role-based billability.",
+        "tags": ["designation", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the utilization trend of each resource over time?',
-        "sql_query": 'SELECT r.ResourceName, e.ReportDate, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName, e.ReportDate;',
-        "description": 'Daily utilization tracking.',
-        "tags": ['resource', 'timesheet'],
+        "natural_language": "What is the utilization trend of each resource over time?",
+        "sql_query": "SELECT r.ResourceName, e.ReportDate, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName, e.ReportDate;",
+        "description": "Daily utilization tracking.",
+        "tags": ["resource", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have no billable activity logged?',
-        "sql_query": 'SELECT e.Project FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project HAVING SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) = 0;',
-        "description": 'Zero-billing projects.',
-        "tags": ['project', 'billing'],
+        "natural_language": "Which projects have no billable activity logged?",
+        "sql_query": "SELECT e.Project FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project HAVING SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) = 0;",
+        "description": "Zero-billing projects.",
+        "tags": ["project", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are consistently under-utilized (less than 4 hours daily)?',
-        "sql_query": 'SELECT r.ResourceName, AVG(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING AVG(e.Hrs) < 4;',
-        "description": 'Low utilization resources.',
-        "tags": ['resource', 'utilization'],
+        "natural_language": "Which resources are consistently under-utilized (less than 4 hours daily)?",
+        "sql_query": "SELECT r.ResourceName, AVG(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING AVG(e.Hrs) < 4;",
+        "description": "Low utilization resources.",
+        "tags": ["resource", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the distribution of hours across different OEM categories?',
-        "sql_query": 'SELECT o.Dropdown_Description, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_SG_OEM_Master o ON e.OEM_Id = o.Dropdown_Identifier GROUP BY o.Dropdown_Description;',
-        "description": 'OEM-level effort analysis.',
-        "tags": ['timesheet'],
+        "natural_language": "What is the distribution of hours across different OEM categories?",
+        "sql_query": "SELECT o.Dropdown_Description, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_SG_OEM_Master o ON e.OEM_Id = o.Dropdown_Identifier GROUP BY o.Dropdown_Description;",
+        "description": "OEM-level effort analysis.",
+        "tags": ["timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which managers have the highest team utilization?',
-        "sql_query": 'SELECT r.ReportingTo, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ReportingTo ORDER BY SUM(e.Hrs) DESC;',
-        "description": 'Manager efficiency.',
-        "tags": ['hierarchy', 'utilization'],
+        "natural_language": "Which managers have the highest team utilization?",
+        "sql_query": "SELECT r.ReportingTo, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ReportingTo ORDER BY SUM(e.Hrs) DESC;",
+        "description": "Manager efficiency.",
+        "tags": ["hierarchy", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources log time on weekends?',
+        "natural_language": "Which resources log time on weekends?",
         "sql_query": "SELECT DISTINCT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE DATENAME(WEEKDAY, e.ReportDate) IN ('Saturday', 'Sunday');",
-        "description": 'Weekend workload.',
-        "tags": ['timesheet', 'resource'],
+        "description": "Weekend workload.",
+        "tags": ["timesheet", "resource"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the average completion percentage per resource?',
-        "sql_query": 'SELECT r.ResourceName, AVG(CAST(e.CompletionPercent AS FLOAT)) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName;',
-        "description": 'Execution efficiency.',
-        "tags": ['resource', 'performance'],
+        "natural_language": "What is the average completion percentage per resource?",
+        "sql_query": "SELECT r.ResourceName, AVG(CAST(e.CompletionPercent AS FLOAT)) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName;",
+        "description": "Execution efficiency.",
+        "tags": ["resource", "performance"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have the highest average completion percentage?',
-        "sql_query": 'SELECT e.Project, AVG(CAST(e.CompletionPercent AS FLOAT)) FROM TS_EODDetails e GROUP BY e.Project ORDER BY 2 DESC;',
-        "description": 'Fast-moving projects.',
-        "tags": ['project', 'progress'],
+        "natural_language": "Which projects have the highest average completion percentage?",
+        "sql_query": "SELECT e.Project, AVG(CAST(e.CompletionPercent AS FLOAT)) FROM TS_EODDetails e GROUP BY e.Project ORDER BY 2 DESC;",
+        "description": "Fast-moving projects.",
+        "tags": ["project", "progress"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the monthly billable utilization trend per business unit?',
-        "sql_query": 'SELECT bu.BusinessUnitName, MONTH(e.ReportDate), SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY bu.BusinessUnitName, MONTH(e.ReportDate);',
-        "description": 'BU billing trends.',
-        "tags": ['business_unit', 'billing'],
+        "natural_language": "What is the monthly billable utilization trend per business unit?",
+        "sql_query": "SELECT bu.BusinessUnitName, MONTH(e.ReportDate), SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) * 100.0 / SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN BusinessUnit bu ON r.BusinessUnitId = bu.BusinessUnitId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY bu.BusinessUnitName, MONTH(e.ReportDate);",
+        "description": "BU billing trends.",
+        "tags": ["business_unit", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are contributing to the highest number of clients?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT e.ClientName) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY 2 DESC;',
-        "description": 'Client spread.',
-        "tags": ['resource', 'client'],
+        "natural_language": "Which resources are contributing to the highest number of clients?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT e.ClientName) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY 2 DESC;",
+        "description": "Client spread.",
+        "tags": ["resource", "client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'What is the variance in daily logged hours per resource?',
-        "sql_query": 'SELECT r.ResourceName, VAR(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName;',
-        "description": 'Consistency of work patterns.',
-        "tags": ['resource', 'timesheet'],
+        "natural_language": "What is the variance in daily logged hours per resource?",
+        "sql_query": "SELECT r.ResourceName, VAR(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName;",
+        "description": "Consistency of work patterns.",
+        "tags": ["resource", "timesheet"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients are experiencing revenue leakage due to high non-billable effort?',
-        "sql_query": 'SELECT e.ClientName, SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) * c.HourlyBillingRate AS LeakageValue FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id JOIN Client c ON e.ClientName = c.ClientName GROUP BY e.ClientName, c.HourlyBillingRate ORDER BY LeakageValue DESC;',
-        "description": 'Quantifies lost revenue due to non-billable work.',
-        "tags": ['revenue', 'leakage'],
+        "natural_language": "Which clients are experiencing revenue leakage due to high non-billable effort?",
+        "sql_query": "SELECT e.ClientName, SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) * c.HourlyBillingRate AS LeakageValue FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id JOIN Client c ON e.ClientName = c.ClientName GROUP BY e.ClientName, c.HourlyBillingRate ORDER BY LeakageValue DESC;",
+        "description": "Quantifies lost revenue due to non-billable work.",
+        "tags": ["revenue", "leakage"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects are at risk due to low average daily effort from assigned resources?',
-        "sql_query": 'SELECT e.Project, AVG(e.Hrs) AS AvgDailyHours FROM TS_EODDetails e GROUP BY e.Project HAVING AVG(e.Hrs) < 4;',
-        "description": 'Low engagement risk indicator.',
-        "tags": ['project', 'risk'],
+        "natural_language": "Which projects are at risk due to low average daily effort from assigned resources?",
+        "sql_query": "SELECT e.Project, AVG(e.Hrs) AS AvgDailyHours FROM TS_EODDetails e GROUP BY e.Project HAVING AVG(e.Hrs) < 4;",
+        "description": "Low engagement risk indicator.",
+        "tags": ["project", "risk"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are consistently logging hours but not contributing to billable work?',
-        "sql_query": 'SELECT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY r.ResourceName HAVING SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) = 0;',
-        "description": 'Identifies cost centers instead of revenue contributors.',
-        "tags": ['resource', 'billing'],
+        "natural_language": "Which resources are consistently logging hours but not contributing to billable work?",
+        "sql_query": "SELECT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY r.ResourceName HAVING SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) = 0;",
+        "description": "Identifies cost centers instead of revenue contributors.",
+        "tags": ["resource", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have declining utilization trends over the last 3 months?',
-        "sql_query": 'SELECT e.ClientName, MONTH(e.ReportDate), SUM(e.Hrs) FROM TS_EODDetails e WHERE e.ReportDate >= DATEADD(MONTH, -3, GETDATE()) GROUP BY e.ClientName, MONTH(e.ReportDate) ORDER BY e.ClientName, MONTH(e.ReportDate);',
-        "description": 'Detects declining engagement.',
-        "tags": ['client', 'trend'],
+        "natural_language": "Which clients have declining utilization trends over the last 3 months?",
+        "sql_query": "SELECT e.ClientName, MONTH(e.ReportDate), SUM(e.Hrs) FROM TS_EODDetails e WHERE e.ReportDate >= DATEADD(MONTH, -3, GETDATE()) GROUP BY e.ClientName, MONTH(e.ReportDate) ORDER BY e.ClientName, MONTH(e.ReportDate);",
+        "description": "Detects declining engagement.",
+        "tags": ["client", "trend"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are over-utilized and simultaneously working on multiple clients?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT e.ClientName) AS ClientCount, SUM(e.Hrs) AS TotalHours FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING SUM(e.Hrs) > 180 AND COUNT(DISTINCT e.ClientName) > 1;',
-        "description": 'Burnout and context-switching risk.',
-        "tags": ['resource', 'utilization'],
+        "natural_language": "Which resources are over-utilized and simultaneously working on multiple clients?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT e.ClientName) AS ClientCount, SUM(e.Hrs) AS TotalHours FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING SUM(e.Hrs) > 180 AND COUNT(DISTINCT e.ClientName) > 1;",
+        "description": "Burnout and context-switching risk.",
+        "tags": ["resource", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects are generating effort but have zero associated billing rate?',
-        "sql_query": 'SELECT e.Project FROM TS_EODDetails e LEFT JOIN Client c ON e.ClientName = c.ClientName WHERE c.HourlyBillingRate IS NULL GROUP BY e.Project;',
-        "description": 'Unmonetized delivery effort.',
-        "tags": ['project', 'billing'],
+        "natural_language": "Which projects are generating effort but have zero associated billing rate?",
+        "sql_query": "SELECT e.Project FROM TS_EODDetails e LEFT JOIN Client c ON e.ClientName = c.ClientName WHERE c.HourlyBillingRate IS NULL GROUP BY e.Project;",
+        "description": "Unmonetized delivery effort.",
+        "tags": ["project", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have high effort but low agreement value indicating poor margins?',
-        "sql_query": 'SELECT c.ClientName, SUM(e.Hrs) AS TotalEffort, c.AgreementValue FROM TS_EODDetails e JOIN Client c ON e.ClientName = c.ClientName GROUP BY c.ClientName, c.AgreementValue HAVING SUM(e.Hrs) > 500;',
-        "description": 'Margin pressure indicator.',
-        "tags": ['client', 'margin'],
+        "natural_language": "Which clients have high effort but low agreement value indicating poor margins?",
+        "sql_query": "SELECT c.ClientName, SUM(e.Hrs) AS TotalEffort, c.AgreementValue FROM TS_EODDetails e JOIN Client c ON e.ClientName = c.ClientName GROUP BY c.ClientName, c.AgreementValue HAVING SUM(e.Hrs) > 500;",
+        "description": "Margin pressure indicator.",
+        "tags": ["client", "margin"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are logging effort outside their primary skill areas?',
-        "sql_query": 'SELECT r.ResourceName, e.Project FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId LEFT JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId WHERE rs.SkillId IS NULL;',
-        "description": 'Skill mismatch detection.',
-        "tags": ['resource', 'skills'],
+        "natural_language": "Which resources are logging effort outside their primary skill areas?",
+        "sql_query": "SELECT r.ResourceName, e.Project FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId LEFT JOIN PA_ResourceSkills rs ON r.ResourceId = rs.ResourceId WHERE rs.SkillId IS NULL;",
+        "description": "Skill mismatch detection.",
+        "tags": ["resource", "skills"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which managers have the highest number of unapproved timesheets?',
-        "sql_query": 'SELECT e.ManagerEmail, COUNT(*) FROM TS_EODDetails e WHERE e.IsApproved = 0 GROUP BY e.ManagerEmail ORDER BY COUNT(*) DESC;',
-        "description": 'Approval bottleneck.',
-        "tags": ['timesheet', 'governance'],
+        "natural_language": "Which managers have the highest number of unapproved timesheets?",
+        "sql_query": "SELECT e.ManagerEmail, COUNT(*) FROM TS_EODDetails e WHERE e.IsApproved = 0 GROUP BY e.ManagerEmail ORDER BY COUNT(*) DESC;",
+        "description": "Approval bottleneck.",
+        "tags": ["timesheet", "governance"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the highest dependency on a single resource?',
-        "sql_query": 'SELECT e.ClientName, r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY e.ClientName, r.ResourceName HAVING SUM(e.Hrs) = (SELECT MAX(SUM(e2.Hrs)) FROM TS_EODDetails e2 WHERE e2.ClientName = e.ClientName GROUP BY e2.ResourceId);',
-        "description": 'Single point of failure.',
-        "tags": ['client', 'risk'],
+        "natural_language": "Which clients have the highest dependency on a single resource?",
+        "sql_query": "SELECT e.ClientName, r.ResourceName, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY e.ClientName, r.ResourceName HAVING SUM(e.Hrs) = (SELECT MAX(SUM(e2.Hrs)) FROM TS_EODDetails e2 WHERE e2.ClientName = e.ClientName GROUP BY e2.ResourceId);",
+        "description": "Single point of failure.",
+        "tags": ["client", "risk"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have high effort variance indicating unstable execution?',
-        "sql_query": 'SELECT e.Project, VAR(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project ORDER BY VAR(e.Hrs) DESC;',
-        "description": 'Execution inconsistency.',
-        "tags": ['project', 'stability'],
+        "natural_language": "Which projects have high effort variance indicating unstable execution?",
+        "sql_query": "SELECT e.Project, VAR(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project ORDER BY VAR(e.Hrs) DESC;",
+        "description": "Execution inconsistency.",
+        "tags": ["project", "stability"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have not logged billable hours despite being active?',
-        "sql_query": 'SELECT r.ResourceName FROM Resource r LEFT JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId LEFT JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE r.IsActive = 1 GROUP BY r.ResourceName HAVING SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) = 0;',
-        "description": 'Idle or misaligned resources.',
-        "tags": ['resource', 'billing'],
+        "natural_language": "Which resources have not logged billable hours despite being active?",
+        "sql_query": "SELECT r.ResourceName FROM Resource r LEFT JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId LEFT JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE r.IsActive = 1 GROUP BY r.ResourceName HAVING SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END) = 0;",
+        "description": "Idle or misaligned resources.",
+        "tags": ["resource", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have a sudden spike in effort compared to previous periods?',
-        "sql_query": 'SELECT e.ClientName, MONTH(e.ReportDate), SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.ClientName, MONTH(e.ReportDate) ORDER BY e.ClientName, MONTH(e.ReportDate);',
-        "description": 'Spike detection.',
-        "tags": ['client', 'trend'],
+        "natural_language": "Which clients have a sudden spike in effort compared to previous periods?",
+        "sql_query": "SELECT e.ClientName, MONTH(e.ReportDate), SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.ClientName, MONTH(e.ReportDate) ORDER BY e.ClientName, MONTH(e.ReportDate);",
+        "description": "Spike detection.",
+        "tags": ["client", "trend"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are contributing to the highest revenue based on billable hours?',
-        "sql_query": 'SELECT r.ResourceName, SUM(e.Hrs * c.HourlyBillingRate) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Client c ON e.ClientName = c.ClientName JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY r.ResourceName ORDER BY 2 DESC;',
-        "description": 'Top revenue generators.',
-        "tags": ['resource', 'revenue'],
+        "natural_language": "Which resources are contributing to the highest revenue based on billable hours?",
+        "sql_query": "SELECT r.ResourceName, SUM(e.Hrs * c.HourlyBillingRate) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Client c ON e.ClientName = c.ClientName JOIN TS_Activity a ON e.Activity_Id = a.Id WHERE a.Billablestatus = 1 GROUP BY r.ResourceName ORDER BY 2 DESC;",
+        "description": "Top revenue generators.",
+        "tags": ["resource", "revenue"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects are dependent on resources with low experience?',
-        "sql_query": 'SELECT e.Project, AVG(r.TotalYears) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY e.Project HAVING AVG(r.TotalYears) < 2;',
-        "description": 'Delivery risk due to inexperience.',
-        "tags": ['project', 'risk'],
+        "natural_language": "Which projects are dependent on resources with low experience?",
+        "sql_query": "SELECT e.Project, AVG(r.TotalYears) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY e.Project HAVING AVG(r.TotalYears) < 2;",
+        "description": "Delivery risk due to inexperience.",
+        "tags": ["project", "risk"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have multiple stakeholders but low engagement effort?',
-        "sql_query": 'SELECT c.ClientName, COUNT(cs.StakeholderId), SUM(e.Hrs) FROM Client c JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId LEFT JOIN TS_EODDetails e ON c.ClientName = e.ClientName GROUP BY c.ClientName HAVING SUM(e.Hrs) < 50;',
-        "description": 'Low ROI engagements.',
-        "tags": ['client'],
+        "natural_language": "Which clients have multiple stakeholders but low engagement effort?",
+        "sql_query": "SELECT c.ClientName, COUNT(cs.StakeholderId), SUM(e.Hrs) FROM Client c JOIN ClientStakeholder cs ON c.ClientId = cs.ClientId LEFT JOIN TS_EODDetails e ON c.ClientName = e.ClientName GROUP BY c.ClientName HAVING SUM(e.Hrs) < 50;",
+        "description": "Low ROI engagements.",
+        "tags": ["client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects are consuming effort without any recorded completion progress?',
-        "sql_query": 'SELECT e.Project FROM TS_EODDetails e GROUP BY e.Project HAVING AVG(CAST(e.CompletionPercent AS FLOAT)) = 0;',
-        "description": 'Execution inefficiency.',
-        "tags": ['project', 'progress'],
+        "natural_language": "Which projects are consuming effort without any recorded completion progress?",
+        "sql_query": "SELECT e.Project FROM TS_EODDetails e GROUP BY e.Project HAVING AVG(CAST(e.CompletionPercent AS FLOAT)) = 0;",
+        "description": "Execution inefficiency.",
+        "tags": ["project", "progress"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are consistently logging hours on non-working days?',
+        "natural_language": "Which resources are consistently logging hours on non-working days?",
         "sql_query": "SELECT r.ResourceName FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId WHERE DATENAME(WEEKDAY, e.ReportDate) IN ('Saturday','Sunday') GROUP BY r.ResourceName HAVING COUNT(*) > 10;",
-        "description": 'Sustained overtime pattern.',
-        "tags": ['resource', 'workload'],
+        "description": "Sustained overtime pattern.",
+        "tags": ["resource", "workload"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have effort logged but no recent agreement updates?',
-        "sql_query": 'SELECT c.ClientName FROM Client c JOIN TS_EODDetails e ON c.ClientName = e.ClientName WHERE c.AgreementEndDate < GETDATE() GROUP BY c.ClientName;',
-        "description": 'Contract risk.',
-        "tags": ['client', 'contract'],
+        "natural_language": "Which clients have effort logged but no recent agreement updates?",
+        "sql_query": "SELECT c.ClientName FROM Client c JOIN TS_EODDetails e ON c.ClientName = e.ClientName WHERE c.AgreementEndDate < GETDATE() GROUP BY c.ClientName;",
+        "description": "Contract risk.",
+        "tags": ["client", "contract"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources have the most inconsistent daily effort patterns?',
-        "sql_query": 'SELECT r.ResourceName, VAR(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY VAR(e.Hrs) DESC;',
-        "description": 'Unpredictable contributors.',
-        "tags": ['resource', 'pattern'],
+        "natural_language": "Which resources have the most inconsistent daily effort patterns?",
+        "sql_query": "SELECT r.ResourceName, VAR(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName ORDER BY VAR(e.Hrs) DESC;",
+        "description": "Unpredictable contributors.",
+        "tags": ["resource", "pattern"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have more non-billable effort than billable effort?',
-        "sql_query": 'SELECT e.Project FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project HAVING SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) > SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END);',
-        "description": 'Loss-making projects.',
-        "tags": ['project', 'billing'],
+        "natural_language": "Which projects have more non-billable effort than billable effort?",
+        "sql_query": "SELECT e.Project FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.Project HAVING SUM(CASE WHEN a.Billablestatus = 0 THEN e.Hrs ELSE 0 END) > SUM(CASE WHEN a.Billablestatus = 1 THEN e.Hrs ELSE 0 END);",
+        "description": "Loss-making projects.",
+        "tags": ["project", "billing"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have high effort concentration in a single activity type?',
-        "sql_query": 'SELECT e.ClientName, a.ActivityName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.ClientName, a.ActivityName;',
-        "description": 'Workload skew analysis.',
-        "tags": ['client', 'activity'],
+        "natural_language": "Which clients have high effort concentration in a single activity type?",
+        "sql_query": "SELECT e.ClientName, a.ActivityName, SUM(e.Hrs) FROM TS_EODDetails e JOIN TS_Activity a ON e.Activity_Id = a.Id GROUP BY e.ClientName, a.ActivityName;",
+        "description": "Workload skew analysis.",
+        "tags": ["client", "activity"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are under-utilized despite being assigned to active projects?',
-        "sql_query": 'SELECT r.ResourceName FROM Resource r JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId GROUP BY r.ResourceName HAVING AVG(e.Hrs) < 3;',
-        "description": 'Underutilized workforce.',
-        "tags": ['resource', 'utilization'],
+        "natural_language": "Which resources are under-utilized despite being assigned to active projects?",
+        "sql_query": "SELECT r.ResourceName FROM Resource r JOIN TS_EODDetails e ON r.ResourceId = e.ResourceId GROUP BY r.ResourceName HAVING AVG(e.Hrs) < 3;",
+        "description": "Underutilized workforce.",
+        "tags": ["resource", "utilization"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the highest effort-to-revenue imbalance?',
-        "sql_query": 'SELECT c.ClientName, SUM(e.Hrs)/c.AgreementValue FROM TS_EODDetails e JOIN Client c ON e.ClientName = c.ClientName GROUP BY c.ClientName, c.AgreementValue ORDER BY 2 DESC;',
-        "description": 'Profitability ratio.',
-        "tags": ['client', 'margin'],
+        "natural_language": "Which clients have the highest effort-to-revenue imbalance?",
+        "sql_query": "SELECT c.ClientName, SUM(e.Hrs)/c.AgreementValue FROM TS_EODDetails e JOIN Client c ON e.ClientName = c.ClientName GROUP BY c.ClientName, c.AgreementValue ORDER BY 2 DESC;",
+        "description": "Profitability ratio.",
+        "tags": ["client", "margin"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects have high effort but low resource diversity?',
-        "sql_query": 'SELECT e.Project, COUNT(DISTINCT e.ResourceId), SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project HAVING COUNT(DISTINCT e.ResourceId) < 2 AND SUM(e.Hrs) > 100;',
-        "description": 'Resource dependency risk.',
-        "tags": ['project', 'risk'],
+        "natural_language": "Which projects have high effort but low resource diversity?",
+        "sql_query": "SELECT e.Project, COUNT(DISTINCT e.ResourceId), SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project HAVING COUNT(DISTINCT e.ResourceId) < 2 AND SUM(e.Hrs) > 100;",
+        "description": "Resource dependency risk.",
+        "tags": ["project", "risk"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources are working on clients across different domains?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT c.DomainId) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Client c ON e.ClientName = c.ClientName GROUP BY r.ResourceName HAVING COUNT(DISTINCT c.DomainId) > 1;',
-        "description": 'Cross-domain expertise.',
-        "tags": ['resource', 'domain'],
+        "natural_language": "Which resources are working on clients across different domains?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT c.DomainId) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId JOIN Client c ON e.ClientName = c.ClientName GROUP BY r.ResourceName HAVING COUNT(DISTINCT c.DomainId) > 1;",
+        "description": "Cross-domain expertise.",
+        "tags": ["resource", "domain"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which managers are overseeing the highest total effort?',
-        "sql_query": 'SELECT r.ReportingTo, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ReportingTo ORDER BY SUM(e.Hrs) DESC;',
-        "description": 'Managerial workload.',
-        "tags": ['manager'],
+        "natural_language": "Which managers are overseeing the highest total effort?",
+        "sql_query": "SELECT r.ReportingTo, SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ReportingTo ORDER BY SUM(e.Hrs) DESC;",
+        "description": "Managerial workload.",
+        "tags": ["manager"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which projects show declining completion percentages despite high effort?',
-        "sql_query": 'SELECT e.Project, AVG(CAST(e.CompletionPercent AS FLOAT)), SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project HAVING SUM(e.Hrs) > 100;',
-        "description": 'Execution inefficiency.',
-        "tags": ['project', 'risk'],
+        "natural_language": "Which projects show declining completion percentages despite high effort?",
+        "sql_query": "SELECT e.Project, AVG(CAST(e.CompletionPercent AS FLOAT)), SUM(e.Hrs) FROM TS_EODDetails e GROUP BY e.Project HAVING SUM(e.Hrs) > 100;",
+        "description": "Execution inefficiency.",
+        "tags": ["project", "risk"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which clients have the highest number of unique resources working on them?',
-        "sql_query": 'SELECT e.ClientName, COUNT(DISTINCT e.ResourceId) FROM TS_EODDetails e GROUP BY e.ClientName ORDER BY 2 DESC;',
-        "description": 'Client complexity.',
-        "tags": ['client'],
+        "natural_language": "Which clients have the highest number of unique resources working on them?",
+        "sql_query": "SELECT e.ClientName, COUNT(DISTINCT e.ResourceId) FROM TS_EODDetails e GROUP BY e.ClientName ORDER BY 2 DESC;",
+        "description": "Client complexity.",
+        "tags": ["client"],
         "is_validated": True,
     },
     {
-        "natural_language": 'Which resources contribute to the most number of projects but with low total effort?',
-        "sql_query": 'SELECT r.ResourceName, COUNT(DISTINCT e.Project), SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT e.Project) > 3 AND SUM(e.Hrs) < 50;',
-        "description": 'Context switching inefficiency.',
-        "tags": ['resource', 'efficiency'],
+        "natural_language": "Which resources contribute to the most number of projects but with low total effort?",
+        "sql_query": "SELECT r.ResourceName, COUNT(DISTINCT e.Project), SUM(e.Hrs) FROM TS_EODDetails e JOIN Resource r ON e.ResourceId = r.ResourceId GROUP BY r.ResourceName HAVING COUNT(DISTINCT e.Project) > 3 AND SUM(e.Hrs) < 50;",
+        "description": "Context switching inefficiency.",
+        "tags": ["resource", "efficiency"],
         "is_validated": True,
     },
 ]
@@ -2980,6 +3228,7 @@ RELATIONSHIPS: list[dict] = [
 # Seeding functions — no need to edit below this line
 # =============================================================================
 
+
 def find_connection(client: httpx.Client, connection_name: str | None) -> dict:
     """Find the target connection — by name if specified, else first sqlserver."""
     resp = client.get(f"{API_PREFIX}/connections")
@@ -3113,7 +3362,9 @@ def purge_sample_queries(client: httpx.Client, connection_id: str) -> None:
         if del_resp.status_code in (200, 204):
             deleted += 1
         else:
-            print(f"  ! {item['natural_language'][:60]} — delete failed HTTP {del_resp.status_code}")
+            print(
+                f"  ! {item['natural_language'][:60]} — delete failed HTTP {del_resp.status_code}"
+            )
             fail += 1
     print(f"  Sample Queries: {deleted} deleted, {fail} failed")
 
@@ -3136,7 +3387,9 @@ def purge_relationships(client: httpx.Client, connection_id: str) -> None:
         if del_resp.status_code in (200, 204):
             deleted += 1
         else:
-            print(f"  ! {item['source_table']}.{item['source_column']} — delete failed HTTP {del_resp.status_code}")
+            print(
+                f"  ! {item['source_table']}.{item['source_column']} — delete failed HTTP {del_resp.status_code}"
+            )
             fail += 1
     print(f"  Relationships: {deleted} deleted, {fail} failed")
 
@@ -3160,9 +3413,13 @@ def seed_glossary(client: httpx.Client, connection_id: str, overwrite: bool = Fa
         term = term_data["term"]
         if term in existing:
             if overwrite:
-                del_resp = client.delete(f"{API_PREFIX}/connections/{connection_id}/glossary/{existing[term]}")
+                del_resp = client.delete(
+                    f"{API_PREFIX}/connections/{connection_id}/glossary/{existing[term]}"
+                )
                 if del_resp.status_code not in (200, 204):
-                    print(f"  ! {term} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}")
+                    print(
+                        f"  ! {term} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}"
+                    )
                     fail += 1
                     continue
             else:
@@ -3170,7 +3427,9 @@ def seed_glossary(client: httpx.Client, connection_id: str, overwrite: bool = Fa
                 skip += 1
                 continue
 
-        post_resp = client.post(f"{API_PREFIX}/connections/{connection_id}/glossary", json=term_data)
+        post_resp = client.post(
+            f"{API_PREFIX}/connections/{connection_id}/glossary", json=term_data
+        )
         if post_resp.status_code == 201:
             if overwrite and term in existing:
                 print(f"  ~ {term} (overwritten)")
@@ -3205,9 +3464,13 @@ def seed_metrics(client: httpx.Client, connection_id: str, overwrite: bool = Fal
         display = metric_data["display_name"]
         if name in existing:
             if overwrite:
-                del_resp = client.delete(f"{API_PREFIX}/connections/{connection_id}/metrics/{existing[name]}")
+                del_resp = client.delete(
+                    f"{API_PREFIX}/connections/{connection_id}/metrics/{existing[name]}"
+                )
                 if del_resp.status_code not in (200, 204):
-                    print(f"  ! {display} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}")
+                    print(
+                        f"  ! {display} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}"
+                    )
                     fail += 1
                     continue
             else:
@@ -3215,7 +3478,9 @@ def seed_metrics(client: httpx.Client, connection_id: str, overwrite: bool = Fal
                 skip += 1
                 continue
 
-        post_resp = client.post(f"{API_PREFIX}/connections/{connection_id}/metrics", json=metric_data)
+        post_resp = client.post(
+            f"{API_PREFIX}/connections/{connection_id}/metrics", json=metric_data
+        )
         if post_resp.status_code == 201:
             if overwrite and name in existing:
                 print(f"  ~ {display} (overwritten)")
@@ -3235,7 +3500,9 @@ def seed_dictionary(client: httpx.Client, connection_id: str, overwrite: bool = 
         print("\n--- Dictionary: nothing to seed (DICTIONARY_ENTRIES is empty) ---")
         return
 
-    print(f"\n--- Seeding Dictionary Entries for {len(DICTIONARY_ENTRIES)} columns (overwrite={overwrite}) ---")
+    print(
+        f"\n--- Seeding Dictionary Entries for {len(DICTIONARY_ENTRIES)} columns (overwrite={overwrite}) ---"
+    )
 
     # Build (table_name, column_name) → column_id map from the cached schema
     tables_resp = client.get(f"{API_PREFIX}/connections/{connection_id}/tables")
@@ -3271,9 +3538,13 @@ def seed_dictionary(client: httpx.Client, connection_id: str, overwrite: bool = 
             raw = entry_data["raw_value"]
             if raw in existing:
                 if overwrite:
-                    del_resp = client.delete(f"{API_PREFIX}/columns/{col_id}/dictionary/{existing[raw]}")
+                    del_resp = client.delete(
+                        f"{API_PREFIX}/columns/{col_id}/dictionary/{existing[raw]}"
+                    )
                     if del_resp.status_code not in (200, 204):
-                        print(f"    ! {raw!r} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}")
+                        print(
+                            f"    ! {raw!r} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}"
+                        )
                         fail += 1
                         continue
                 else:
@@ -3293,7 +3564,9 @@ def seed_dictionary(client: httpx.Client, connection_id: str, overwrite: bool = 
                 print(f"    ! {raw!r} — HTTP {post_resp.status_code}: {post_resp.text[:100]}")
                 fail += 1
 
-    print(f"  Dictionary: {ok} created, {overwritten} overwritten, {skip} skipped, {fail} failed, {col_skip} columns not found")
+    print(
+        f"  Dictionary: {ok} created, {overwritten} overwritten, {skip} skipped, {fail} failed, {col_skip} columns not found"
+    )
 
 
 def seed_knowledge(client: httpx.Client, connection_id: str, overwrite: bool = False) -> None:
@@ -3315,9 +3588,13 @@ def seed_knowledge(client: httpx.Client, connection_id: str, overwrite: bool = F
         title = doc["title"]
         if title in existing:
             if overwrite:
-                del_resp = client.delete(f"{API_PREFIX}/connections/{connection_id}/knowledge/{existing[title]}")
+                del_resp = client.delete(
+                    f"{API_PREFIX}/connections/{connection_id}/knowledge/{existing[title]}"
+                )
                 if del_resp.status_code not in (200, 204):
-                    print(f"  ! {title} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}")
+                    print(
+                        f"  ! {title} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}"
+                    )
                     fail += 1
                     continue
             else:
@@ -3365,7 +3642,9 @@ def seed_sample_queries(client: httpx.Client, connection_id: str, overwrite: boo
                     f"{API_PREFIX}/connections/{connection_id}/sample-queries/{existing[label]}"
                 )
                 if del_resp.status_code not in (200, 204):
-                    print(f"  ! {label[:70]} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}")
+                    print(
+                        f"  ! {label[:70]} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}"
+                    )
                     fail += 1
                     continue
             else:
@@ -3373,9 +3652,7 @@ def seed_sample_queries(client: httpx.Client, connection_id: str, overwrite: boo
                 skip += 1
                 continue
 
-        post_resp = client.post(
-            f"{API_PREFIX}/connections/{connection_id}/sample-queries", json=sq
-        )
+        post_resp = client.post(f"{API_PREFIX}/connections/{connection_id}/sample-queries", json=sq)
         if post_resp.status_code == 201:
             if overwrite and label in existing:
                 print(f"  ~ {label[:70]} (overwritten)")
@@ -3387,7 +3664,9 @@ def seed_sample_queries(client: httpx.Client, connection_id: str, overwrite: boo
             print(f"  ! {label[:70]} — HTTP {post_resp.status_code}: {post_resp.text[:120]}")
             fail += 1
 
-    print(f"  Sample Queries: {ok} created, {overwritten} overwritten, {skip} skipped, {fail} failed")
+    print(
+        f"  Sample Queries: {ok} created, {overwritten} overwritten, {skip} skipped, {fail} failed"
+    )
 
 
 def seed_relationships(client: httpx.Client, connection_id: str, overwrite: bool = False) -> None:
@@ -3428,9 +3707,7 @@ def seed_relationships(client: httpx.Client, connection_id: str, overwrite: bool
                 missing_tables.append(rel["target_table"])
         if missing_tables:
             missing_display = ", ".join(dict.fromkeys(missing_tables))
-            print(
-                f"  - {key} (skipped — table not present in schema cache: {missing_display})"
-            )
+            print(f"  - {key} (skipped — table not present in schema cache: {missing_display})")
             unavailable += 1
             continue
 
@@ -3440,7 +3717,9 @@ def seed_relationships(client: httpx.Client, connection_id: str, overwrite: bool
                     f"{API_PREFIX}/connections/{connection_id}/relationships/{existing[key]}"
                 )
                 if del_resp.status_code not in (200, 204):
-                    print(f"  ! {key} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}")
+                    print(
+                        f"  ! {key} — delete failed HTTP {del_resp.status_code}: {del_resp.text[:80]}"
+                    )
                     fail += 1
                     continue
             else:
@@ -3448,15 +3727,15 @@ def seed_relationships(client: httpx.Client, connection_id: str, overwrite: bool
                 skip += 1
                 continue
 
-        post_resp = client.post(
-            f"{API_PREFIX}/connections/{connection_id}/relationships", json=rel
-        )
+        post_resp = client.post(f"{API_PREFIX}/connections/{connection_id}/relationships", json=rel)
         if post_resp.status_code == 201:
             if overwrite and key in existing:
                 print(f"  ~ {key} (overwritten)")
                 overwritten += 1
             else:
-                print(f"  + {rel['source_table']}.{rel['source_column']} → {rel['target_table']}.{rel['target_column']}")
+                print(
+                    f"  + {rel['source_table']}.{rel['source_column']} → {rel['target_table']}.{rel['target_column']}"
+                )
                 ok += 1
         else:
             print(f"  ! {key} — HTTP {post_resp.status_code}: {post_resp.text[:120]}")
@@ -3561,9 +3840,13 @@ def main() -> None:
     if args.purge:
         print("  Mode: PURGE — ALL existing entries will be deleted, then re-seeded from scratch")
     elif args.overwrite:
-        print("  Mode: OVERWRITE — existing entries (matched by key) will be deleted and re-created")
+        print(
+            "  Mode: OVERWRITE — existing entries (matched by key) will be deleted and re-created"
+        )
     else:
-        print("  Mode: SKIP — existing entries will not be modified (use --overwrite or --purge to reset)")
+        print(
+            "  Mode: SKIP — existing entries will not be modified (use --overwrite or --purge to reset)"
+        )
 
     # Authenticate and obtain a JWT before making any API calls
     print(f"  Authenticating as {args.email}...")
@@ -3605,16 +3888,16 @@ def main() -> None:
         seed_relationships(client, connection_id, overwrite=args.overwrite)
 
     print("\n✓ Done. Verify in the UI:")
-    print(f"  Glossary        → http://localhost:5173/glossary")
-    print(f"  Metrics         → http://localhost:5173/metrics")
-    print(f"  Dictionary      → Connections → click a table → Dictionary tab")
-    print(f"  Knowledge       → http://localhost:5173/knowledge")
-    print(f"  Sample Queries  → http://localhost:5173/sample-queries")
+    print("  Glossary        → http://localhost:5173/glossary")
+    print("  Metrics         → http://localhost:5173/metrics")
+    print("  Dictionary      → Connections → click a table → Dictionary tab")
+    print("  Knowledge       → http://localhost:5173/knowledge")
+    print("  Sample Queries  → http://localhost:5173/sample-queries")
     print(f"  Relationships   → GET {args.base_url}/api/v1/connections/<id>/relationships")
-    print(f"\nEmbeddings will generate in the background — check the progress")
+    print("\nEmbeddings will generate in the background — check the progress")
     print(f"banner in the UI or: GET {args.base_url}/api/v1/embeddings/status")
-    print(f"\nNOTE: Manual relationships survive re-introspection. Sample query")
-    print(f"  embeddings are generated automatically after seeding.")
+    print("\nNOTE: Manual relationships survive re-introspection. Sample query")
+    print("  embeddings are generated automatically after seeding.")
 
 
 if __name__ == "__main__":

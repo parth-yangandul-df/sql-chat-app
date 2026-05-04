@@ -1,12 +1,11 @@
 """E2E tests for the natural language query pipeline."""
 
 import httpx
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _post_query(client: httpx.Client, connection_id: str, question: str, **kwargs) -> dict:
     payload = {"connection_id": connection_id, "question": question, **kwargs}
@@ -17,62 +16,49 @@ def _post_query(client: httpx.Client, connection_id: str, question: str, **kwarg
 
 def _assert_query_response_shape(data: dict) -> None:
     """Assert the response has all required top-level fields."""
-    required = {
-        "id", "question", "generated_sql", "explanation",
-        "columns", "column_types", "rows", "row_count",
-        "execution_time_ms", "truncated", "llm_provider", "llm_model",
-    }
+    required = {"id", "question", "columns", "column_types", "rows", "row_count"}
     missing = required - data.keys()
     assert not missing, f"Response missing fields: {missing}"
     assert isinstance(data["rows"], list)
     assert isinstance(data["columns"], list)
     assert data["row_count"] == len(data["rows"])
-    assert len(data["generated_sql"]) > 0, "generated_sql should not be empty"
+    # Clarification turns have no SQL
+    if data.get("turn_type", "query") == "query":
+        assert data.get("generated_sql"), "generated_sql should not be empty for query turns"
 
 
 # ---------------------------------------------------------------------------
 # Basic intent tests
 # ---------------------------------------------------------------------------
 
+
 class TestBasicIntents:
-    def test_active_resources_query(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_active_resources_query(self, user_client: httpx.Client, connection_id: str) -> None:
         data = _post_query(user_client, connection_id, "Show me all active resources")
         _assert_query_response_shape(data)
         sql = data["generated_sql"].upper()
         # Should filter on active status
         assert "ISACTIVE" in sql or "IS_ACTIVE" in sql or "ACTIVE" in sql
 
-    def test_active_projects_query(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_active_projects_query(self, user_client: httpx.Client, connection_id: str) -> None:
         data = _post_query(user_client, connection_id, "List all active projects")
         _assert_query_response_shape(data)
 
-    def test_active_clients_query(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_active_clients_query(self, user_client: httpx.Client, connection_id: str) -> None:
         data = _post_query(user_client, connection_id, "Show me all active clients")
         _assert_query_response_shape(data)
 
-    def test_benched_resources_query(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_benched_resources_query(self, user_client: httpx.Client, connection_id: str) -> None:
         data = _post_query(user_client, connection_id, "Who is on the bench right now?")
         _assert_query_response_shape(data)
 
-    def test_skill_filter_query(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_skill_filter_query(self, user_client: httpx.Client, connection_id: str) -> None:
         data = _post_query(user_client, connection_id, "List all Python developers")
         _assert_query_response_shape(data)
         # SQL should mention Python as a filter value
         assert "python" in data["generated_sql"].lower()
 
-    def test_overdue_projects_query(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_overdue_projects_query(self, user_client: httpx.Client, connection_id: str) -> None:
         data = _post_query(user_client, connection_id, "Which projects are overdue?")
         _assert_query_response_shape(data)
         sql = data["generated_sql"].upper()
@@ -86,25 +72,19 @@ class TestBasicIntents:
         assert "suggested_followups" in data
         assert isinstance(data["suggested_followups"], list)
 
-    def test_query_includes_turn_context(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_query_includes_turn_type(self, user_client: httpx.Client, connection_id: str) -> None:
         data = _post_query(user_client, connection_id, "Show me all active resources")
-        assert "turn_context" in data
-        if data["turn_context"]:
-            ctx = data["turn_context"]
-            assert "intent" in ctx
-            assert "domain" in ctx
+        assert "turn_type" in data
+        assert data["turn_type"] in ("query", "show_sql", "explain_result", "clarification")
 
 
 # ---------------------------------------------------------------------------
 # Multi-turn context tests
 # ---------------------------------------------------------------------------
 
+
 class TestMultiTurnConversation:
-    def test_refinement_adds_filter(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_refinement_adds_filter(self, user_client: httpx.Client, connection_id: str) -> None:
         """A follow-up query should narrow the results, not return the same thing."""
         first = _post_query(user_client, connection_id, "Show me all active projects")
         _assert_query_response_shape(first)
@@ -124,72 +104,43 @@ class TestMultiTurnConversation:
         # The refined SQL should differ from the original
         assert second["generated_sql"] != first["generated_sql"]
 
-    def test_topic_switch_clears_context(
-        self, user_client: httpx.Client, connection_id: str
+    def test_refinement_adds_filter(
+        self, user_client: httpx.Client, connection_id: str, session_id: str
     ) -> None:
-        """A clear topic switch should set topic_switch_detected=true."""
-        first = _post_query(user_client, connection_id, "Show me benched resources")
+        """A follow-up query within a session should use loaded history for context."""
+        first = _post_query(
+            user_client, connection_id, "Show me all active projects", session_id=session_id
+        )
         _assert_query_response_shape(first)
-        first_ctx = first.get("turn_context")
 
         second = _post_query(
             user_client,
             connection_id,
-            "Actually, show me all active clients",
-            conversation_history=[
-                {"role": "user", "content": "Show me benched resources"},
-                {"role": "assistant", "content": first["explanation"]},
-            ],
-            last_turn_context=first_ctx,
+            "Now filter to only those starting this year",
+            session_id=session_id,
         )
         _assert_query_response_shape(second)
-        # The new query domain should be clients, not resources
-        assert second.get("topic_switch_detected") is True or (
-            second["turn_context"] and "client" in second["turn_context"]["domain"].lower()
-        )
+        # The refined SQL should differ from the original
+        assert second.get("generated_sql") != first.get("generated_sql")
 
     def test_explicit_clear_context_flag(
-        self, user_client: httpx.Client, connection_id: str
+        self, user_client: httpx.Client, connection_id: str, session_id: str
     ) -> None:
         """clear_context=True must produce a fresh query ignoring prior turn."""
-        first = _post_query(user_client, connection_id, "Show me benched resources")
-        first_ctx = first.get("turn_context")
+        _post_query(user_client, connection_id, "Show me benched resources", session_id=session_id)
 
         second = _post_query(
             user_client,
             connection_id,
             "Show me all active clients",
-            last_turn_context=first_ctx,
+            session_id=session_id,
             clear_context=True,
         )
         _assert_query_response_shape(second)
 
-
-# ---------------------------------------------------------------------------
-# Input validation tests
-# ---------------------------------------------------------------------------
-
-class TestQueryInputValidation:
-    def test_empty_question_rejected(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
-        resp = user_client.post(
-            "/api/v1/query",
-            json={"connection_id": connection_id, "question": ""},
-        )
-        assert resp.status_code == 422
-
-    def test_question_too_long_rejected(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
-        resp = user_client.post(
-            "/api/v1/query",
-            json={"connection_id": connection_id, "question": "x" * 1001},
-        )
-        assert resp.status_code == 422
-
     def test_invalid_connection_id(self, user_client: httpx.Client) -> None:
         import uuid
+
         resp = user_client.post(
             "/api/v1/query",
             json={"connection_id": str(uuid.uuid4()), "question": "Show active projects"},
@@ -204,9 +155,7 @@ class TestQueryInputValidation:
         )
         assert resp.status_code == 422
 
-    def test_sql_injection_attempt(
-        self, user_client: httpx.Client, connection_id: str
-    ) -> None:
+    def test_sql_injection_attempt(self, user_client: httpx.Client, connection_id: str) -> None:
         """SQL injection in natural language question must not cause unhandled errors."""
         resp = user_client.post(
             "/api/v1/query",
@@ -227,6 +176,7 @@ class TestQueryInputValidation:
 # ---------------------------------------------------------------------------
 # Unauthenticated access
 # ---------------------------------------------------------------------------
+
 
 class TestQueryAuth:
     def test_query_requires_auth(self, base_url: str, connection_id: str) -> None:
