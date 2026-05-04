@@ -38,9 +38,13 @@ async def similarity_check(state: GraphState) -> dict[str, Any]:
     similarity_shortcut=True so route_after_similarity can skip compose_sql.
     """
     question = state.get("question", "")[:60]
-    q_embedding = state.get("question_embedding")
+    question_embedding = state.get("question_embedding")
 
-    logger.info("similarity_check: ====== ENTRY ====== q=%r embedding=%s", question, q_embedding is not None)
+    logger.info(
+        "similarity_check: ====== ENTRY ====== q=%r embedding=%s",
+        question,
+        question_embedding is not None,
+    )
 
     # Cannot compute similarity without an embedding
     if not question_embedding:

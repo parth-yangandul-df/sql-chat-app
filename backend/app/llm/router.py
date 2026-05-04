@@ -1,14 +1,14 @@
 """LLM Router — routes queries to different providers/models by complexity."""
 
 import re
-from enum import Enum
+from enum import StrEnum
 
 from app.config import settings
 from app.llm.base_provider import BaseLLMProvider, LLMConfig
 from app.llm.provider_registry import get_provider
 
 
-class QueryComplexity(str, Enum):
+class QueryComplexity(StrEnum):
     SIMPLE = "simple"
     MODERATE = "moderate"
     COMPLEX = "complex"

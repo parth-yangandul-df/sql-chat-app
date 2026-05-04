@@ -11,16 +11,6 @@ import type { QueryResult } from '@/types/api'
 import type { ChatLayoutContext } from '@/components/layout/ChatLayout'
 import { Bot, User, AlertCircle, ChevronDown, ChevronUp, Copy, Check, Zap, MessageSquareOff, Loader2 } from 'lucide-react'
 
-// ── Constants ──────────────────────────────────────────────────────────────────
-const MIN_PIPELINE_VISIBILITY_MS = 5000
-const STAGE_TIMELINE_FRACTIONS = [0, 0.25, 0.55, 0.80] as const
-const PIPELINE_STAGES: QueryStageEvent[] = [
-  { type: 'stage', stage: 'understanding', label: 'Understanding your question...', progress: 20 },
-  { type: 'stage', stage: 'generating_sql', label: 'Generating SQL...', progress: 50 },
-  { type: 'stage', stage: 'running_query', label: 'Running query...', progress: 75 },
-  { type: 'stage', stage: 'interpreting', label: 'Interpreting', progress: 100 },
-]
-
 // ── Message types ──────────────────────────────────────────────────────────────
 type ChatMessage =
   | { id: string; role: 'user'; content: string }
@@ -233,25 +223,6 @@ function NoThreadSelected() {
       </div>
     </div>
   )
-}
-
-// ── Build conversation history for API ────────────────────────────────────────
-function buildConversationHistory(messages: ChatMessage[]): ConversationTurn[] {
-  const turns: ConversationTurn[] = []
-  for (const msg of messages) {
-    if (msg.role === 'user') {
-      turns.push({ role: 'user', content: msg.content })
-    } else if (msg.role === 'assistant') {
-      // Use summary as assistant content; fall back to noting results were returned
-      const content = msg.result.summary
-        ?? (msg.result.row_count > 0 ? `Returned ${msg.result.row_count} rows.` : 'No results found.')
-      turns.push({ role: 'assistant', content })
-    }
-    // Skip error messages from history
-  }
-  // Last N turns = last N*2 messages
-  const maxMessages = CONVERSATION_HISTORY_TURNS * 2
-  return turns.slice(-maxMessages)
 }
 
 // ── Reconstruct messages from session history ─────────────────────────────────
