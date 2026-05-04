@@ -26,17 +26,17 @@ Graph topology:
        │                         │                              resolved question + context.  │
        │                         │                         ┌──────────────┴────────────────┐ │
        │                         │                  scope violation /              validate_sql
-       │                         │                  no SQL produced         SQLValidatorAgent: static
-       │                         │                  (→ write_history        check vs schema tables.
-       │                         │                   as clarification)      │
-       │                         │                              ┌───────────┴──────────┐
-       │                         │                           valid            invalid (issues found)
-       │                         │                              │                  handle_error
-       │                         │                              │         ErrorHandlerAgent: LLM call
-       │                         │                              │         to correct SQL. Routes back
-       │                         │                              │         to validate_sql (max 3 retries).
-       │                         │                              │         On exhaustion → write_history
-       │                         │                              │         as clarification.
+        │                         │                  no SQL produced         SQLValidatorAgent: static
+        │                         │                  (→ write_history        check vs schema tables.
+        │                         │                   as clarification)      │
+        │                         │                              ┌───────────┴──────────┐
+        │                         │                           valid            invalid (issues found)
+        │                         │                              │                  handle_error
+        │                         │                              │         ErrorHandlerAgent: LLM call
+        │                         │                              │         to correct SQL. Routes back
+        │                         │                              │         to validate_sql (max 3 retries).
+        │                         │                              │         On exhaustion → write_history
+        │                         │                              │         as clarification.
        │                         └─────────────────────────→ execute_sql
        │                                                     Runs final SQL against the target
        │                                                     database via the registered connector.
@@ -61,6 +61,8 @@ Graph topology:
           + clarification_options.                       │
           No SQL generated.                            END
 """
+
+import logging
 
 from langgraph.graph import END, StateGraph
 
