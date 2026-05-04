@@ -22,6 +22,8 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="user")
     # Only set for 'user' role — maps to ResourceId in the target PRMS database
     resource_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Maps to EmployeeId in PRMS database (for employee_id-scoped queries)
+    employee_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

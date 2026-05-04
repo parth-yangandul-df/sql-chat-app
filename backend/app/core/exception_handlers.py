@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, InternalServerError
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code,
-            content={"error": exc.message},
+            content=exc.to_response_content(),
         )
 
     @app.exception_handler(HTTPException)
@@ -53,7 +53,8 @@ def register_exception_handlers(app: FastAPI) -> None:
             request.url.path,
             exc_info=exc,
         )
+        internal_error = InternalServerError()
         return JSONResponse(
-            status_code=500,
-            content={"error": "An unexpected error occurred"},
+            status_code=internal_error.status_code,
+            content=internal_error.to_response_content(),
         )

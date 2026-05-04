@@ -7,11 +7,14 @@ import {
   IconVocabulary,
   IconFileText,
   IconHistory,
+  IconUsers,
   IconLogout,
+  IconListDetails,
 } from '@tabler/icons-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { EmbeddingStatusBanner } from '../common/EmbeddingStatusBanner';
-import { clearToken } from '../../utils/auth';
+import { clearUserInfo, getUserInfo } from '../../utils/auth';
+import { api } from '../../api/client';
 
 const NAV_ITEMS = [
   { label: 'Query', path: '/query', icon: IconMessageQuestion },
@@ -20,15 +23,31 @@ const NAV_ITEMS = [
   { label: 'Metrics', path: '/metrics', icon: IconChartBar },
   { label: 'Dictionary', path: '/dictionary', icon: IconVocabulary },
   { label: 'Knowledge', path: '/knowledge', icon: IconFileText },
+  { label: 'Sample Queries', path: '/sample-queries', icon: IconListDetails, adminOnly: true },
   { label: 'History', path: '/history', icon: IconHistory },
+  { label: 'Users', path: '/users', icon: IconUsers, adminOnly: true },
 ];
 
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  function handleSignOut() {
-    clearToken();
+  // Role is stored in localStorage from the login response body (token is HttpOnly — not accessible to JS)
+  const userInfo = getUserInfo();
+  const userRole = userInfo?.role ?? 'user';
+
+  // Filter nav items based on role
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => !item.adminOnly || userRole === 'admin'
+  );
+
+  async function handleSignOut() {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Best-effort — clear local state regardless
+    }
+    clearUserInfo();
     navigate('/login', { replace: true });
   }
 
@@ -49,7 +68,7 @@ export function AppLayout() {
             </Text>
           </Group>
           <Tooltip label="Sign out" position="left">
-            <ActionIcon variant="subtle" color="gray" onClick={handleSignOut} aria-label="Sign out">
+            <ActionIcon variant="subtle" color="gray" onClick={() => void handleSignOut()} aria-label="Sign out">
               <IconLogout size={18} stroke={1.5} />
             </ActionIcon>
           </Tooltip>
@@ -57,7 +76,7 @@ export function AppLayout() {
       </AppShell.Header>
 
       <AppShell.Navbar p="xs">
-        {NAV_ITEMS.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.path}
             label={item.label}

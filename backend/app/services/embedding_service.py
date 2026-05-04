@@ -71,14 +71,14 @@ async def embed_knowledge_chunk(chunk: KnowledgeChunk) -> list[float]:
     return await embed_text(chunk.content)
 
 
-async def count_items_needing_embeddings(
-    db: AsyncSession, connection_id
-) -> int:
+async def count_items_needing_embeddings(db: AsyncSession, connection_id) -> int:
     """Count all metadata items that need embedding generation."""
     total = 0
 
     result = await db.execute(
-        select(func.count()).select_from(CachedTable).where(
+        select(func.count())
+        .select_from(CachedTable)
+        .where(
             CachedTable.connection_id == connection_id,
             CachedTable.description_embedding.is_(None),
         )
@@ -97,7 +97,9 @@ async def count_items_needing_embeddings(
     total += result.scalar_one()
 
     result = await db.execute(
-        select(func.count()).select_from(GlossaryTerm).where(
+        select(func.count())
+        .select_from(GlossaryTerm)
+        .where(
             GlossaryTerm.connection_id == connection_id,
             GlossaryTerm.term_embedding.is_(None),
         )
@@ -105,7 +107,9 @@ async def count_items_needing_embeddings(
     total += result.scalar_one()
 
     result = await db.execute(
-        select(func.count()).select_from(MetricDefinition).where(
+        select(func.count())
+        .select_from(MetricDefinition)
+        .where(
             MetricDefinition.connection_id == connection_id,
             MetricDefinition.metric_embedding.is_(None),
         )
@@ -113,7 +117,9 @@ async def count_items_needing_embeddings(
     total += result.scalar_one()
 
     result = await db.execute(
-        select(func.count()).select_from(SampleQuery).where(
+        select(func.count())
+        .select_from(SampleQuery)
+        .where(
             SampleQuery.connection_id == connection_id,
             SampleQuery.question_embedding.is_(None),
         )

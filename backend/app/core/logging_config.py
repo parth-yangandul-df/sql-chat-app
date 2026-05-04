@@ -6,19 +6,20 @@ continue to work without modification.
 
 Outputs:
   - JSONL to stderr (console, INFO+)
-  - JSONL to rotating file (platformdirs log dir, DEBUG+)
+  - JSONL to daily rotating file (backend/logs/, DEBUG+)
 """
 
 from __future__ import annotations
 
+import contextvars
+import datetime as _dt
+import gzip
 import json
 import logging
 import sys
-import datetime as _dt
 from pathlib import Path
 from uuid import uuid4
 
-import platformdirs
 from loguru import logger
 
 # ---------------------------------------------------------------------------
@@ -115,7 +116,7 @@ class InterceptHandler(logging.Handler):
         # extra["_serialized"] — avoids loguru re-processing JSON as a format template.
         # We build a minimal record dict matching _format_record's expected shape.
         _record_dict = {
-            "time": _dt.datetime.fromtimestamp(record.created, tz=_dt.timezone.utc),
+            "time": _dt.datetime.fromtimestamp(record.created, tz=_dt.UTC),
             "level": type("_L", (), {"name": record.levelname})(),
             "name": record.name,
             "message": record.getMessage(),
@@ -124,9 +125,9 @@ class InterceptHandler(logging.Handler):
         }
         _serialized = _format_record(_record_dict)
 
-        logger.opt(depth=depth, exception=record.exc_info).bind(
-            _serialized=_serialized
-        ).log(level, record.getMessage())
+        logger.opt(depth=depth, exception=record.exc_info).bind(_serialized=_serialized).log(
+            level, record.getMessage()
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -134,6 +135,32 @@ class InterceptHandler(logging.Handler):
 # ---------------------------------------------------------------------------
 
 _LOG_INITIALIZED = False
+
+
+def _make_retention_fn(log_dir: Path, compress_after_days: int = 10):
+    """Return a loguru retention callable.
+
+    Compresses .jsonl log files older than ``compress_after_days`` days to .gz.
+    Never deletes any log file.
+    """
+
+    def _retain(files: list) -> None:
+        cutoff = _dt.datetime.now(_dt.UTC) - _dt.timedelta(days=compress_after_days)
+        for filepath in files:
+            path = Path(filepath)
+            if path.suffix == ".jsonl":
+                mtime = _dt.datetime.fromtimestamp(path.stat().st_mtime, tz=_dt.UTC)
+                if mtime < cutoff:
+                    gz_path = path.with_suffix(".jsonl.gz")
+                    try:
+                        with path.open("rb") as f_in, gzip.open(gz_path, "wb") as f_out:
+                            f_out.writelines(f_in)
+                        path.unlink()
+                    except Exception:
+                        pass  # leave original intact on any error
+            # .gz files: never touch
+
+    return _retain
 
 
 def setup_logging(
@@ -174,17 +201,32 @@ def setup_logging(
         level=level,
     )
 
-    # File — rotating JSONL via platformdirs
+    # File — daily rotating JSONL to backend/logs/
     if file_enabled:
-        log_dir = Path(platformdirs.user_log_dir(appname=app_name, ensure_exists=True))
+        # Use project-relative logs directory: backend/logs/
+        log_dir = Path(__file__).parent.parent.parent / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        def _ensure_serialized(record: dict) -> bool:
+            """Ensure _serialized is present before the format string is applied.
+
+            Some records (e.g. from spawned processes or direct loguru calls) skip
+            InterceptHandler and arrive without _serialized in extra.  We populate
+            it here so the format string never raises KeyError.
+            """
+            if "_serialized" not in record["extra"]:
+                record["extra"]["_serialized"] = _format_record(record)
+            return True
+
+        # Date-based filename: querywise_2026-04-13.jsonl
+        # No enqueue=True so logs are written synchronously (real-time)
         logger.add(
-            str(log_dir / f"{app_name}.jsonl"),
+            str(log_dir / f"{app_name}_{{time:YYYY-MM-DD}}.jsonl"),
             format="{extra[_serialized]}\n",
+            filter=_ensure_serialized,
             level="DEBUG",
-            rotation="00:00",
+            rotation=rotation,
             retention=retention,
-            compression="gz",
-            enqueue=True,  # async-safe for multi-threaded workers
         )
 
     # Intercept stdlib logging so existing getLogger(__name__) calls work
@@ -202,6 +244,19 @@ def setup_logging(
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
+# Context variable for propagating request IDs through async call chains
+_request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
+
+
+def set_request_id(request_id: str) -> None:
+    """Store the request ID in the current async context for log correlation."""
+    _request_id_ctx.set(request_id)
+
+
 def get_trace_id() -> str:
-    """Generate a UUID4 trace ID for correlating async operations."""
-    return str(uuid4())
+    """Return the request ID from context if available, otherwise generate a UUID4.
+
+    Falls back to a fresh UUID4 when no request ID has been set in the current
+    async context (e.g. background tasks, startup).
+    """
+    return _request_id_ctx.get() or str(uuid4())

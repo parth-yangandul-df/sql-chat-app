@@ -172,3 +172,43 @@ export interface KnowledgeChunk {
 export interface KnowledgeDocumentDetail extends KnowledgeDocument {
   chunks: KnowledgeChunk[];
 }
+
+export interface User {
+  id: string;
+  email: string;
+  role: 'admin' | 'manager' | 'user';
+  resource_id: number | null;
+  employee_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserCreate {
+  email: string;
+  password: string;
+  role: 'admin' | 'manager' | 'user';
+  resource_id?: number | null;
+  employee_id?: string | null;
+}
+
+export interface SampleQuery {
+  id: string;
+  connection_id: string;
+  natural_language: string;
+  sql_query: string;
+  description: string | null;
+  tags: string[] | null;
+  is_validated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserUpdate {
+  email?: string;
+  password?: string;
+  role?: 'admin' | 'manager' | 'user';
+  resource_id?: number | null;
+  employee_id?: string | null;
+  is_active?: boolean;
+}

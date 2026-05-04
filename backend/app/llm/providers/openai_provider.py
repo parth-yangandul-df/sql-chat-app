@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 
 import openai
 
+from app.core.exceptions import raise_if_provider_rate_limited
 from app.llm.base_provider import (
     BaseLLMProvider,
     LLMConfig,
@@ -10,14 +11,16 @@ from app.llm.base_provider import (
     LLMProviderType,
     LLMResponse,
 )
+from app.llm.retry import llm_retry
 
 
 class OpenAIProvider(BaseLLMProvider):
     provider_type = LLMProviderType.OPENAI
 
     def __init__(self, api_key: str | None = None):
-        self._client = openai.AsyncOpenAI(api_key=api_key, timeout=30.0)
+        self._client = openai.AsyncOpenAI(api_key=api_key, timeout=60.0)
 
+    @llm_retry()
     async def complete(
         self,
         messages: list[LLMMessage],
@@ -26,14 +29,18 @@ class OpenAIProvider(BaseLLMProvider):
         oai_messages = [{"role": m.role, "content": m.content} for m in messages]
 
         start = time.monotonic()
-        response = await self._client.chat.completions.create(
-            model=config.model,
-            messages=oai_messages,
-            temperature=config.temperature,
-            max_completion_tokens=config.max_tokens,
-            top_p=config.top_p,
-            stop=config.stop_sequences or None,
-        )
+        try:
+            response = await self._client.chat.completions.create(
+                model=config.model,
+                messages=oai_messages,
+                temperature=config.temperature,
+                max_completion_tokens=config.max_tokens,
+                top_p=config.top_p,
+                stop=config.stop_sequences or None,
+            )
+        except Exception as err:
+            raise_if_provider_rate_limited(err, "OpenAI")
+            raise
         elapsed_ms = (time.monotonic() - start) * 1000
 
         choice = response.choices[0]
@@ -53,23 +60,34 @@ class OpenAIProvider(BaseLLMProvider):
     ) -> AsyncIterator[str]:
         oai_messages = [{"role": m.role, "content": m.content} for m in messages]
 
-        stream = await self._client.chat.completions.create(
-            model=config.model,
-            messages=oai_messages,
-            temperature=config.temperature,
-            max_completion_tokens=config.max_tokens,
-            stream=True,
-        )
+        try:
+            stream = await self._client.chat.completions.create(
+                model=config.model,
+                messages=oai_messages,
+                temperature=config.temperature,
+                max_completion_tokens=config.max_tokens,
+                stream=True,
+            )
+        except Exception as err:
+            raise_if_provider_rate_limited(err, "OpenAI")
+            raise
 
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
+    @llm_retry()
     async def generate_embedding(self, text: str) -> list[float]:
-        response = await self._client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text,
-        )
+        from app.config import settings
+
+        try:
+            response = await self._client.embeddings.create(
+                model=settings.embedding_model,
+                input=text,
+            )
+        except Exception as err:
+            raise_if_provider_rate_limited(err, "OpenAI")
+            raise
         return response.data[0].embedding
 
     def list_models(self) -> list[str]:
