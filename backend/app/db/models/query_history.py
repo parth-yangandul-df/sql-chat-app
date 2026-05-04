@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.db.models.chat_session import ChatSession
 
 TurnType = Literal["query", "clarification", "show_sql", "explain_result"]
 ClarificationReason = Literal[
@@ -54,6 +59,6 @@ class QueryExecution(Base):
     result_preview_rows: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
     # Relationship back to session
-    session: Mapped["ChatSession | None"] = relationship(  # noqa: F821
+    session: Mapped["ChatSession | None"] = relationship(
         "ChatSession", back_populates="executions"
     )

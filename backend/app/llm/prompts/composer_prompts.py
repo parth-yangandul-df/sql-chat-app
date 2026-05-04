@@ -48,6 +48,8 @@ CRITICAL — Exact column naming (violations produce broken queries that fail at
 
 Dialect-specific rules (apply based on the SQL dialect in CONSTRAINTS):
 - sqlserver:  Use SELECT TOP N instead of LIMIT. Quote identifiers with [square brackets]. Do NOT use LIMIT. Do NOT use RETURNING. Use GETDATE() instead of NOW(). Use LEN() instead of LENGTH(). Use ISNULL() instead of COALESCE where appropriate.
+- For text/name filters (e.g., ProjectName, ClientName, ResourceName), always use LIKE '%value%' for case-insensitive partial matching — never use =.
+- When filtering on "billable", "active", "current" resources or assignments, always include the date check: AND (EndDate > GETDATE() OR EndDate IS NULL).
 
 
 Output format:

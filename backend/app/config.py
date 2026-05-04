@@ -92,5 +92,10 @@ class Settings(BaseSettings):
     log_rotation: str = "10 MB"
     log_retention: str = "10 days"
 
+    # LangSmith observability
+    langsmith_api_key: str = ""
+    langsmith_project: str = "querywise"
+    langsmith_tracing_enabled: bool = False
+
 
 settings = Settings()

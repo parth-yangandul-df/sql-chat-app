@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from datetime import datetime
 from uuid import UUID
 
@@ -9,12 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.api.v1.schemas.query import ExecuteSQLRequest, QueryRequest, SQLOnlyResponse
-from app.core.exceptions import AppError, InternalServerError
+from app.core.exceptions import AppError
 from app.db.models.user import User
 from app.db.session import get_db
 from app.services import query_service
 
 router = APIRouter(prefix="/query", tags=["query"])
+logger = logging.getLogger(__name__)
 
 _STREAM_STAGES = [
     {"stage": "understanding", "label": "Understanding your question...", "progress": 20},
@@ -107,10 +109,13 @@ async def stream_query(
             query_task.cancel()
             raise
         except AppError as exc:
+            logger.warning("Query error: %s (code=%s)", exc.message, exc.status_code)
             yield _encode_stream_event(exc.to_stream_event())
         except Exception:
-            internal_error = InternalServerError()
-            yield _encode_stream_event(internal_error.to_stream_event())
+            logger.error("Query stream error: %s", exc_info=True)
+            yield _encode_stream_event(
+                {"type": "error", "message": "Something went wrong. Please try again.", "code": 500}
+            )
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

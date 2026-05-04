@@ -14,6 +14,8 @@ from app.llm.base_provider import (
 )
 from app.llm.retry import llm_retry
 
+logger = __import__("logging").getLogger(__name__)
+
 
 class AnthropicProvider(BaseLLMProvider):
     provider_type = LLMProviderType.ANTHROPIC
@@ -54,6 +56,7 @@ class AnthropicProvider(BaseLLMProvider):
             response = await self._client.messages.create(**kwargs)
         except Exception as err:
             raise_if_provider_rate_limited(err, "Anthropic")
+            logger.error("Anthropic API error: %s", err, exc_info=True)
             raise
         elapsed_ms = (time.monotonic() - start) * 1000
 
@@ -94,6 +97,7 @@ class AnthropicProvider(BaseLLMProvider):
                     yield text
         except Exception as err:
             raise_if_provider_rate_limited(err, "Anthropic")
+            logger.error("Anthropic stream error: %s", err, exc_info=True)
             raise
 
     async def generate_embedding(self, text: str) -> list[float]:
