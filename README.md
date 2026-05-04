@@ -235,8 +235,8 @@ For development, `docker compose up app-db` starts the app database without the 
 | `DEBUG` | `false` | Enable debug mode |
 | `ENCRYPTION_KEY` | `dev-encryption-key-change-in-production` | Fernet key for encrypting stored connection strings |
 | `CORS_ORIGINS` | `["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:4200", "http://localhost:4000"]` | Allowed CORS origins (JSON list) |
-| `DEFAULT_LLM_PROVIDER` | `anthropic` | Default LLM provider (`anthropic`, `openai`, `ollama`, `openrouter`, `groq`) |
-| `DEFAULT_LLM_MODEL` | `claude-sonnet-4-20250514` | Default model for SQL generation |
+| `DEFAULT_LLM_PROVIDER` | `openrouter` | Default LLM provider (`anthropic`, `openai`, `ollama`, `openrouter`, `groq`) |
+| `DEFAULT_LLM_MODEL` | `deepseek/deepseek-v3.2` | Default model for SQL generation |
 | `EMBEDDING_MODEL` | `openai/text-embedding-3-small` | Model for generating embeddings (used with OpenAI provider or `EMBEDDING_PROVIDER=openrouter`) |
 | `EMBEDDING_DIMENSION` | `1536` | Embedding vector dimension |
 | `DEFAULT_QUERY_TIMEOUT_SECONDS` | `30` | Max query execution time |

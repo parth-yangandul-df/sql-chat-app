@@ -8,21 +8,10 @@ QueryWise supports multiple LLM providers via a pluggable architecture in `backe
 
 | Provider | Model Configuration | Embedding Support |
 |----------|---------------------|-------------------|
-| **Anthropic** | `DEFAULT_LLM_MODEL` (Claude) | Via OpenAI (fallback) |
-| **OpenAI** | `DEFAULT_LLM_MODEL` (GPT-5.2) | Native |
-| **Ollama** | `OLLAMA_MODEL` (llama3.1:8b) | Native (nomic-embed-text) |
 | **OpenRouter** | Multiple models per role | Via OpenAI-compatible |
-| **Groq** | `DEFAULT_LLM_MODEL` | Via OpenAI |
+
 
 ### Provider-Specific Configuration
-
-**Anthropic**
-- `ANTHROPIC_API_KEY` — Required
-- Embeddings fall back to OpenAI
-
-**OpenAI**
-- `OPENAI_API_KEY` — Required
-- `EMBEDDING_MODEL` — text-embedding-3-small
 
 **Ollama**
 - `OLLAMA_BASE_URL` — http://host.docker.internal:11434 (macOS native) or http://ollama:11434 (Docker)
@@ -37,10 +26,6 @@ QueryWise supports multiple LLM providers via a pluggable architecture in `backe
   - `RESOLVER_MODEL` — Resolver (intent classification)
   - `INTERPRETER_MODEL` — Interpreter (result summaries)
 - Embeddings via `EMBEDDING_PROVIDER=openrouter`
-
-**Groq**
-- `GROQ_API_KEY` — Required
-- Optional: `USE_GROQ_EXTRACTOR=true` for unified intent + filter extraction
 
 ### Embedding Configuration
 

@@ -98,8 +98,8 @@ chatbot-frontend/src/    # React + Tailwind + shadcn/ui (port 5174)
 |----------|---------|-------------|
 | `DATABASE_URL` | `postgresql+asyncpg://querywise:querywise_dev@localhost:5432/querywise` | App metadata DB |
 | `ENCRYPTION_KEY` | `dev-encryption-key-change-in-production` | Fernet key for connection strings |
-| `DEFAULT_LLM_PROVIDER` | `anthropic` | LLM provider (`anthropic`, `openai`, `ollama`, `openrouter`, `groq`) |
-| `DEFAULT_LLM_MODEL` | `Codex-sonnet-4-20250514` | Default model for SQL generation. **Ignored when `DEFAULT_LLM_PROVIDER=openrouter`** — use `OPENROUTER_MODEL`, `RESOLVER_MODEL`, `INTERPRETER_MODEL` instead. |
+| `DEFAULT_LLM_PROVIDER` | `openrouter` | LLM provider (`anthropic`, `openai`, `ollama`, `openrouter`, `groq`) |
+| `DEFAULT_LLM_MODEL` | `deepseek/deepseek-v3.2` | Default model for SQL generation. **Ignored when `DEFAULT_LLM_PROVIDER=openrouter`** — use `OPENROUTER_MODEL`, `RESOLVER_MODEL`, `INTERPRETER_MODEL` instead. |
 | `EMBEDDING_MODEL` | `openai/text-embedding-3-small` | Embedding model (used with OpenAI, OpenRouter, or when `EMBEDDING_PROVIDER=openai`) |
 | `CORS_ORIGINS` | `["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:4200", "http://localhost:4000"]` | Allowed CORS origins |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama server URL |

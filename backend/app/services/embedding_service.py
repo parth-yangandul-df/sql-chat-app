@@ -1,4 +1,6 @@
 import hashlib
+import logging
+from collections import OrderedDict
 from collections.abc import Callable
 
 from sqlalchemy import func, select
@@ -9,14 +11,19 @@ from app.db.models.knowledge import KnowledgeChunk, KnowledgeDocument
 from app.db.models.metric import MetricDefinition
 from app.db.models.sample_query import SampleQuery
 from app.db.models.schema_cache import CachedColumn, CachedTable
-from app.llm.provider_registry import get_embedding_provider
+
+logger = logging.getLogger(__name__)
 
 _provider = None
+
+_EMBEDDING_CACHE: OrderedDict[str, list[float]] = OrderedDict()
+_EMBEDDING_CACHE_MAX_SIZE = 100
 
 
 def _get_provider():
     global _provider
     if _provider is None:
+        from app.llm.provider_registry import get_embedding_provider
         _provider = get_embedding_provider()
     return _provider
 
@@ -26,9 +33,27 @@ def _hash_text(text: str) -> str:
 
 
 async def embed_text(text: str) -> list[float]:
-    """Generate an embedding vector for the given text."""
+    """Generate an embedding vector for the given text.
+    
+    Uses an in-memory LRU cache for repeated questions (e.g., re-stated queries,
+    multi-turn follow-ups with similar wording).
+    """
+    cache_key = _hash_text(text)
+    
+    if cache_key in _EMBEDDING_CACHE:
+        _EMBEDDING_CACHE.move_to_end(cache_key)
+        logger.debug("embed_text: cache hit for question=%r", text[:50])
+        return _EMBEDDING_CACHE[cache_key]
+    
     provider = _get_provider()
-    return await provider.generate_embedding(text)
+    embedding = await provider.generate_embedding(text)
+    
+    _EMBEDDING_CACHE[cache_key] = embedding
+    if len(_EMBEDDING_CACHE) > _EMBEDDING_CACHE_MAX_SIZE:
+        _EMBEDDING_CACHE.popitem(last=False)
+    
+    logger.debug("embed_text: cache miss for question=%r", text[:50])
+    return embedding
 
 
 async def embed_table(table: CachedTable) -> list[float]:
