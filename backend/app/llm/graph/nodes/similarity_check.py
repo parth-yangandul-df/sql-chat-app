@@ -11,7 +11,7 @@ Skipped automatically when:
   - No validated sample queries exist for this connection
 
 Configure via env:
-  SIMILARITY_SHORTCUT_THRESHOLD   float 0.0–1.0, default 0.92
+SIMILARITY_SHORTCUT_THRESHOLD   float 0.0–1.0, default 0.85
 """
 
 import logging
@@ -26,9 +26,7 @@ from app.llm.graph.state import GraphState
 
 logger = logging.getLogger(__name__)
 
-# Cosine similarity threshold (0.0–1.0).
-# pgvector cosine_distance = 1 - similarity, so we match when distance ≤ (1 - threshold).
-_SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_SHORTCUT_THRESHOLD", "0.92"))
+_SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_SHORTCUT_THRESHOLD", "0.85"))
 
 
 async def similarity_check(state: GraphState) -> dict[str, Any]:
